@@ -172,3 +172,61 @@ Alcance reducido respecto al plan original: en vez de meter Zod + preview intera
 
 ### Próximo paso
 - **Hito 4 — Preview interactiva obligatoria**: mostrar las primeras/últimas N líneas antes de escribir con `--out`, confirmación `[y/N]`, flag `--yes` para CI. Sin prompt para stdout (no es escritura persistente).
+
+---
+
+## 2026-04-17 — Hito 4 · Preview interactiva + hardening de escritura
+
+### Qué hicimos
+Este hito arrancó como "preview obligatoria antes de `--out`" y creció a tres mejoras chicas pero relevantes que comparten el mismo espíritu (prevenir sorpresas en la escritura a disco): preview + confirm, no-pisa-sin-permiso, y escritura atómica. Todo pensado para que la semántica se trasvase idéntica a la extensión VS Code en Fase 3, donde el mismo `buildPreview()` alimenta un webview y `confirm()` se reemplaza por un botón.
+
+**Módulos nuevos:**
+- `src/cli/preview.ts` — función pura `buildPreview(markdown, outPath, report, redactionEnabled, { headLines, tailLines })` + helper `humanSize(bytes)`. Head/tail/gap si supera el umbral, documento entero si es corto, footer con path + tamaño legible + resumen de redacción. Sin side-effects, 100% testeable.
+- `src/cli/prompt.ts` — `confirm(question): Promise<boolean>` con `node:readline/promises`, output a **stderr** para no contaminar stdout. Default **No**: solo `y` / `yes` (case-insensitive, tras `.trim()`) retorna `true`. `stdinIsTTY()` para detectar pipes.
+
+**`src/cli/commands/export.ts` reescrito:**
+- Dos ramas: stdout (como antes, sin cambios) vs `--out` (flujo nuevo).
+- Nuevas flags: `--yes` / `-y` para saltar el prompt, `--force` / `-f` para pisar archivos existentes. **Ortogonales**: `--yes` salta confirmación de contenido, `--force` salta chequeo de existencia. En CI usás las dos.
+- Guardas en orden:
+  1. Si el archivo destino existe y no hay `--force` → error claro y abort.
+  2. Si no hay `--yes` y stdin no es TTY → error pidiendo `--yes` o terminal interactiva (fail-closed: nunca colgarse esperando input imposible).
+  3. Si no hay `--yes` y sí hay TTY → imprime preview a stderr + `WARNING` extra si `--no-redact` está activo + prompt. `n`/Enter/cualquier otra cosa cancela con mensaje "Cancelled. No file was written." (exit 0, no es error).
+- **Escritura atómica**: `writeFile(out + '.tmp')` → `rename(tmp, out)`. Un Ctrl+C o falla de disco mid-write deja el archivo original intacto (o ningún archivo), nunca un `.md` truncado. Si el `rename` falla, cleanup best-effort del `.tmp`.
+
+**Tests:**
+- `tests/cli/preview.test.ts` con 9 casos: documentos cortos (sin truncar), largos (con marker de N lines omitted), verificación de path/tamaño/lineas en footer, 3 estados del resumen de redacción (con datos / sin datos / desactivada), humanSize en bytes/KB/MB.
+- CLI commands siguen excluidos de coverage (smoke-test manual).
+- Total: 46/46 tests pasando, 11 archivos.
+
+### Decisiones técnicas del hito
+- **Preview a stderr, no stdout**: stdout queda reservado para el markdown en modo "sin --out" (piping). Contaminarlo con líneas separadoras rompería cualquier `exportal export ... > archivo.md`. stderr es el canal correcto para "información para humanos".
+- **Default No en el prompt** (consistente con `--no-redact` que tampoco es default): el usuario opta **in** a una acción persistente, nunca opta out por descuido o por apretar Enter rápido.
+- **Fail-closed en pipe sin `--yes`**: antes que colgarse esperando input imposible o auto-asumir "sí porque no hay manera de preguntar", error claro que instruye qué hacer. Es el mismo principio que el `WARNING` de redacción: ruido ahora para evitar sorpresas después.
+- **`--force` no implica `--yes`**: son dos dimensiones distintas. `--force` dice "sé que existe, pisalo". `--yes` dice "confío en el contenido, no me muestres el preview". Combinándolas das las dos autorizaciones. Forzarlas juntas sería menos expresivo.
+- **Umbral del preview = 40 líneas** (head=15 + tail=15 + buffer=10): si el archivo tiene ≤40 líneas se muestra entero (evita truncar un export diminuto y mostrar "[... 0 lines omitted ...]"). Arriba de 40 se trunca simétricamente. Umbrales arbitrarios pero razonables; si después se pide configurabilidad, `--preview-lines N` entra fácil.
+- **Atomic write siempre, no opcional**: es gratis en disco local. El costo de "¿y si dejo un `.md` corrupto?" en un hito que se llama "preview obligatoria" sería inconsistente con su propio nombre.
+- **Separación `preview.ts` pura + `prompt.ts` con I/O**: la pura se testea a muerte, la de I/O se smoke-testea. Esta frontera es exactamente la que la extensión de Fase 3 va a explotar: reusar `buildPreview()` directo y reemplazar `confirm()` por UI.
+
+### Verificación
+- `npm run ci` — 46/46 tests ✓, lint ✓, typecheck ✓, build ✓.
+- Smoke tests automatizables (bash):
+  1. `--out --yes` → escribe, no deja `.tmp`, exit 0, resumen de redacción post-write. ✓
+  2. `--out --yes` sobre archivo existente → error claro "already exists. Pass --force". Archivo original intacto. ✓
+  3. `--out --force --yes` sobre archivo existente → pisa OK, sin `.tmp` residual. ✓
+  4. `echo "" | node dist/cli/index.js export ... --out X` (stdin pipeado, sin `--yes`) → error claro pidiendo `--yes` o TTY. No escribe archivo. ✓
+- Smoke tests interactivos (PowerShell, confirmados por el usuario):
+  1. `--out` sobre archivo inexistente → muestra preview + prompt. `y` escribe correctamente. ✓
+  2. Mismo comando con archivo existente → rechaza sin `--force`. ✓
+  3. `--out --force` (sin `--yes`) → pide confirmación de nuevo (correcto: `--force` y `--yes` son ortogonales). ✓
+  4. Responder Enter/`n` al prompt → "Cancelled. No file was written." Archivo original con `LastWriteTime` sin modificar (verificado vía `Get-Item`). ✓
+
+### Flake transitorio (vale mencionarlo)
+- El primer `npm run ci` tras abrir PowerShell después del descanso falló en todos los test files con `TypeError: Cannot read properties of undefined (reading 'config')`. El reporte de vitest mostraba el cwd como `d:/Dionisio/ClaudeTool` (minúscula) en vez de `D:/Dionisio/ClaudeTool` (mayúscula). Una segunda ejecución idéntica pasó limpio (path volvió a mayúscula). Parece interacción rara entre npm, vitest v4 y el casing de drives en Windows; no es reproducible on-demand. Queda anotado por si reaparece.
+
+### Limitaciones conocidas (para próximos hitos)
+- `tool_use` y `thinking` siguen omitidos del markdown (Hito 5, opcional).
+- El preview trunca líneas, no los runs de conversación completos. Si la conversación arranca con una pregunta de 40 líneas, el "head" va a estar todo dentro de ese primer turno. Aceptable: el header antes de los 15 siempre es parte del head.
+- Sin paginación del preview para documentos gigantes — si querés ver las 500 líneas del medio, abrís el archivo con `--yes` y lo inspeccionás vos.
+
+### Próximo paso
+- **Hito 5 (opcional) — Opt-in render de `tool_use` / `thinking`**: flags `--include-tools` y `--include-thinking`. Decisión de UX pendiente (colapsables, summary-only, full). Podría saltarse si preferimos ir directo a **Hito 6 — Fase 2 (import desde ZIP de claude.ai)**, que tiene más valor de producto.

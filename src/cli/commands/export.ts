@@ -1,4 +1,4 @@
-import { writeFile } from 'node:fs/promises';
+import { access, rename, unlink, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
 import { type Command } from 'commander';
@@ -8,14 +8,20 @@ import { readJsonl } from '../../core/reader.js';
 import { describeSession } from '../../core/session.js';
 import { formatAsMarkdown } from '../../formatters/markdown.js';
 import { type RedactionReport } from '../../redactors/index.js';
+import { buildPreview } from '../preview.js';
+import { confirm, stdinIsTTY } from '../prompt.js';
 
 const SESSION_ID = /^[a-f0-9-]{10,64}$/i;
+const PREVIEW_HEAD = 15;
+const PREVIEW_TAIL = 15;
 
 interface ExportOptions {
   readonly project?: string;
   readonly out?: string;
   readonly redact: boolean;
   readonly skipPrecompact?: boolean;
+  readonly yes?: boolean;
+  readonly force?: boolean;
 }
 
 export function registerExport(program: Command): void {
@@ -26,6 +32,8 @@ export function registerExport(program: Command): void {
     .option('--out <file>', 'Write to file instead of stdout')
     .option('--no-redact', 'Disable redaction (not recommended)')
     .option('--skip-precompact', 'Drop events before the latest compact boundary')
+    .option('-y, --yes', 'Skip the interactive preview prompt (for CI / scripting)')
+    .option('-f, --force', 'Overwrite the output file if it already exists')
     .action(async (sessionId: string, opts: ExportOptions) => {
       if (!SESSION_ID.test(sessionId)) {
         throw new Error(`Invalid sessionId format: ${sessionId}`);
@@ -40,14 +48,87 @@ export function registerExport(program: Command): void {
         ...(opts.skipPrecompact === true && { skipPrecompact: true }),
       });
 
-      if (opts.out !== undefined) {
-        await writeFile(opts.out, markdown, { encoding: 'utf8' });
-        process.stderr.write(`Wrote ${opts.out}\n`);
-      } else {
+      if (opts.out === undefined) {
         process.stdout.write(markdown);
+        writeSummary(report, !opts.redact);
+        return;
       }
-      writeSummary(report, !opts.redact);
+
+      await writeWithPreview(markdown, report, opts);
     });
+}
+
+async function writeWithPreview(
+  markdown: string,
+  report: RedactionReport,
+  opts: ExportOptions,
+): Promise<void> {
+  const out = opts.out!;
+
+  if (opts.force !== true && (await fileExists(out))) {
+    throw new Error(
+      `Output file already exists: ${out}. Pass --force to overwrite, or pick a different --out.`,
+    );
+  }
+
+  if (opts.yes !== true) {
+    if (!stdinIsTTY()) {
+      throw new Error(
+        'Interactive confirmation required for --out but stdin is not a TTY. Re-run with --yes to skip the prompt, or from an interactive terminal.',
+      );
+    }
+    const preview = buildPreview(markdown, out, report, opts.redact, {
+      headLines: PREVIEW_HEAD,
+      tailLines: PREVIEW_TAIL,
+    });
+    process.stderr.write(`\n${preview}\n\n`);
+    if (opts.redact === false) {
+      process.stderr.write(
+        'WARNING: Redaction is DISABLED. The file above may contain secrets or PII.\n',
+      );
+    }
+    const go = await confirm('Proceed with write?');
+    if (!go) {
+      process.stderr.write('Cancelled. No file was written.\n');
+      return;
+    }
+  }
+
+  await atomicWrite(out, markdown);
+  process.stderr.write(`Wrote ${out}\n`);
+  if (opts.yes === true) {
+    // No preview was shown; print the summary post-write so the user
+    // still learns what was redacted.
+    writeSummary(report, !opts.redact);
+  }
+}
+
+async function fileExists(path: string): Promise<boolean> {
+  try {
+    await access(path);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Write to `${path}.tmp` then rename into place. A Ctrl+C, power loss,
+ * or full-disk mid-write leaves either the original file intact (if it
+ * existed) or no file at all — never a truncated half-written export.
+ * If the rename fails we try to unlink the tmp so it doesn't linger.
+ */
+async function atomicWrite(path: string, content: string): Promise<void> {
+  const tmp = `${path}.tmp`;
+  await writeFile(tmp, content, { encoding: 'utf8' });
+  try {
+    await rename(tmp, path);
+  } catch (err) {
+    await unlink(tmp).catch(() => {
+      /* best-effort cleanup; surface the original error */
+    });
+    throw err;
+  }
 }
 
 function writeSummary(report: RedactionReport, redactionDisabled: boolean): void {
