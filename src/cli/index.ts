@@ -4,6 +4,7 @@ import { Command } from 'commander';
 import { VERSION } from '../index.js';
 
 import { registerExport } from './commands/export.js';
+import { registerImport } from './commands/import.js';
 import { registerList } from './commands/list.js';
 
 const program = new Command();
@@ -14,6 +15,7 @@ program
 
 registerList(program);
 registerExport(program);
+registerImport(program);
 
 program.parseAsync(process.argv).catch((error: unknown) => {
   const message = error instanceof Error ? error.message : String(error);

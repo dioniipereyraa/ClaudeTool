@@ -295,3 +295,68 @@ Con Hito 5 cerrado, Fase 1 (CLI export de Claude Code → Markdown) está **func
 
 ### Próximo paso
 - **Hito 6 — Fase 2 (inicio): import del ZIP de claude.ai**. Primero: inspeccionar un export real de claude.ai (pedirle al usuario que exporte su cuenta desde Settings → Export data) para entender estructura del ZIP, formato de los JSONs de conversación, y los assets adjuntos. Recién con eso claro, decidir alcance del hito.
+
+---
+
+## Hito 6 — Import claude.ai ZIP: schema, reader y `import list` (2026-04-17)
+
+### Objetivo
+Primer paso concreto de Fase 2: leer un export oficial de claude.ai (`data-*-batch-0000.zip`) y listar las conversaciones que contiene. Sin markdown todavía — primero probamos que el pipeline de apertura + validación funciona, después pensamos el render.
+
+### Inspección previa (antes de escribir código)
+- El ZIP trae 4 archivos JSON, cada uno un array top-level:
+  - `users.json` — perfiles de cuenta (UUID, nombre, email, teléfono).
+  - `memories.json` — el "conversation memory" consolidado de la cuenta.
+  - `projects.json` — proyectos del usuario, con docs anidados.
+  - `conversations.json` — el payload principal: array de conversaciones con mensajes.
+- No hay directorios, ni binarios: los attachments vienen inline con `extracted_content` (texto ya extraído del PDF/DOC/etc.), y los `files` son solo referencias (`file_uuid` + `file_name`, sin los bytes).
+- Los senders son `human` / `assistant` (en Claude Code son `user` / `assistant` — atención al mapear después).
+- Los bloques de contenido son `text`, `tool_use`, `tool_result`. **No hay `thinking`** en el export web.
+- Un `tool_use` tiene muchos campos MCP/integrations (`is_mcp_app`, `mcp_server_url`, `integration_name`, `integration_icon_url`, `icon_name`, etc.) — en la inspección inicial los anotamos todos.
+- Un tamaño real: 7 conversaciones, 280 mensajes, la más grande con 246 mensajes.
+
+### Alcance del hito (lo que SÍ entra)
+1. **Zod schemas** para los 4 JSON files, todos con `.passthrough()` (misma política que los schemas de Claude Code: aceptar campos futuros sin romper).
+2. **Reader** (`readClaudeAiExport(zipPath)`) que abre el ZIP con jszip y parsea los 4 archivos. Fail-hard si falta/rompe `conversations.json`; fail-soft sobre los otros tres (van a `warnings[]`).
+3. **CLI**: `exportal import list <zip>` que imprime las conversaciones ordenadas por fecha descendente, con UUID, cantidad de mensajes y título truncado.
+4. **Tests**: schema (válidos, passthrough, rechazos) + reader con ZIPs sintéticos construidos in-memory con jszip (happy path, optional missing, optional invalid JSON, optional invalid schema, conversations missing, conversations invalid).
+
+### Alcance del hito (lo que NO entra)
+- Markdown output de una conversación — eso es Hito 7.
+- Manejo de attachments (solo validamos el schema, no los extraemos).
+- UI interactiva para seleccionar conversaciones — el listado por stdout alcanza para probar el pipeline.
+- Redactor sobre el output — todavía no estamos emitiendo contenido sensible; solo UUIDs y títulos.
+
+### Decisiones técnicas del hito
+- **jszip sobre adm-zip/yauzl**. Razones:
+  - API promise-native (`loadAsync`, `file().async('string')`) — encaja con el resto del código que ya es async/await.
+  - **Zero native deps**: instalación idempotente en Windows/Linux/Mac sin node-gyp.
+  - **Funciona idénticamente en el browser**: cuando lleguemos a Fase 3 (extensión VS Code) podemos reusar el mismo reader sin tocar nada. yauzl y adm-zip son Node-only.
+  - `adm-zip` tuvo históricamente CVEs de path traversal. No nos afecta directamente (no extraemos a disco, solo leemos entries nombrados) pero es señal.
+- **Namespace `src/importers/claudeai/`**: dejamos la puerta abierta a otros importadores (ChatGPT exports, Gemini, lo que sea) sin refactor. El CLI subcomando `import <source>` también lo prevé — por ahora solo `--source claudeai` (default).
+- **Fail-soft en JSONs auxiliares, fail-hard en conversations.json**: la conversación es el payload principal; sin eso no hay herramienta. Los otros tres son contexto útil pero opcional — un usuario podría hacer un export recortado, o Anthropic podría cambiar el formato de `projects.json` sin tocar `conversations.json`, y no queremos que eso rompa el import. Las incidencias se exponen por `warnings[]` y el CLI las imprime a stderr.
+- **Schema defensivo en booleans**: `is_mcp_app` aparece como `null` en bloques reales (no `false` ni ausente). Lo definimos `.boolean().nullable().optional()`. Mismo patrón que usamos para los strings de integraciones (`integration_name`, `mcp_server_url`). Lección: nunca asumir `optional` es suficiente — Anthropic emite `null` explícito en varios campos.
+- **ZIP in-memory completo (sin streaming)**: exports típicos son <10MB (prose + JSON). Streaming sumaría complejidad sin beneficio medible. Cuando alguien reporte un export de 100MB, revisamos.
+- **Tests con ZIPs sintéticos construidos en runtime**: usamos jszip para generar ZIPs en memoria dentro de `mkdtemp(os.tmpdir())`, cleanup con `afterEach`. Ventaja: no chequeamos fixtures binarios al repo, los escenarios (malformed JSON, schema inválido, archivos faltantes) son triviales de expresar en código, y cada test es autocontenido.
+
+### Problema encontrado durante la prueba manual y cómo lo resolvimos
+- **Primer run contra el ZIP real**: `conversations.json failed schema validation`. Corrimos un script de debug con `safeParse` directo e imprimimos las 15 primeras issues — todas eran `is_mcp_app: null` en tool_use blocks. Nuestro schema lo tenía como `z.boolean().optional()`. Lo relajamos a `.nullable().optional()` y resolvió las 15 issues sin tocar más nada. Post-fix: el ZIP real lista correctamente las 7 conversaciones.
+- **Lint fallo en `import.ts`**: usamos el literal `'claudeai'` como tipo de `opts.source`, y ESLint se quejó de `template literal expression never` en la rama de error (TypeScript inferió `never` porque el if descarta el único valor posible). Solución: tipar `source: string` — es más honesto, el valor viene del runtime de commander y cualquiera puede pasar `--source algo_raro`.
+
+### Verificación
+- `npm run ci` → **68/68 tests** ✓ (17 nuevos: 10 schema, 7 reader), lint ✓, typecheck ✓, build ✓.
+- Prueba manual contra el ZIP real (`C:/Users/dioni/Downloads/data-...-batch-0000.zip`):
+  ```
+  # claude.ai export  (7 conversations)
+    555f61a8-...  [2026-04-16] messages=6    Exportar chats de Claude AI a VS Code
+    792bd257-...  [2026-04-15] messages=4    Dominio y curvas de nivel de función lineal
+    09b71f49-...  [2026-04-15] messages=16   Redacción de solicitud para pasantía en TELUS Digital
+    289ac9dc-...  [2026-04-13] messages=246  Cotizar y desarrollar web para carnicería familiar
+    2d9206b0-...  [2026-04-06] messages=2    Continuidad vs diferenciabilidad en un punto
+    5fd4933d-...  [2026-04-06] messages=4    Problemas de conexión con VS Code
+    81dce8b5-...  [2026-03-12] messages=2    Exportar conversación de Claude entre sistemas operativos
+  ```
+  Coincide con la inspección inicial del ZIP. Sin warnings (los 4 JSON se parsearon OK).
+
+### Próximo paso
+- **Hito 7 — render Markdown de una conversación de claude.ai**. `exportal import show <zip> <conversationId>` (o `--all`) que toma una conversación y emite Markdown con la misma estética que el export de Claude Code, reusando el redactor. Mapear `human` → `## User`, `assistant` → `## Assistant`. Decidir cómo mostrar tool_use/tool_result web-específicos (web_search con citations es el caso interesante) y cómo tratar attachments (`extracted_content` inline como bloque aparte? ignorar?). Decisión sobre archivos faltantes: probablemente omitir o mostrar solo el nombre.
