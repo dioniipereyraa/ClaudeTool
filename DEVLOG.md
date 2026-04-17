@@ -360,3 +360,72 @@ Primer paso concreto de Fase 2: leer un export oficial de claude.ai (`data-*-bat
 
 ### Próximo paso
 - **Hito 7 — render Markdown de una conversación de claude.ai**. `exportal import show <zip> <conversationId>` (o `--all`) que toma una conversación y emite Markdown con la misma estética que el export de Claude Code, reusando el redactor. Mapear `human` → `## User`, `assistant` → `## Assistant`. Decidir cómo mostrar tool_use/tool_result web-específicos (web_search con citations es el caso interesante) y cómo tratar attachments (`extracted_content` inline como bloque aparte? ignorar?). Decisión sobre archivos faltantes: probablemente omitir o mostrar solo el nombre.
+
+---
+
+## Hito 7 — Render Markdown de conversaciones claude.ai + `import show` (2026-04-17)
+
+### Objetivo
+Segundo paso de Fase 2: `exportal import show <zip> <conversationId>` que toma una conversación web y la emite como Markdown con la misma estética que el export de Claude Code. Con esto ya se puede "unir chats entre plataformas" copy-pasteando el resultado como contexto a Claude Code — el MVP funcional de la visión del producto.
+
+### Alcance del hito (cerrado)
+1. **Refactor preparatorio chico**:
+   - Extraer helpers compartidos de markdown a `src/formatters/markdown-shared.ts` (`fenceCode`, `stringifyJson`, `renderToolUse`, `renderToolResult`).
+   - Extraer I/O del CLI a `src/cli/io.ts` (`writeWithPreview`, `writeSummary`, `atomicWrite`).
+   - `src/cli/commands/export.ts` y el futuro `show` consumen los helpers. Sin copy-paste, mismo comportamiento del Hito 4 (preview + atomic + fail-closed).
+2. **Formatter nuevo** `src/formatters/claudeai-markdown.ts`:
+   - `## User` para sender `human`, `## Assistant` para sender `assistant`.
+   - Merge de turnos consecutivos del mismo rol (como el formatter de Claude Code).
+   - `--include-tools` reutiliza `<details>` del shared module — idéntica UX visual.
+   - `--include-attachments` renderiza `extracted_content` como `<details><summary>📎 adjunto: file.txt</summary>`.
+   - `files[]` (referencias a binarios ausentes del ZIP) se imprimen como nota corta `*[archivo adjunto: X — binario no incluido]*`.
+   - **Citations → footnotes Markdown** `[^N]` agrupadas al final del párrafo + sección `## Referencias` al pie con las URLs.
+3. **CLI nuevo**: `exportal import show <zip> <conversationId>`:
+   - Match exacto por UUID o por prefijo único (paste-friendly — podés agarrar los primeros 8 chars del `import list` output).
+   - Opciones `--out`, `--no-redact`, `--include-tools`, `--include-attachments`, `--yes`, `--force`, `--source`.
+   - Reusa toda la maquinaria de preview interactiva + atomic write + redacción del Hito 4.
+4. **Tests** (9 nuevos): header, merge de roles, redacción, citations con footnotes, default oculta tools, flags los muestran, attachments opt-in, file refs siempre visibles, skip de mensajes vacíos.
+
+### Decisiones técnicas
+- **Citations como footnotes agrupadas, no inline por offset**. Razón: claude.ai devuelve `start_index` / `end_index` sobre el texto original (pre-render), que puede haber sido modificado por tools. Un offset errado deforma el párrafo entero. Los markers agrupados al final del bloque (`... texto final.[^1][^2][^3]`) es el patrón que usan la mayoría de las UIs de AI (ChatGPT, Perplexity). Simple, robusto, y GitHub/VS Code lo renderizan nativo como nota al pie.
+- **Sección final `## Referencias`, no `## Footnotes`**. Argentinismo consciente: todo el resto del output (header, bloques de attachments, warnings) está en español rioplatense. Consistencia con el tono de la herramienta.
+- **Attachments opt-in, file refs always-on**. El `extracted_content` de un attachment es potencialmente enorme (un PDF de 20 páginas sale como texto plano) — por default lo escondemos. Las refs a archivos que NO están en el ZIP sí las mostramos siempre porque es info que el lector debería saber para entender por qué "el mensaje menciona una imagen que no veo".
+- **Match por prefijo único**. `import list` muestra UUIDs completos pero nadie los paste-ea enteros. `import show ... 81dce8b5` funciona si hay una única conversación que empieza con eso; si hay ambigüedad, explota con un error claro. UX decisión chica que ahorra mucha fricción en la práctica.
+- **Shared helpers vs "formatter universal"**. Consideramos unificar en un único formatter con un `adapter` por plataforma, pero los schemas son muy distintos (sender `human`/`user`, presencia/ausencia de `thinking`, citations, attachments). Hubiera terminado siendo un switch gigante. Lo que se puede compartir (render de tool calls, fencing) está en `markdown-shared.ts`; la lógica de ensamblado es específica por formatter. Menos acoplamiento, mismo resultado visual.
+- **Redacción pasa también sobre `## Referencias`**. Las URLs tipo `https://github.com/org/repo` rara vez matchean el redactor (no son paths locales ni tokens), pero corro el output por `redact()` igual. Fail-safe.
+- **No `--all`** todavía. Pensado para Hito 8 si hace falta — emitiría una carpeta con una MD por conversación, con filename sluggificado a partir del título. Por ahora el patrón "1 conversación = 1 markdown" + preview interactiva cubre el caso principal.
+
+### Problemas durante la implementación
+- **Lint**: `parsed === null || parsed[0] === undefined` → arreglado con optional chaining `parsed?.[0] === undefined` (regla `@typescript-eslint/prefer-optional-chain`).
+- **Primer test de redacción falló**: usé token `sk-ant-api03-abcdefghij` (18 chars post-prefix) y el redactor me devolvió `<REDACTED:openai>` en vez de `<REDACTED:anthropic>`. El regex de `anthropic` pide `{20,}` post-prefix, mi token era corto → cayó al siguiente patrón (`openai`, más permisivo). Lo arreglé extendiendo el token al mismo que usa el fixture existente (`abcdefghijklmnopqrstuvwxyz01`). Nota para el futuro: si agregamos fixtures con secretos, respetar la longitud mínima de cada patrón.
+
+### Verificación
+- `npm run ci` → **77/77 tests** ✓ (9 nuevos del formatter), lint ✓, typecheck ✓, build ✓.
+- **Prueba manual contra el ZIP real** (`data-...-batch-0000.zip`, 7 conversaciones, 280 mensajes):
+
+  | Conversación | flags | líneas | elementos rendereados |
+  |---|---|---|---|
+  | `81dce8b5` (2 msgs, corta) | (default) | ~60 | 1 user + 1 assistant, ceros en tools/atts |
+  | `09b71f49` (16 msgs, TELUS) | `--include-tools` | 486 | 4 `<details>` de tool_use/result |
+  | `555f61a8` (6 msgs, con web_search) | (default) | 280 | 4 footnotes + sección `## Referencias` con 4 URLs |
+  | `289ac9dc` (246 msgs, carnicería) | `--include-tools --include-attachments --out` | **5583** | 123 ## User + 123 ## Assistant + 70 collapsibles + 2 📎 attachments + 51 refs a binarios + 55 paths redactados |
+
+- Match por prefijo funciona: `import show <zip> 81dce8b5` encontró la conversación correcta sin el UUID completo.
+- Preview interactiva + atomic write: probado en Hito 4, compartido vía `cli/io.ts`, sin regresiones (76/76 previos siguen verdes).
+
+### Estado del producto tras Hito 7
+El bucle completo `claude.ai → Markdown → pegar como contexto a Claude Code` **ya funciona**:
+1. Usuario exporta sus chats desde Settings → Export data en claude.ai → descarga el ZIP.
+2. `exportal import list <zip>` — ve sus conversaciones con IDs + títulos.
+3. `exportal import show <zip> <id> --out conv.md` — obtiene un Markdown limpio, redactado, listo para pegar.
+4. Pega `conv.md` a Claude Code como contexto → la sesión de Claude Code arranca sabiendo todo lo que se discutió en la web.
+
+Fase 2 está **funcionalmente completa** para el flujo CLI. Lo que falta es la experiencia de un-click (Fase 3 = extensión VS Code).
+
+### Próximo paso
+- **Hito 8 — cerrar bordes y empezar VS Code extension**. Opciones:
+  1. `import show --all` para exportar toda la cuenta a una carpeta de una.
+  2. Mejorar `export` para que acepte prefijo de sessionId (consistencia con `import show`).
+  3. Scaffold de extensión VS Code (`package.json` con activation events, un comando `Exportal: Import claude.ai ZIP`). Reusa `readClaudeAiExport` y `formatConversation` directo — no hay que reescribir nada.
+  
+  La 3 es la que mueve la aguja hacia "un click"; las 1 y 2 son QoL. Sugerencia: arrancar con (3) porque el pipeline CLI ya es robusto y validado; si aparece un bug lo arreglamos, pero invertir en un-click tiene más retorno.

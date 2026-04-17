@@ -7,6 +7,8 @@ import {
 } from '../core/types.js';
 import { emptyReport, redact, type RedactionReport } from '../redactors/index.js';
 
+import { renderToolResult, renderToolUse } from './markdown-shared.js';
+
 export interface FormatOptions {
   readonly redact: boolean;
   readonly skipPrecompact?: boolean;
@@ -162,67 +164,4 @@ function renderThinking(text: string): string {
     .map((line) => `> ${line}`)
     .join('\n');
   return `> *[thinking]*\n>\n${quoted}`;
-}
-
-function renderToolUse(name: string, id: string, input: unknown): string {
-  const json = stringifyJson(input);
-  return [
-    `<details><summary><strong>tool_use</strong>: <code>${name}</code> <sub>(id: ${id})</sub></summary>`,
-    '',
-    '```json',
-    json,
-    '```',
-    '',
-    '</details>',
-  ].join('\n');
-}
-
-function renderToolResult(toolUseId: string, content: unknown): string {
-  const body = renderToolResultContent(content);
-  return [
-    `<details><summary><strong>tool_result</strong> <sub>(for id: ${toolUseId})</sub></summary>`,
-    '',
-    body,
-    '',
-    '</details>',
-  ].join('\n');
-}
-
-function renderToolResultContent(content: unknown): string {
-  if (typeof content === 'string') {
-    return fenceCode(content);
-  }
-  if (Array.isArray(content)) {
-    const parts: string[] = [];
-    for (const item of content) {
-      if (item !== null && typeof item === 'object' && 'type' in item) {
-        const typed = item as { type: string; text?: unknown };
-        if (typed.type === 'text' && typeof typed.text === 'string') {
-          parts.push(fenceCode(typed.text));
-          continue;
-        }
-      }
-      parts.push(fenceCode(stringifyJson(item)));
-    }
-    return parts.join('\n\n');
-  }
-  return fenceCode(stringifyJson(content));
-}
-
-function fenceCode(text: string): string {
-  const trimmed = text.replace(/\s+$/u, '');
-  if (trimmed.length === 0) return '```\n(empty)\n```';
-  // Use a longer fence if the content itself contains triple backticks,
-  // so embedded code blocks in a tool_result don't escape the fence.
-  const needsLongFence = trimmed.includes('```');
-  const fence = needsLongFence ? '````' : '```';
-  return `${fence}\n${trimmed}\n${fence}`;
-}
-
-function stringifyJson(value: unknown): string {
-  try {
-    return JSON.stringify(value, null, 2) ?? 'null';
-  } catch {
-    return String(value);
-  }
 }
