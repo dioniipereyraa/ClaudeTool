@@ -30,4 +30,7 @@ Thumbs.db
 # Exportal output (never commit real exports — may contain secrets)
 *.export.md
 *.export.json
+*-export.md
+*-export.json
+test-export*
 exports/

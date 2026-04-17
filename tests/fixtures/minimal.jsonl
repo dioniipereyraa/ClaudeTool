@@ -1,0 +1,7 @@
+{"type":"queue-operation","operation":"enqueue","timestamp":"2026-04-15T10:00:00.000Z"}
+{"type":"user","uuid":"u1","parentUuid":null,"timestamp":"2026-04-15T10:00:01.000Z","sessionId":"fixture-0001","cwd":"d:\\Dionisio\\ClaudeTool","gitBranch":"main","message":{"role":"user","content":[{"type":"text","text":"Hola, este es un mensaje de prueba."}]}}
+{"type":"assistant","uuid":"a1","parentUuid":"u1","timestamp":"2026-04-15T10:00:02.000Z","sessionId":"fixture-0001","message":{"role":"assistant","model":"claude-opus-4-7","content":[{"type":"text","text":"Hola! Tomá este token: sk-ant-api03-abcdefghijklmnopqrstuvwxyz01."}]}}
+{"type":"user","uuid":"u2","parentUuid":"a1","timestamp":"2026-04-15T10:00:03.000Z","sessionId":"fixture-0001","message":{"role":"user","content":"Le\u00ed /home/user/archivo.txt y tambi\u00e9n C:\\secret\\config.env"}}
+{"type":"assistant","uuid":"a2","parentUuid":"u2","timestamp":"2026-04-15T10:00:04.000Z","sessionId":"fixture-0001","message":{"role":"assistant","model":"claude-opus-4-7","content":[{"type":"thinking","thinking":"interno"},{"type":"tool_use","id":"tu1","name":"Read","input":{"file_path":"x"}},{"type":"text","text":"Listo."}]}}
+not valid json at all
+{"type":"queue-operation","operation":"dequeue","timestamp":"2026-04-15T10:00:05.000Z"}
