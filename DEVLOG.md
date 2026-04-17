@@ -230,3 +230,68 @@ Este hito arrancó como "preview obligatoria antes de `--out`" y creció a tres 
 
 ### Próximo paso
 - **Hito 5 (opcional) — Opt-in render de `tool_use` / `thinking`**: flags `--include-tools` y `--include-thinking`. Decisión de UX pendiente (colapsables, summary-only, full). Podría saltarse si preferimos ir directo a **Hito 6 — Fase 2 (import desde ZIP de claude.ai)**, que tiene más valor de producto.
+
+---
+
+## 2026-04-17 — Hito 5 · Opt-in render de `tool_use`, `tool_result` y `thinking`
+
+### Qué hicimos
+Dos flags nuevas, ortogonales, apagadas por defecto: `--include-tools` y `--include-thinking`. El default del exporter sigue siendo "conversación legible como chat" (solo texto). Las flags agregan fidelidad sin romper el caso común. Decidimos hacerlo ahora — en vez de saltarlo hacia Fase 2 — porque es barato y completa la herramienta: la extensión VS Code de Fase 3 va a exponer estas flags como toggles en la UI reusando exactamente el mismo `formatAsMarkdown`.
+
+**`src/formatters/markdown.ts`:**
+- `FormatOptions` gana `includeTools?: boolean` e `includeThinking?: boolean`.
+- `extractText` reemplazado por `renderBlocks(content, { includeTools, includeThinking })`: itera los bloques en su orden original y emite una línea por cada uno según el tipo. Texto plano sigue pasando igual; thinking/tool_use/tool_result solo si la flag correspondiente está activa. Si `content` viene como string (forma legacy de user events) se devuelve tal cual.
+- Render de `thinking`: blockquote multilínea con label `*[thinking]*` en la primera línea. Todas las líneas prefijadas con `> ` para que Markdown las agrupe.
+- Render de `tool_use`: `<details><summary>` con nombre de la tool en `<code>` + `id` en `<sub>`. Input serializado como JSON pretty-print dentro de fence `json`.
+- Render de `tool_result`: `<details>` análogo con `for id: <tool_use_id>` en el summary. Content puede ser string, array de bloques, u otro JSON: lo manejamos los tres.
+- Helper `fenceCode(text)`: usa fence de 4 backticks si el contenido ya contiene ` ``` ` (típico cuando un `tool_result` incluye un bloque de código). Evita que el markdown interno rompa el outer block.
+- Header nuevo: `- **Includes:** thinking, tools` aparece si alguna flag está activa.
+
+**`src/cli/commands/export.ts`:**
+- `--include-tools` y `--include-thinking` como flags booleanas independientes. Se pasan al formatter solo si están activas (patrón `...(opts.foo === true && { foo: true })` consistente con `exactOptionalPropertyTypes`).
+
+**`tests/formatters/markdown.test.ts`:**
+- 5 casos nuevos bajo `formatAsMarkdown — tools and thinking rendering`:
+  1. Default sin flags → solo texto, sin `<details>`, sin `*[thinking]*` (regresión explícita).
+  2. Solo `includeThinking` → blockquote con label y multilínea; sin `<details>`.
+  3. Solo `includeTools` → `<details>` con tool_use y tool_result; redacción aplica a paths dentro del JSON de input.
+  4. Ambas flags → header `**Includes:** thinking, tools`, todo renderizado.
+  5. Tool result con triple backtick interno → fence exterior de 4 backticks para no escaparse.
+
+### Decisiones técnicas del hito
+- **`<details>` HTML sobre Markdown puro**: GitHub y VS Code soportan `<details>`/`<summary>` nativos y los colapsan por default. Un export con 200 tool calls sigue siendo legible como conversación, con los detalles escondidos. La alternativa (usar headers tipo `#### tool: Read`) llenaba el outline con ruido.
+- **Orden de bloques preservado**: si el asistente emitió `[thinking, tool_use, text, tool_use, text]`, el markdown lo refleja tal cual. Reordenar (tipo "primero todo el texto, después las tools") rompería el hilo causal.
+- **Tool result NO se aparea visualmente con su tool_use**: viven en eventos distintos (assistant emite el call, el siguiente user event trae el result). Apararelos visualmente exigiría indexar los tool_use_ids y reordenar. Decidimos **no hacerlo**: el `id: <toolu_...>` en el summary ya permite correlacionarlos para quien los quiera buscar, y el orden cronológico es más honesto.
+- **JSON input pasa por redact()**: los paths y secretos embebidos en un `Write` o `Edit` son exactamente el tipo de cosa que el redactor tiene que atrapar. Confirmado en el smoke test: al exportar nuestra propia sesión con `--include-tools`, la cuenta de paths redactados saltó de 14 a 308 y aparecieron "secretos" (falsos positivos por los fixtures `sk-ant-api03-abcdef...` que copy-pegamos en el código). Comportamiento correcto: fail-safe.
+- **Compact summary renderiza siempre como solo-texto**, incluso con flags activas. Un summary es conceptualmente text — no tiene sentido mostrar tools "dentro" de un resumen.
+- **Sin truncar inputs enormes**: un `Write` con 5000 líneas genera un `<details>` de 5000 líneas. Aceptable porque está colapsado por defecto. Si en la práctica molesta, `--tool-input-limit N` es un cambio chico. YAGNI por ahora.
+
+### Verificación
+- `npm run ci` — 51/51 tests ✓ (5 nuevos), lint ✓, typecheck ✓, build ✓.
+- Smoke test sobre la sesión actual del exportal (la que estamos conversando ahora):
+
+  | flags | líneas | redacción |
+  |---|---|---|
+  | (default) | 1255 | 14 paths |
+  | `--include-thinking` | 1256 | 14 paths |
+  | `--include-tools` | 9235 | 308 paths + 10 secretos (fp esperados) |
+  | ambas | 9235 | idem |
+
+  El salto 1255 → 9235 con `--include-tools` confirma el tamaño: los tool inputs de Write/Edit dominan el output. El default sigue siendo práctico como "chat para leer", `--include-tools` es para auditoría completa.
+
+- Inspección visual del output: `<details>` + `<summary>` correctamente cerrados, fences JSON bien identados, `id:` visible para correlación. Triple-backtick en tool_result escapado con fence de 4 (confirmado en test dedicado).
+
+### Falso positivo conocido
+- Grep sobre el export con `--include-tools` lo reporta como "Binary file matches" — hay algún escape de terminal (probablemente ANSI de algún `ls --color` o spinner de npm) capturado en un tool_result. No es problema del formatter; es fidelidad del contenido original. `grep -a` lo trata como texto y funciona normal. Si molesta, podríamos strip de control chars en `renderToolResultContent`, pero arriesgaría alterar contenido legítimo.
+
+### Estado de Fase 1
+Con Hito 5 cerrado, Fase 1 (CLI export de Claude Code → Markdown) está **funcionalmente completa**:
+- Descubrimiento de sesiones (`list`).
+- Export validado con Zod (`export`).
+- Soporte de `/compact` (automático + manual, con flag `--skip-precompact`).
+- Redacción por defecto (paths + 5 patrones de secretos), `--no-redact` con warning.
+- Preview interactiva obligatoria con fail-closed, `--yes` / `--force` / atomic write.
+- Opt-in de tools y thinking.
+
+### Próximo paso
+- **Hito 6 — Fase 2 (inicio): import del ZIP de claude.ai**. Primero: inspeccionar un export real de claude.ai (pedirle al usuario que exporte su cuenta desde Settings → Export data) para entender estructura del ZIP, formato de los JSONs de conversación, y los assets adjuntos. Recién con eso claro, decidir alcance del hito.

@@ -22,6 +22,8 @@ interface ExportOptions {
   readonly skipPrecompact?: boolean;
   readonly yes?: boolean;
   readonly force?: boolean;
+  readonly includeTools?: boolean;
+  readonly includeThinking?: boolean;
 }
 
 export function registerExport(program: Command): void {
@@ -32,6 +34,8 @@ export function registerExport(program: Command): void {
     .option('--out <file>', 'Write to file instead of stdout')
     .option('--no-redact', 'Disable redaction (not recommended)')
     .option('--skip-precompact', 'Drop events before the latest compact boundary')
+    .option('--include-tools', 'Render tool_use and tool_result blocks as collapsibles')
+    .option('--include-thinking', 'Render thinking blocks as blockquotes')
     .option('-y, --yes', 'Skip the interactive preview prompt (for CI / scripting)')
     .option('-f, --force', 'Overwrite the output file if it already exists')
     .action(async (sessionId: string, opts: ExportOptions) => {
@@ -46,6 +50,8 @@ export function registerExport(program: Command): void {
       const { markdown, report } = formatAsMarkdown(events, metadata, {
         redact: opts.redact,
         ...(opts.skipPrecompact === true && { skipPrecompact: true }),
+        ...(opts.includeTools === true && { includeTools: true }),
+        ...(opts.includeThinking === true && { includeThinking: true }),
       });
 
       if (opts.out === undefined) {
