@@ -19,7 +19,9 @@ npm-debug.log*
 !.env.example
 
 # Editor / OS
-.vscode/
+.vscode/*
+!.vscode/launch.json
+!.vscode/tasks.json
 .idea/
 .DS_Store
 Thumbs.db

@@ -476,3 +476,59 @@ En Hito 6 elegimos `jszip` sobre `adm-zip`/`yauzl` por dos razones: zero native 
 - **Plugin para Claude Code**: Claude Code aún no expone una API de plugins suficiente para esto. La extensión VS Code es el siguiente-mejor-lugar porque convive con Claude Code en el mismo proceso.
 
 Cuando Anthropic publique una API de plugins para Claude Code, migrar el core (`readClaudeAiExport`, `formatConversation`) es trivial — por eso los mantuvimos desacoplados del CLI desde el día uno.
+
+---
+
+## Hito 8 — Scaffold de extensión VS Code (2026-04-17)
+
+### Objetivo
+Primer MVP visible de Fase 3: una extensión VS Code que ejecuta el pipeline completo `claude.ai ZIP → Markdown en el editor` sin que el usuario toque una terminal. El "click de un botón" de la visión del producto.
+
+### Alcance del hito (cerrado)
+1. **Manifest** (`package.json`): agregamos los campos que VS Code exige — `publisher`, `engines.vscode`, `main`, `activationEvents`, `contributes.commands`, `categories`, `keywords`, `displayName`.
+2. **Un comando**: `Exportal: Import claude.ai ZIP` registrado como `exportal.importFromZip`.
+3. **Entry point** (`src/extension/extension.ts`, ~110 LOC): `activate()` registra el comando, el handler abre `showOpenDialog` → `readClaudeAiExport()` (con `withProgress`) → `showQuickPick` → `formatConversation()` → `openTextDocument` + `showTextDocument`.
+4. **Bundling** (`esbuild.config.mjs`): un único `dist/extension/extension.cjs` con todas las deps (jszip, zod, etc.) bundleadas, `vscode` marcado como external porque lo provee el host.
+5. **Dev loop** (`.vscode/launch.json` + `tasks.json`): F5 → rebuildea vía task → abre Extension Development Host → listo para probar.
+6. **Integración con CI existente**: el script `build` ahora corre `tsc` (CLI) **y** `esbuild` (extensión). Ambos salen a `dist/`. Nada del CLI se rompió — los 77 tests siguen pasando.
+
+### Decisiones técnicas
+- **Mismo paquete, no monorepo**. Evaluamos separar en `packages/core`, `packages/cli`, `packages/extension` con workspaces. Conclusión: **overhead sin beneficio** para el tamaño actual (~10 archivos core). Mantenemos un único `package.json` con dos entry points (`bin` → CLI, `main` → extensión bundle). Si en el futuro la extensión y el CLI divergen mucho, se separa; hoy no.
+- **`main` pisado por la extensión**. El campo `main` apunta ahora al bundle de la extensión (`./dist/extension/extension.cjs`). VS Code lo necesita ahí. Como el paquete es `private: true` y nadie lo consume como library ESM, reapuntar `main` no rompió nada. Si algún día se usa como library, agregamos un `exports` map.
+- **tsc NO emite la extensión**. `tsconfig.build.json` excluye `src/extension/**` — esbuild se encarga de transpilar + bundlear. Ventajas: (1) un único archivo CJS para VS Code, (2) evitamos el dual-package hazard (ESM+CJS conviviendo), (3) `tsc` sigue siendo el sanity check de typecheck global pero no produce outputs duplicados.
+- **CJS output, aunque el source es ESM**. VS Code extensions todavía se cargan con `require()` en el Extension Host. esbuild transpila ESM → CJS transparente. En 2026 VS Code está migrando a ESM pero todavía no es mainstream; arrancar con CJS es la opción segura.
+- **Redacción forzada, sin toggle**. La decisión de UX del Hito 7 (default on) pasa a ser **no negociable** en la extensión. Quien necesite output raw usa el CLI con `--no-redact`. Simplicidad sobre flexibilidad: la extensión es para el 95% de casos donde "seguro" es más importante que "flexible".
+- **`openTextDocument({content})` vs escribir a disco**. El markdown se abre como documento `Untitled` en el editor. El usuario decide si guarda, copia, o tira. Ventaja: nunca dejamos archivos huérfanos ni pisamos cosas; el "save" es una acción explícita del usuario.
+- **Progress notification durante el parseo del ZIP**. Un ZIP grande (7 conversaciones, 280 mensajes) tarda 1-2s. Sin feedback visual, el usuario piensa que la extensión se colgó. `vscode.window.withProgress` da la notificación nativa "leyendo ZIP..." sin bloquear la UI.
+- **Warnings como `showWarningMessage` non-blocking**. Si el ZIP tiene `users.json` corrupto pero `conversations.json` OK, mostramos un warning y seguimos. No frenamos el flujo principal por información secundaria.
+- **`@types/vscode ^1.116.0` pero `engines.vscode: ^1.85.0`**. Los types son los más nuevos (para autocompletado actualizado), pero declaramos compatibilidad desde 1.85 (que cubre VS Code de finales 2023 en adelante) para no excluir a usuarios con instalaciones viejas. Si usamos una API que no existe en 1.85, TypeScript no nos avisa — por ahora solo usamos APIs estables y viejas (showOpenDialog, showQuickPick, openTextDocument, registerCommand, withProgress).
+
+### Lo que NO entra en este hito
+- Tests unitarios de la extensión. Requiere `@vscode/test-electron` o mockear toda la API de `vscode` — ambos duplican el código de prueba que ya tenemos sobre el core. Prioridad: cuando la extensión crezca más allá del wrapper delgado actual.
+- Publicación al marketplace. Para eso hace falta crear una cuenta de Azure DevOps + Publisher en Visual Studio Marketplace, generar PAT, correr `vsce publish`. Lo dejamos para cuando haya algo que publicar con confianza (después de dogfooding).
+- Segundo comando "export Claude Code session". El flujo de claude.ai → Claude Code es el camino crítico del producto. El inverso (Claude Code → markdown) ya lo cubre el CLI `exportal export`; el equivalente en extensión es un nice-to-have de Hito 9+.
+
+### Problemas durante la implementación
+- **`node -e "require('./dist/extension/extension.cjs')"` falló con `Cannot find module 'vscode'`**. Esto no es un bug, es **confirmación** de que el bundling funcionó: `vscode` está correctamente marcado como external y Node no puede resolverlo fuera del Extension Host. Lo verificamos con un stub del módulo para inspeccionar exports (`activate` y `deactivate` presentes como funciones).
+
+### Verificación
+- `npm run ci` → **77/77 tests** ✓, lint ✓, typecheck ✓, build ✓ (tsc + esbuild, bundle = 832 KB).
+- **Prueba manual F5** por el usuario: command palette → "Exportal: Import claude.ai ZIP" → file picker → ZIP real (`data-...-batch-0000.zip`) → QuickPick con 7 conversaciones → selección → editor untitled con markdown completo (header, `## User`, `## Assistant`, redacción activa). **Screenshot confirmado**. El flujo fue literal: **3 clicks desde el palette al editor abierto** — exactamente el valor que la motivación del hito prometía.
+
+### Estado del producto tras Hito 8
+Fase 3 tiene MVP funcional:
+- Usuario instala la extensión (por ahora F5 dev; marketplace después).
+- Elige ZIP de claude.ai desde un diálogo nativo.
+- Ve la lista de sus conversaciones y elige una.
+- Aparece el markdown listo en el editor, redactado.
+- Lo copia o lo guarda según necesite, y lo pega como contexto a Claude Code.
+
+**El círculo se cerró**: lo que empezamos el 2026-04-?? como un CLI de debugging de `.jsonl` de Claude Code terminó hoy como una extensión que une las dos superficies de Claude con un click. Hitos 1-5 fueron la base (parseo + render + redacción + UX segura), 6-7 abrieron la dirección inversa (claude.ai → markdown), 8 lo convirtió en producto usable por humanos.
+
+### Próximo paso
+- **Hito 9 — pulido para release**:
+  - Icono + README con screenshots.
+  - `vscode-test` / `@vscode/test-electron` para tests de integración (aunque sea uno solo que verifique el smoke path).
+  - Configurar `vsce package` para generar `.vsix`, probar instalación desde archivo.
+  - Considerar publicar al marketplace (requiere cuenta Microsoft + publisher verificado).
+  - Bonus: segundo comando `Exportal: Export Claude Code session` para la dirección inversa (para paridad con el CLI).

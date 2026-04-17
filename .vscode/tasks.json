@@ -1,0 +1,12 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "type": "npm",
+      "script": "build:extension",
+      "problemMatcher": [],
+      "label": "npm: build:extension",
+      "detail": "Bundle the VS Code extension with esbuild"
+    }
+  ]
+}
