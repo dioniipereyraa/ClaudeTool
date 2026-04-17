@@ -17,5 +17,6 @@ describe('describeSession', () => {
     expect(meta.startedAt).toBe('2026-04-15T10:00:01.000Z');
     expect(meta.gitBranch).toBe('main');
     expect(meta.firstUserText).toContain('Hola');
+    expect(meta.compactCount).toBe(0);
   });
 });

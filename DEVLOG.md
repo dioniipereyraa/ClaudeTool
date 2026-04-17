@@ -121,3 +121,54 @@ Cambio de estrategia respecto al plan original: en vez de ir capa-por-capa (read
 
 ### Próximo paso
 - **Hito 3 — Endurecimiento**: Zod schemas versionados, preview interactiva obligatoria antes de `--out`, `--include-tools` y `--include-thinking`, más patrones de secretos, streaming reader para sesiones grandes.
+
+---
+
+## 2026-04-16 — Hito 3 · Zod schemas + soporte de `/compact`
+
+### Qué hicimos
+Alcance reducido respecto al plan original: en vez de meter Zod + preview interactiva + flags de tools/thinking en el mismo hito, separamos. **Este hito cubre Zod schemas y compact.** Preview interactiva pasa a Hito 4, tools/thinking a Hito 5 (opcional). Razón: el usuario pidió explícitamente "ir de a poco pero saber que lo que estamos haciendo está perfecto", y Zod + compact ya es un delta sustancial que merece su propia verificación.
+
+**Módulos nuevos y refactors:**
+- `src/core/schema.ts` — Zod schemas para todos los tipos de evento (`user`, `assistant`, `system`). Cada objeto usa `.passthrough()` para forward-compat con futuros campos que Claude Code agregue. Los bloques de contenido (`text`, `thinking`, `tool_use`, `tool_result`) son una `z.discriminatedUnion('type', …)`. Export `parseEvent(raw): Event | null` con `safeParse` → fail-soft en la frontera. El tipo `CompactBoundary` se deriva como `SystemEvent & { subtype: 'compact_boundary' }`.
+- `src/core/compact.ts` — helpers de compact: `isCompactBoundary`, `isCompactSummaryUser`, `findLatestCompactBoundaryIndex` (scan inverso manual, ver decisión abajo), `skipBeforeLatestCompact` (slice desde el boundary más reciente).
+- `src/core/types.ts` — colapsado a re-exports de `schema.ts` + la interfaz `SessionMetadata`, que ahora incluye `compactCount: number`.
+- `src/core/reader.ts` — ahora retorna `Event[]` validado. Cualquier línea cuyo `JSON.parse` falle **o** cuyo `parseEvent` devuelva `null` (ej: `queue-operation`, `attachment`, `ai-title`) se descarta silenciosamente. Dos capas de fail-soft.
+- `src/core/session.ts` — usa `event.type === 'user' | 'assistant'` directo (ya no hay type guards manuales). Eventos `isCompactSummary: true` **no cuentan** como turno para evitar doble conteo; los `compact_boundary` incrementan el nuevo `compactCount`.
+- `src/formatters/markdown.ts` — firma cambió a `events: readonly Event[]`. Renderiza:
+  - `compact_boundary` → línea de blockquote con trigger y preTokens.
+  - usuario con `isCompactSummary: true` → su propia sección `## Compact summary` (en vez de mislabelarlo como `## User`).
+  - `FormatOptions.skipPrecompact` → descarta todo antes del boundary más reciente.
+  - Header: `- **Compactions:** N` si hay al menos una, y `- **Pre-compact events:** omitted` si el flag está activo.
+- `src/cli/commands/export.ts` — nueva flag `--skip-precompact`.
+
+**Tests (37 pasando en 10 archivos):**
+- `tests/core/schema.test.ts` — valida happy-path, passthrough de campos desconocidos, rechazo de tipos unmodeled (`queue-operation`, `attachment`), rechazo de payloads inválidos, soporte de `isCompactSummary`.
+- `tests/core/compact.test.ts` — identifica boundary y summary, encuentra el índice del boundary, funciona con sesiones sin compact.
+- `tests/fixtures/with-compact.jsonl` — fixture sintética: user, assistant, boundary, compact summary, user, assistant.
+- `tests/formatters/markdown.test.ts` — extendido con dos tests de rendering de compact (con y sin `skipPrecompact`).
+- Tests existentes de `reader` y `session` actualizados para reflejar la nueva semántica (queue-operation ya no aparece en la salida, `compactCount: 0` en la fixture minimal).
+
+### Decisiones técnicas del hito
+- **Validar en el reader, no en callers**: el pre-review inicial dejaba `reader.ts` sin cambios, pero al escribir `parseEvent` quedó claro que la frontera natural es el reader. Mover la validación a los callers duplicaría el `parseEvent` en cada punto de entrada y dejaría el tipo `unknown[]` filtrándose. Desviación explícita del pre-review, documentada aquí.
+- **`.passthrough()` en todos los objetos**: el formato `.jsonl` de Claude Code no está documentado. Si Anthropic agrega un campo `turnIndex` mañana, no queremos invalidar eventos válidos. Trade-off: algunos typos pasan desapercibidos. Mitigado por fixtures + tests que chequean campos específicos.
+- **Compact summary es `## Compact summary`, no `## Assistant (compact summary)`**: estructuralmente es un evento `user`, pero el contenido fue generado por Claude durante `/compact`. Etiquetarlo como assistant sería engañoso; `## Compact summary` es fiel a la naturaleza bridge-summary del evento.
+- **Scan inverso manual para `findLatestCompactBoundaryIndex`**: `Array.prototype.findLastIndex` es ES2023 y el target del proyecto es ES2022. Preferimos un loop manual antes que ampliar `lib` a `ES2023.Array` — menos superficie de cambio por una necesidad puntual.
+- **`isCompactSummary` user events no cuentan como turno**: si los contáramos, `describeSession` reportaría 1 turno extra por cada compact. Son sintéticos del harness, no del usuario humano.
+- **Reset de `lastRole` tras un boundary o summary**: el merge de turnos consecutivos se interrumpe visualmente al cruzar un compact, así la estructura post-compact comienza con un `## User` o `## Assistant` nuevo aunque el último evento real haya sido del mismo rol.
+
+### Verificación
+- `npm run ci` — 37/37 tests ✓, lint ✓, typecheck ✓, build ✓.
+- Manual contra una sesión real con 2 compactions (`d--Dionisio-ClockInTransnova/04f5ef13-…jsonl`):
+  - Sin flag: 1549 líneas, header reporta `**Compactions:** 2`, ambos boundaries visibles con trigger y preTokens, dos secciones `## Compact summary` intactas, 92 paths redactados.
+  - Con `--skip-precompact`: 1180 líneas, solo el boundary más reciente, header muestra `**Pre-compact events:** omitted`, 90 paths redactados.
+- Paths post-Windows (`C:\Users\...`) correctamente redactados en ambos casos.
+
+### Limitaciones conocidas (para próximos hitos)
+- Sigue sin haber preview interactiva antes de escribir (Hito 4).
+- `tool_use` y `thinking` siguen omitidos (Hito 5, opt-in).
+- Streaming reader sigue pendiente; in-memory es suficiente por ahora.
+- Si Claude Code introduce un nuevo `subtype` de `system`, se parsea (passthrough) pero no se renderea especialmente — solo `compact_boundary` tiene tratamiento.
+
+### Próximo paso
+- **Hito 4 — Preview interactiva obligatoria**: mostrar las primeras/últimas N líneas antes de escribir con `--out`, confirmación `[y/N]`, flag `--yes` para CI. Sin prompt para stdout (no es escritura persistente).

@@ -9,14 +9,15 @@ const here = dirname(fileURLToPath(import.meta.url));
 const FIXTURE = join(here, '..', 'fixtures', 'minimal.jsonl');
 
 describe('readJsonl', () => {
-  it('parses valid lines and skips malformed ones', async () => {
+  it('parses valid lines, skips malformed ones, and drops unmodeled event types', async () => {
     const events = await readJsonl(FIXTURE);
-    expect(events.length).toBeGreaterThan(0);
-    const types = events.map((e) => (e as { type?: string }).type);
+    const types = events.map((e) => e.type);
     expect(types).toContain('user');
     expect(types).toContain('assistant');
-    expect(types).toContain('queue-operation');
-    expect(types).not.toContain(undefined);
+    // queue-operation is not part of our discriminated union → dropped.
+    expect(types).not.toContain('queue-operation' as unknown as (typeof types)[number]);
+    // 2 users + 2 assistants in the fixture, malformed line and queue-operation discarded.
+    expect(events.length).toBe(4);
   });
 
   it('returns an empty array when the file is empty', async () => {

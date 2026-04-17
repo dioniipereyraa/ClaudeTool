@@ -1,9 +1,10 @@
 import { readdir } from 'node:fs/promises';
 import { basename, join } from 'node:path';
 
+import { isCompactBoundary, isCompactSummaryUser } from './compact.js';
 import { PROJECTS_DIR } from './paths.js';
 import { readJsonl } from './reader.js';
-import { isAssistantEvent, isUserEvent, type ContentBlock, type SessionMetadata } from './types.js';
+import { type ContentBlock, type SessionMetadata } from './types.js';
 
 export async function listProjectDirs(): Promise<string[]> {
   try {
@@ -34,16 +35,22 @@ export async function describeSession(filePath: string): Promise<SessionMetadata
   let gitBranch: string | undefined;
   let firstUserText: string | undefined;
   let turnCount = 0;
+  let compactCount = 0;
 
   for (const event of events) {
-    if (isUserEvent(event)) {
+    if (event.type === 'user') {
+      // Compact summaries are synthetic user events inserted by Claude Code;
+      // they don't represent a real user turn and would double-count.
+      if (isCompactSummaryUser(event)) continue;
       turnCount += 1;
       cwd ??= event.cwd;
       startedAt ??= event.timestamp;
       gitBranch ??= event.gitBranch;
       firstUserText ??= firstText(event.message.content);
-    } else if (isAssistantEvent(event)) {
+    } else if (event.type === 'assistant') {
       model ??= event.message.model;
+    } else if (isCompactBoundary(event)) {
+      compactCount += 1;
     }
   }
 
@@ -56,6 +63,7 @@ export async function describeSession(filePath: string): Promise<SessionMetadata
     ...(gitBranch !== undefined && { gitBranch }),
     turnCount,
     ...(firstUserText !== undefined && { firstUserText }),
+    compactCount,
   };
 }
 

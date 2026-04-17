@@ -15,6 +15,7 @@ interface ExportOptions {
   readonly project?: string;
   readonly out?: string;
   readonly redact: boolean;
+  readonly skipPrecompact?: boolean;
 }
 
 export function registerExport(program: Command): void {
@@ -24,6 +25,7 @@ export function registerExport(program: Command): void {
     .option('--project <dir>', 'Project folder name (defaults to current cwd)')
     .option('--out <file>', 'Write to file instead of stdout')
     .option('--no-redact', 'Disable redaction (not recommended)')
+    .option('--skip-precompact', 'Drop events before the latest compact boundary')
     .action(async (sessionId: string, opts: ExportOptions) => {
       if (!SESSION_ID.test(sessionId)) {
         throw new Error(`Invalid sessionId format: ${sessionId}`);
@@ -33,7 +35,10 @@ export function registerExport(program: Command): void {
 
       const events = await readJsonl(filePath);
       const metadata = await describeSession(filePath);
-      const { markdown, report } = formatAsMarkdown(events, metadata, { redact: opts.redact });
+      const { markdown, report } = formatAsMarkdown(events, metadata, {
+        redact: opts.redact,
+        ...(opts.skipPrecompact === true && { skipPrecompact: true }),
+      });
 
       if (opts.out !== undefined) {
         await writeFile(opts.out, markdown, { encoding: 'utf8' });
