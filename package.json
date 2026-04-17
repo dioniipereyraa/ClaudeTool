@@ -52,7 +52,7 @@
     "ci": "npm run lint && npm run typecheck && npm run test && npm run build"
   },
   "overrides": {
-    "esbuild": "^0.25.0"
+    "esbuild": "$esbuild"
   },
   "devDependencies": {
     "@eslint/js": "^9.15.0",
