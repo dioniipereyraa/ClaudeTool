@@ -429,3 +429,50 @@ Fase 2 está **funcionalmente completa** para el flujo CLI. Lo que falta es la e
   3. Scaffold de extensión VS Code (`package.json` con activation events, un comando `Exportal: Import claude.ai ZIP`). Reusa `readClaudeAiExport` y `formatConversation` directo — no hay que reescribir nada.
   
   La 3 es la que mueve la aguja hacia "un click"; las 1 y 2 son QoL. Sugerencia: arrancar con (3) porque el pipeline CLI ya es robusto y validado; si aparece un bug lo arreglamos, pero invertir en un-click tiene más retorno.
+
+---
+
+## Motivación de la extensión de VS Code
+
+### El problema real que resolvemos
+Claude tiene dos superficies principales hoy: **claude.ai** (web) donde el usuario conversa desde el browser con contexto general, y **Claude Code** (CLI + VS Code) donde el usuario edita código con contexto del repo. Son dos sistemas distintos que **no comparten memoria**.
+
+Escenario típico: en la web discutiste con Claude el diseño de una arquitectura durante 2 horas. Al día siguiente abrís Claude Code en el repo para implementarla — y Claude arranca desde cero, sin saber nada de lo que hablaste ayer. Copy-pastear la conversación entera como contexto es tedioso, frágil y expone secretos si no lo limpiás a mano.
+
+### Por qué un CLI no alcanza
+El CLI que acabamos de construir (`exportal import list/show`) ya resuelve el problema **técnicamente**: descargás el ZIP, corrés dos comandos, tenés un `.md` limpio y redactado listo para pegar. Pero el flujo exige:
+- saber dónde está el ZIP (downloads, carpeta random),
+- saber que existe `exportal`,
+- conocer sintaxis de comandos (`--include-tools`, `--out`),
+- copiar un UUID que vio en stdout,
+- abrir un editor para pegar el markdown.
+
+Son 5 pasos mentales entre "quiero traer la conversación" y "la conversación está en el editor". Cada paso es fricción; la fricción mata la adopción.
+
+### Lo que aporta la extensión
+**Tres clicks desde el command palette al editor abierto con la conversación**:
+1. `Ctrl+Shift+P` → "Exportal: Import claude.ai ZIP"
+2. Diálogo nativo de "elegir archivo" → seleccionás el ZIP.
+3. QuickPick con la lista de conversaciones (título + fecha + msgs) → elegís una.
+
+Resultado: se abre un documento markdown en VS Code con el contenido redactado. De ahí el usuario lo guarda donde quiera, o lo copia, o se lo pasa a Claude Code como contexto. **Ningún comando, ningún UUID, ningún path.**
+
+### Por qué es un wrapper delgado (no una reescritura)
+Todo el trabajo duro ya está hecho en los hitos 1-7 del CLI:
+- **Parseo del ZIP** → `readClaudeAiExport()` ya probado con schemas Zod tolerantes a cambios.
+- **Render Markdown** → `formatConversation()` con redacción, citations, tool collapsibles.
+- **Redacción** → módulo independiente, cubierto por tests.
+- **Decisiones de UX** sobre qué mostrar por default (tools no, attachments no, file refs sí) — ya tomadas y validadas.
+
+La extensión importa esas funciones y las envuelve en 4 llamadas a la API de VS Code (`showOpenDialog`, `showQuickPick`, `openTextDocument`, `showTextDocument`). Nada más. Estimación: ~200 líneas de UI + manifest + bundling. El valor NO está en la cantidad de código — está en que **por fin el usuario final puede usarlo con un click**.
+
+### Por qué jszip era la decisión correcta
+En Hito 6 elegimos `jszip` sobre `adm-zip`/`yauzl` por dos razones: zero native deps y compatibilidad browser. La segunda es la que paga ahora: **una extensión VS Code corre en un Electron renderer** (o en un worker Node según API), y `jszip` funciona idéntico en ambos. Si hubiéramos elegido `yauzl`, estaríamos reescribiendo el reader en este mismo hito.
+
+### Por qué VS Code primero (y no una app standalone o un plugin de Claude Code)
+- **VS Code es donde ya vive Claude Code**. El usuario no abre una app nueva — extiende la que ya tiene abierta.
+- **El marketplace de VS Code** distribuye un `.vsix` con todo adentro (incluidas las deps bundleadas). El usuario hace "Install" y listo. No `npm install`, no Node, no compilación local.
+- **La API de VS Code nos da gratis** diálogos nativos, QuickPick, editor, file system access. Construir esto como app standalone duplicaría el trabajo.
+- **Plugin para Claude Code**: Claude Code aún no expone una API de plugins suficiente para esto. La extensión VS Code es el siguiente-mejor-lugar porque convive con Claude Code en el mismo proceso.
+
+Cuando Anthropic publique una API de plugins para Claude Code, migrar el core (`readClaudeAiExport`, `formatConversation`) es trivial — por eso los mantuvimos desacoplados del CLI desde el día uno.
