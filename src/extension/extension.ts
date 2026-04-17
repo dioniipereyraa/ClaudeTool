@@ -4,6 +4,13 @@ import { formatConversation } from '../formatters/claudeai-markdown.js';
 import { readClaudeAiExport } from '../importers/claudeai/reader.js';
 import { type ClaudeAiConversation } from '../importers/claudeai/schema.js';
 
+import {
+  findRecentClaudeAiExports,
+  formatRelativeTime,
+  formatSize,
+  type ClaudeAiZipCandidate,
+} from './zip-finder.js';
+
 /**
  * Exportal — VS Code extension entry point.
  *
@@ -75,6 +82,19 @@ async function importFromZipCommand(): Promise<void> {
 }
 
 async function pickZipFile(): Promise<vscode.Uri | undefined> {
+  const candidates = await findRecentClaudeAiExports();
+  if (candidates.length === 0) return showOpenDialog();
+  if (candidates.length === 1) {
+    const only = candidates[0]!;
+    void vscode.window.showInformationMessage(
+      `Exportal: importando ${only.filename} (${formatRelativeTime(only.mtime)} · ${only.folder})`,
+    );
+    return vscode.Uri.file(only.path);
+  }
+  return pickFromCandidates(candidates);
+}
+
+async function showOpenDialog(): Promise<vscode.Uri | undefined> {
   const picks = await vscode.window.showOpenDialog({
     canSelectFiles: true,
     canSelectFolders: false,
@@ -84,6 +104,36 @@ async function pickZipFile(): Promise<vscode.Uri | undefined> {
     title: 'Seleccioná el ZIP exportado desde claude.ai',
   });
   return picks?.[0];
+}
+
+const BROWSE_ITEM_ID = '__browse__';
+
+interface ZipQuickPickItem extends vscode.QuickPickItem {
+  readonly id: string;
+}
+
+async function pickFromCandidates(
+  candidates: readonly ClaudeAiZipCandidate[],
+): Promise<vscode.Uri | undefined> {
+  const items: ZipQuickPickItem[] = candidates.map((c) => ({
+    id: c.path,
+    label: c.filename,
+    description: `${formatRelativeTime(c.mtime)} · ${c.folder}`,
+    detail: formatSize(c.sizeBytes),
+  }));
+  items.push({
+    id: BROWSE_ITEM_ID,
+    label: 'Elegir otro archivo…',
+    description: 'Abrir el selector de archivos',
+  });
+
+  const selected = await vscode.window.showQuickPick(items, {
+    title: `Exportal — ${String(candidates.length)} exports recientes`,
+    placeHolder: 'Elegí un ZIP de claude.ai',
+  });
+  if (selected === undefined) return undefined;
+  if (selected.id === BROWSE_ITEM_ID) return showOpenDialog();
+  return vscode.Uri.file(selected.id);
 }
 
 interface ConversationQuickPickItem extends vscode.QuickPickItem {

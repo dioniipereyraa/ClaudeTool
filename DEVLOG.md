@@ -532,3 +532,37 @@ Fase 3 tiene MVP funcional:
   - Configurar `vsce package` para generar `.vsix`, probar instalación desde archivo.
   - Considerar publicar al marketplace (requiere cuenta Microsoft + publisher verificado).
   - Bonus: segundo comando `Exportal: Export Claude Code session` para la dirección inversa (para paridad con el CLI).
+
+---
+
+## Hito 8.1 — Auto-detect del ZIP (post-review)
+
+### Motivación
+El usuario pidió simplificar aún más el flujo. Hito 8 ya había reducido el camino a 3 clicks (palette → file picker → quick pick de conversación → editor), pero el **file picker seguía siendo el paso molesto**: requiere acordarse de dónde se guardó el ZIP, navegar por carpetas, y encontrar el nombre correcto entre decenas de archivos en Downloads.
+
+### Alcance cerrado
+- Nuevo módulo `src/extension/zip-finder.ts` con `findRecentClaudeAiExports()` — busca ZIPs con prefijo `data-` en `~/Downloads` y `~/Desktop`, últimos 7 días, ordenados por mtime descendente. Puro (no importa `vscode`), por lo que es testeable sin el host.
+- `pickZipFile()` en `extension.ts` reescrito con 3 ramas:
+  - **0 candidatos** → file picker tradicional (fallback transparente).
+  - **1 candidato** → importa directo con toast "Exportal: importando {nombre} ({hace N · Downloads})". Sin selector.
+  - **N > 1 candidatos** → QuickPick con los ZIPs recientes + opción "Elegir otro archivo…" al final.
+- Helpers `formatRelativeTime()` y `formatSize()` para mostrar metadata humana en las UI.
+- 13 tests nuevos (`tests/extension/zip-finder.test.ts`) cubriendo: sin matches, match en Downloads, nombres que no matchean, filtro por antigüedad, orden multi-carpeta, carpeta faltante, nombre real claude.ai con UUID+batch, formato relativo (minutos/horas/día singular/días plural), y formato de tamaño (KB/MB).
+
+### Decisiones técnicas
+- **Patrón de nombre**: primero usé `^data-\d{4}-\d{2}-\d{2}.*\.zip$` asumiendo formato fecha. **Falló en el test real** porque claude.ai hoy exporta `data-<uuid>-<timestamp>-<hash>-batch-<n>.zip` (UUID + timestamp + batch, no fecha ISO). Lo relajé a `^data-.+\.zip$` y agregué un test con el nombre real capturado de Downloads del usuario. El reader falla limpio ante falsos positivos, así que tolerar un matching más amplio es seguro.
+- **Inyección de `home` y `now`**: acepto ambos como opciones opcionales, default a `homedir()` y `new Date()`. Permite tests deterministas sin tocar el home real.
+- **Sin peek al contenido del ZIP**: podría validar que cada candidato tenga `conversations.json` antes de mostrarlo, pero eso es O(N) reads de ZIPs potencialmente grandes. El patrón de nombre es suficientemente distintivo, y si entra un falso positivo el reader lo rechaza con mensaje claro.
+- **Sin persistencia de "último ZIP usado"**: se consideró, pero agrega estado entre sesiones (manejo de `globalState`) para un beneficio marginal. El auto-detect resuelve el 95% del dolor sin ese costo.
+
+### Problemas durante la implementación
+- **Primera prueba F5 del usuario: "Lo noto igual"**. El auto-detect no disparaba porque mi regex asumía formato fecha (`data-YYYY-MM-DD-...`) que ya no existe. Inspeccioné `~/Downloads` y encontré `data-80717880-4ecd-4c84-9c2b-b7692b372888-1776429112-830b1c5f-batch-0000.zip`. Un solo cambio de regex + test nuevo y la segunda corrida F5 funcionó.
+- Aprendizaje: no asumir formato de archivos externos sin un sample real. La próxima vez, inspeccionar el entorno del usuario primero.
+
+### Verificación
+- `npm run ci` → **90/90 tests** ✓ (77 previos + 13 nuevos), lint ✓, typecheck ✓, build ✓.
+- **Prueba manual F5** por el usuario: con 1 ZIP de claude.ai en Downloads, palette → comando → **toast "importando…" → quick pick de conversación → editor**. El file picker desapareció del camino crítico. Usuario confirmó: "Bien! ahora si funciono!".
+
+### Próximo paso
+- Sigue en pie el Hito 9 (release polish: icono, README, tests de integración, `.vsix`).
+- Posible iteración si el auto-detect necesita más carpetas (macOS `~/Downloads` ya está cubierto; Linux `~/Descargas` en locales en español si aparece un usuario que lo pide) o drag-and-drop.
