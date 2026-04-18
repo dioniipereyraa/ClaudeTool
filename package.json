@@ -30,7 +30,10 @@
     "exportal": "./dist/cli/index.js"
   },
   "main": "./dist/extension/extension.cjs",
-  "activationEvents": [],
+  "icon": "assets/icon.png",
+  "activationEvents": [
+    "onStartupFinished"
+  ],
   "contributes": {
     "commands": [
       {
@@ -52,7 +55,8 @@
     "format:check": "prettier --check .",
     "typecheck": "tsc --noEmit",
     "ci": "npm run lint && npm run typecheck && npm run test && npm run build",
-    "package:vsix": "npm run build && vsce package --no-dependencies"
+    "package:vsix": "npm run build && vsce package --no-dependencies",
+    "build:icon": "node scripts/build-icon.mjs"
   },
   "overrides": {
     "esbuild": "$esbuild"
@@ -69,6 +73,7 @@
     "eslint-import-resolver-typescript": "^3.6.3",
     "eslint-plugin-import-x": "^4.4.2",
     "prettier": "^3.3.3",
+    "sharp": "^0.34.5",
     "tsx": "^4.19.2",
     "typescript": "^5.6.3",
     "typescript-eslint": "^8.14.0",

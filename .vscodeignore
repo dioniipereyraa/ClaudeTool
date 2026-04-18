@@ -1,9 +1,13 @@
 # Source — only the esbuild bundle under dist/extension ships
 src/**
 tests/**
+scripts/**
 node_modules/**
 coverage/**
 .vitest-cache/**
+
+# Icon: ship PNG, not SVG
+assets/*.svg
 
 # Build tooling
 tsconfig*.json

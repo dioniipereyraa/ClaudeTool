@@ -29,6 +29,16 @@ export function activate(context: vscode.ExtensionContext): void {
     importFromZipCommand,
   );
   context.subscriptions.push(disposable);
+
+  const statusBar = vscode.window.createStatusBarItem(
+    vscode.StatusBarAlignment.Left,
+    100,
+  );
+  statusBar.text = '$(cloud-download) Exportal';
+  statusBar.tooltip = 'Importar conversación de claude.ai';
+  statusBar.command = 'exportal.importFromZip';
+  statusBar.show();
+  context.subscriptions.push(statusBar);
 }
 
 export function deactivate(): void {

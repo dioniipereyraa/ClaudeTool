@@ -638,3 +638,38 @@ Para compartir la extensión con cualquiera fuera del repo (incluso sin marketpl
 ### Próximo paso
 - Probar instalación del `.vsix` en un VS Code limpio: `code --install-extension exportal-0.0.0.vsix`.
 - Si instala bien, Hito 9b puede ser: icono + screenshots + primer release en GitHub Releases con el `.vsix` como asset (evita la fricción del marketplace pero ya es compartible).
+
+## Hito 9b — Icono + botón en la status bar
+
+**Fecha:** 2026-04-18
+
+### Problema
+Post-9a la extensión era instalable desde `.vsix` pero:
+1. **Sin icono** — en el panel de Extensions aparecía como genérica.
+2. **Descubribilidad pésima** — única forma de disparar el comando era Ctrl+Shift+P → buscar "Exportal". El usuario tenía que *recordar* que la extensión existía.
+
+### Alcance cerrado
+- **Icono** (`assets/icon.svg` + `assets/icon.png` 128×128): diseño minimalista, "E" blanca con acento naranja sobre fondo índigo. Script `scripts/build-icon.mjs` convierte SVG→PNG con `sharp`. `assets/*.svg` excluido del `.vsix` (solo se envía el PNG).
+- **StatusBarItem** en `extension.ts activate()`: texto `$(cloud-download) Exportal` en la esquina inferior izquierda, tooltip "Importar conversación de claude.ai", click dispara `exportal.importFromZip`. Usa el codicon built-in de VS Code — sin assets extra.
+- **`activationEvents: ["onStartupFinished"]`**: antes estaba vacío; con comando-only activation la status bar no aparecía hasta que el usuario ejecutara el comando (círculo vicioso). `onStartupFinished` activa al terminar el arranque, sin impactar el tiempo de carga percibido.
+- **`eslint.config.js`**: bloque nuevo para `scripts/**/*.mjs` con globals `console`/`process` — sin esto, `build-icon.mjs` fallaba lint con `no-undef`.
+
+### Decisiones técnicas
+- **Status bar > command button en título de editor**: explorar la palette no escala. La status bar es persistente, minimalista y no invade la UI. Alignment Left porque la derecha la ocupan git/errors/etc.
+- **Codicon `$(cloud-download)` en lugar de icono custom en la status bar**: VS Code no soporta PNGs arbitrarios en status bar items; solo codicons. Usar el set built-in evita asset pipelines extra.
+- **PNG 128×128, no 256×256**: el marketplace usa 128px efectivo. Más resolución infla el `.vsix` sin ganancia visible.
+- **`sharp` como devDep**: tiene prebuilt binaries para Windows/Mac/Linux, zero build-time friction. Solo corre en `npm run build:icon`, no en CI regular.
+
+### Verificación
+- `npm run ci` → 95/95 tests, lint, typecheck, build ✓.
+- `npm run package:vsix` → `exportal-0.0.0.vsix` con 8 archivos, **144 KB** (antes 142 KB; +1.3 KB del PNG).
+- Instalado desde el panel de Extensions → **Install from VSIX…**. Reload → status bar muestra "☁ Exportal" al inicio. Click dispara la pickQuickPick de conversaciones. Confirmado por usuario: *"Si! funciona!"*.
+
+### Lo que NO entra
+- Screenshots del README (requieren capturas reproducibles de la UI).
+- Publicación al marketplace.
+- Badge/contador de exports recientes en la status bar (scope creep).
+
+### Próximo paso
+- Commit 9b y release en GitHub Releases con el `.vsix` como asset (sigue evitando marketplace).
+- Hito 10+: puente Chrome ↔ VS Code (ver memoria `project_chrome_bridge.md`).
