@@ -16,8 +16,16 @@
     "node": ">=20.0.0",
     "vscode": "^1.85.0"
   },
-  "categories": ["Other"],
-  "keywords": ["claude", "claude-code", "anthropic", "export", "markdown"],
+  "categories": [
+    "Other"
+  ],
+  "keywords": [
+    "claude",
+    "claude-code",
+    "anthropic",
+    "export",
+    "markdown"
+  ],
   "bin": {
     "exportal": "./dist/cli/index.js"
   },
@@ -31,12 +39,6 @@
       }
     ]
   },
-  "files": [
-    "dist",
-    "README.md",
-    "LICENSE",
-    "SECURITY.md"
-  ],
   "scripts": {
     "build": "tsc -p tsconfig.build.json && npm run build:extension",
     "build:extension": "node esbuild.config.mjs",
@@ -49,7 +51,8 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "typecheck": "tsc --noEmit",
-    "ci": "npm run lint && npm run typecheck && npm run test && npm run build"
+    "ci": "npm run lint && npm run typecheck && npm run test && npm run build",
+    "package:vsix": "npm run build && vsce package --no-dependencies"
   },
   "overrides": {
     "esbuild": "$esbuild"
@@ -57,8 +60,9 @@
   "devDependencies": {
     "@eslint/js": "^9.15.0",
     "@types/node": "^22.9.0",
-    "@types/vscode": "^1.116.0",
+    "@types/vscode": "~1.85.0",
     "@vitest/coverage-v8": "^4.1.4",
+    "@vscode/vsce": "^3.9.1",
     "esbuild": "^0.25.12",
     "eslint": "^9.15.0",
     "eslint-config-prettier": "^9.1.0",

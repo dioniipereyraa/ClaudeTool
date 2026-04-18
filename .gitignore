@@ -4,6 +4,7 @@ node_modules/
 # Build output
 dist/
 *.tsbuildinfo
+*.vsix
 
 # Test artifacts
 coverage/

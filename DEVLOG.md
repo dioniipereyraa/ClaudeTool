@@ -600,3 +600,41 @@ El usuario preguntó: "si el usuario le cambia el nombre al archivo, este no se 
 
 ### Próximo paso
 - Hito 9 sigue en pie: README con screenshots, icono, `@vscode/test-electron` para tests de integración, `vsce package` para generar `.vsix`, considerar marketplace.
+
+---
+
+## Hito 9a — README en UTF-8 y `.vsix` empaquetable (post-review)
+
+### Motivación
+Para compartir la extensión con cualquiera fuera del repo (incluso sin marketplace), hace falta un `.vsix` instalable vía `code --install-extension`. Antes de eso, había dos deudas técnicas que el usuario mismo no había notado:
+1. **El `README.md` existía en UTF-16 LE** (probablemente generado alguna vez desde PowerShell con redirección). Se ve como jeroglíficos tanto en GitHub como en el marketplace de VS Code.
+2. **Faltaba `.vscodeignore`** — sin ese archivo, `vsce package` empaqueta `src/`, `tests/`, `node_modules/` y todo, inflando el `.vsix` a decenas de MB.
+
+### Alcance cerrado
+- `README.md` reescrito en UTF-8, reflejando el estado actual del producto (las 3 fases cerradas, no "Fase 1 en curso"). Secciones: qué resuelve, uso de la extensión, uso del CLI, principios, requisitos, desarrollo, licencia.
+- `@vscode/vsce` agregado como devDep + script `package:vsix` que corre `build` + `vsce package --no-dependencies` (el `--no-dependencies` es seguro porque el bundle ya incluye todas las deps).
+- `.vscodeignore` escrito con filtros agresivos: excluye `src/`, `tests/`, `node_modules/`, config de tooling, y todo `dist/` salvo `dist/extension/extension.cjs` (el único archivo que la extensión necesita al runtime). Incluye también el sourcemap para no inflar el paquete.
+- `*.vsix` agregado al `.gitignore`.
+- `@types/vscode` bajado de `^1.116.0` a `~1.85.0` para cumplir con la regla de vsce (`@types/vscode` ≤ `engines.vscode`). No rompió nada porque no usamos APIs nuevas.
+- Campo `files` removido de `package.json` — vsce rechaza tener ambos (`.vscodeignore` y `files`) declarados, y al ser `"private": true` no publicamos a npm.
+
+### Decisiones técnicas
+- **`.vscodeignore` en lugar de `files`**: vsce no soporta combinar ambos. Elegí `.vscodeignore` porque es el idiomático del ecosistema de extensiones y acepta patrones de glob y negación.
+- **Sourcemap excluido**: `dist\extension\extension.cjs.map` pesa 1.6 MB. Lo dejo fuera del `.vsix` porque usuarios finales no lo necesitan. Si aparecen bugs opacos en prod, se puede revertir la decisión.
+- **`--no-dependencies` en vsce**: nuestro bundle de esbuild es self-contained; no tenemos `node_modules/` que mergear al paquete. Sin esta flag, vsce escanea transitives innecesariamente.
+- **`@types/vscode ~1.85.0` en lugar de bumpear `engines.vscode`**: VS Code 1.85 es de nov-2023, una base de usuarios enorme. No usamos APIs más nuevas, así que bajar los types es más seguro que excluir usuarios de VS Code legacy.
+
+### Verificación
+- `npm run ci` → 95/95 tests, lint, typecheck, build ✓.
+- `npm run package:vsix` → genera `exportal-0.0.0.vsix` con 7 archivos, **142 KB comprimido** (versión anterior con `.vscodeignore` mal configurado: 41 archivos, 451 KB).
+- Contenido del `.vsix`: `package.json`, `README.md`, `LICENSE`, `SECURITY.md`, `[Content_Types].xml`, `extension.vsixmanifest`, `dist/extension/extension.cjs` (838 KB descomprimido, todo el código + jszip + zod bundleado).
+
+### Lo que NO entra en este sub-hito
+- **Icono**: queda el placeholder default de VS Code. Sin icono la extensión es compartible igual.
+- **`@vscode/test-electron` para tests de integración**: defensivo, no bloquea release.
+- **Publicación al marketplace**: requiere cuenta Microsoft + Azure DevOps PAT + decisiones de marketing (nombre final, tagline, categorías, screenshots).
+- **Screenshots en el README**: requieren un entorno estable con una conversación de muestra. Puede quedar en un sub-hito 9b.
+
+### Próximo paso
+- Probar instalación del `.vsix` en un VS Code limpio: `code --install-extension exportal-0.0.0.vsix`.
+- Si instala bien, Hito 9b puede ser: icono + screenshots + primer release en GitHub Releases con el `.vsix` como asset (evita la fricción del marketplace pero ya es compartible).

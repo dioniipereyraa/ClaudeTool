@@ -1,0 +1,42 @@
+# Source — only the esbuild bundle under dist/extension ships
+src/**
+tests/**
+node_modules/**
+coverage/**
+.vitest-cache/**
+
+# Build tooling
+tsconfig*.json
+esbuild.config.*
+eslint.config.*
+vitest.config.*
+.prettierignore
+.prettierrc*
+
+# Git / editor / CI
+.git/**
+.github/**
+.vscode/**
+.gitignore
+.gitattributes
+.npmrc
+
+# Project meta that doesn't belong in the extension bundle
+DEVLOG.md
+.claude/**
+exports/**
+
+# Everything under dist/ except the extension bundle itself
+dist/index.*
+dist/cli/**
+dist/core/**
+dist/formatters/**
+dist/importers/**
+dist/redactors/**
+dist/extension/*.map
+
+# Package-local files
+*.vsix
+*.log
+*.tsbuildinfo
+package-lock.json
