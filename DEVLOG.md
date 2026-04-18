@@ -566,3 +566,37 @@ El usuario pidió simplificar aún más el flujo. Hito 8 ya había reducido el c
 ### Próximo paso
 - Sigue en pie el Hito 9 (release polish: icono, README, tests de integración, `.vsix`).
 - Posible iteración si el auto-detect necesita más carpetas (macOS `~/Downloads` ya está cubierto; Linux `~/Descargas` en locales en español si aparece un usuario que lo pide) o drag-and-drop.
+
+---
+
+## Hito 8.2 — Fallback por contenido para ZIPs renombrados (post-review)
+
+### Motivación
+El usuario preguntó: "si el usuario le cambia el nombre al archivo, este no se detecta, no?". Confirmado — el fast-path por nombre (`data-*.zip`) deja afuera al usuario que renombra a algo como `mi-backup.zip`. El fallback actual era el file picker directo, con el cost psicológico de "la extensión me dijo que no encontró nada" sin intentar más.
+
+### Alcance cerrado
+- Nueva función `scanZipsByContent()` en `zip-finder.ts` — escanea todo `*.zip` en Downloads/Desktop y peek con jszip para ver si contiene `conversations.json` en la raíz. Cap de tamaño 50 MB por defecto (configurable) para no abrir los 200 MB de modelos 3D que tiene el usuario en Downloads.
+- `pickZipFile()` cambió: cuando 0 candidatos por nombre, **antes** de caer al file picker, muestra un InformationMessage con dos botones: `[Revisar .zip por contenido]` y `[Elegir archivo…]`. Si el usuario acepta revisar, disparo `scanZipsByContent()` con progress notification y reutilizo el quick pick de candidatos existente.
+- Si el content-scan tampoco encuentra nada: informo y ofrezco el file picker como última salida.
+- 5 tests nuevos cubriendo: detección con `conversations.json` presente, skip sin ese archivo, cap de tamaño, extensión incorrecta ignorada, ZIPs corruptos silenciosamente salteados.
+
+### Decisiones técnicas
+- **Opt-in vs automático**: podría correr `scanZipsByContent` siempre tras el fast-path. Lo hice opt-in con botón porque scanear ZIPs es I/O serio (aunque jszip solo lee la tabla central, sigue leyendo el buffer completo a memoria) y el 95% de usuarios no renombran el archivo.
+- **Cap de 50 MB**: un export real de claude.ai suele pesar < 10 MB. 50 MB es margen generoso sin arriesgar minutos de scan en ZIPs de modelos 3D / backups pesados.
+- **Try/catch silencioso en el peek**: ZIPs corruptos o protegidos con password fallan parseo; los salto sin notificar. El usuario no se entera de qué ZIPs "no son suyos".
+- **Sin recursión en subcarpetas**: validamos con el usuario después de su prueba. `Downloads/Claude/data-foo.zip` no se detecta hoy. Pros de recursar (captar subcarpetas organizadas) no compensan los contras (más I/O cada invocación, Downloads suele tener basura profunda como `node_modules` clonados). El caso renombrado-Y-en-subcarpeta queda cubierto por el file picker.
+
+### Problemas durante la implementación
+- **Primera corrida de `npm run ci` falló** con `TypeError: Cannot read properties of undefined (reading 'config')` en TODOS los test files. No logré reproducirlo en corridas subsiguientes (5/5 pasaron sin cambios). Parece un hiccup frío de vitest workers al primer load del módulo jszip en un test nuevo. No intervine; quedó como curiosidad.
+- **Peek con jszip lee el ZIP completo a memoria**. Para ZIPs chicos (< 50 MB) es aceptable; para ZIPs grandes sería un problema. El cap de tamaño evita el worst case.
+
+### Verificación
+- `npm run ci` → **95/95 tests** ✓ (90 previos + 5 nuevos del scan por contenido), lint ✓, typecheck ✓, build ✓.
+- **Prueba manual F5** por el usuario con tres escenarios:
+  1. Solo renombrado (en Downloads): detectado correctamente ✓
+  2. Otro `.zip` liviano no relacionado presente: ignorado correctamente ✓
+  3. En otro disco o en subcarpeta de Downloads: no detectado (esperado y aceptado por el usuario).
+- Usuario confirmó: "Okay, si los archivos estan en la carpeta de descargas y tienen otro nombre, se identifican correctamente, aun si hay otro comprimido que pesa poco."
+
+### Próximo paso
+- Hito 9 sigue en pie: README con screenshots, icono, `@vscode/test-electron` para tests de integración, `vsce package` para generar `.vsix`, considerar marketplace.

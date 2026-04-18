@@ -1,6 +1,8 @@
-import { readdir, stat } from 'node:fs/promises';
+import { readFile, readdir, stat } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
+
+import JSZip from 'jszip';
 
 /**
  * Auto-detect recent claude.ai export ZIPs on the user's machine.
@@ -30,6 +32,7 @@ export interface ClaudeAiZipCandidate {
 const CLAUDE_AI_ZIP_PATTERN = /^data-.+\.zip$/i;
 const MAX_AGE_DAYS = 7;
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
+const DEFAULT_MAX_CONTENT_SCAN_BYTES = 50 * 1024 * 1024;
 
 export async function findRecentClaudeAiExports(
   options: { readonly home?: string; readonly now?: Date } = {},
@@ -91,4 +94,79 @@ export function formatSize(bytes: number): string {
     return `${String(Math.max(1, Math.round(bytes / 1024)))} KB`;
   }
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+/**
+ * Fallback discovery for ZIPs that the user renamed. Scans all `*.zip`
+ * under Downloads/Desktop (not just `data-*`) and peeks at each one's
+ * central directory to see if `conversations.json` is present.
+ *
+ * Size-capped to `maxSizeBytes` (default 50 MB) so we don't eat an
+ * unrelated 200 MB model/backup ZIP just to confirm it isn't claude.
+ * ZIPs that fail to parse (corrupt, password-protected, not actually
+ * a ZIP) are silently skipped.
+ */
+export async function scanZipsByContent(
+  options: {
+    readonly home?: string;
+    readonly now?: Date;
+    readonly maxSizeBytes?: number;
+  } = {},
+): Promise<readonly ClaudeAiZipCandidate[]> {
+  const home = options.home ?? homedir();
+  const now = options.now ?? new Date();
+  const maxSize = options.maxSizeBytes ?? DEFAULT_MAX_CONTENT_SCAN_BYTES;
+  const cutoff = now.getTime() - MAX_AGE_DAYS * MS_PER_DAY;
+
+  const folders = [
+    { name: 'Downloads', path: join(home, 'Downloads') },
+    { name: 'Desktop', path: join(home, 'Desktop') },
+  ];
+
+  const candidates: ClaudeAiZipCandidate[] = [];
+  for (const folder of folders) {
+    let entries: string[];
+    try {
+      entries = await readdir(folder.path);
+    } catch {
+      continue;
+    }
+    for (const entry of entries) {
+      if (!entry.toLowerCase().endsWith('.zip')) continue;
+      const fullPath = join(folder.path, entry);
+      let info;
+      try {
+        info = await stat(fullPath);
+      } catch {
+        continue;
+      }
+      if (!info.isFile()) continue;
+      if (info.mtimeMs < cutoff) continue;
+      if (info.size > maxSize) continue;
+
+      const isClaudeExport = await zipContainsConversationsJson(fullPath);
+      if (!isClaudeExport) continue;
+
+      candidates.push({
+        path: fullPath,
+        filename: entry,
+        folder: folder.name,
+        mtime: info.mtime,
+        sizeBytes: info.size,
+      });
+    }
+  }
+
+  candidates.sort((a, b) => b.mtime.getTime() - a.mtime.getTime());
+  return candidates;
+}
+
+async function zipContainsConversationsJson(zipPath: string): Promise<boolean> {
+  try {
+    const buffer = await readFile(zipPath);
+    const zip = await JSZip.loadAsync(buffer);
+    return zip.file('conversations.json') !== null;
+  } catch {
+    return false;
+  }
 }

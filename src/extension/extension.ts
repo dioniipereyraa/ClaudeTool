@@ -8,6 +8,7 @@ import {
   findRecentClaudeAiExports,
   formatRelativeTime,
   formatSize,
+  scanZipsByContent,
   type ClaudeAiZipCandidate,
 } from './zip-finder.js';
 
@@ -83,7 +84,7 @@ async function importFromZipCommand(): Promise<void> {
 
 async function pickZipFile(): Promise<vscode.Uri | undefined> {
   const candidates = await findRecentClaudeAiExports();
-  if (candidates.length === 0) return showOpenDialog();
+  if (candidates.length === 0) return handleNoNameMatches();
   if (candidates.length === 1) {
     const only = candidates[0]!;
     void vscode.window.showInformationMessage(
@@ -92,6 +93,45 @@ async function pickZipFile(): Promise<vscode.Uri | undefined> {
     return vscode.Uri.file(only.path);
   }
   return pickFromCandidates(candidates);
+}
+
+const CONTENT_SCAN_ACTION = 'Revisar .zip por contenido';
+const BROWSE_ACTION = 'Elegir archivo…';
+
+async function handleNoNameMatches(): Promise<vscode.Uri | undefined> {
+  const action = await vscode.window.showInformationMessage(
+    'Exportal: no encontré exports de claude.ai en Downloads/Desktop. ¿Revisar todos los .zip por contenido?',
+    CONTENT_SCAN_ACTION,
+    BROWSE_ACTION,
+  );
+  if (action === BROWSE_ACTION) return showOpenDialog();
+  if (action !== CONTENT_SCAN_ACTION) return undefined;
+
+  const found = await vscode.window.withProgress(
+    {
+      location: vscode.ProgressLocation.Notification,
+      title: 'Exportal: revisando .zip por contenido...',
+      cancellable: false,
+    },
+    async () => scanZipsByContent(),
+  );
+
+  if (found.length === 0) {
+    const next = await vscode.window.showInformationMessage(
+      'Exportal: ningún .zip reciente contiene datos de claude.ai.',
+      BROWSE_ACTION,
+    );
+    if (next === BROWSE_ACTION) return showOpenDialog();
+    return undefined;
+  }
+  if (found.length === 1) {
+    const only = found[0]!;
+    void vscode.window.showInformationMessage(
+      `Exportal: ${only.filename} detectado por contenido. Importando...`,
+    );
+    return vscode.Uri.file(only.path);
+  }
+  return pickFromCandidates(found);
 }
 
 async function showOpenDialog(): Promise<vscode.Uri | undefined> {

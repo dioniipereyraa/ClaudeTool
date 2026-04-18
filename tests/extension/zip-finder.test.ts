@@ -2,12 +2,14 @@ import { mkdir, mkdtemp, rm, utimes, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
+import JSZip from 'jszip';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import {
   findRecentClaudeAiExports,
   formatRelativeTime,
   formatSize,
+  scanZipsByContent,
 } from '../../src/extension/zip-finder.js';
 
 async function touch(path: string, mtime: Date): Promise<void> {
@@ -138,5 +140,92 @@ describe('formatSize', () => {
 
   it('returns MB with one decimal for larger files', () => {
     expect(formatSize(2.5 * 1024 * 1024)).toBe('2.5 MB');
+  });
+});
+
+async function writeZip(
+  path: string,
+  entries: Record<string, string>,
+  mtime: Date,
+): Promise<void> {
+  const zip = new JSZip();
+  for (const [name, content] of Object.entries(entries)) {
+    zip.file(name, content);
+  }
+  const bytes = await zip.generateAsync({ type: 'nodebuffer' });
+  await writeFile(path, bytes);
+  await utimes(path, mtime, mtime);
+}
+
+describe('scanZipsByContent', () => {
+  let home: string;
+  const now = new Date('2026-04-17T12:00:00Z');
+  const recent = new Date('2026-04-16T10:00:00Z');
+
+  beforeEach(async () => {
+    home = await mkdtemp(join(tmpdir(), 'exportal-content-'));
+    await mkdir(join(home, 'Downloads'));
+    await mkdir(join(home, 'Desktop'));
+  });
+
+  afterEach(async () => {
+    await rm(home, { recursive: true, force: true });
+  });
+
+  it('detects a renamed ZIP that contains conversations.json', async () => {
+    await writeZip(
+      join(home, 'Downloads', 'backup.zip'),
+      { 'conversations.json': '[]' },
+      recent,
+    );
+
+    const result = await scanZipsByContent({ home, now });
+
+    expect(result).toHaveLength(1);
+    expect(result[0]!.filename).toBe('backup.zip');
+  });
+
+  it('skips ZIPs that do not contain conversations.json', async () => {
+    await writeZip(
+      join(home, 'Downloads', 'other.zip'),
+      { 'readme.txt': 'hello' },
+      recent,
+    );
+
+    const result = await scanZipsByContent({ home, now });
+    expect(result).toEqual([]);
+  });
+
+  it('respects the size cap', async () => {
+    await writeZip(
+      join(home, 'Downloads', 'huge.zip'),
+      { 'conversations.json': '[]', 'padding.bin': 'x'.repeat(10_000) },
+      recent,
+    );
+
+    const result = await scanZipsByContent({ home, now, maxSizeBytes: 500 });
+    expect(result).toEqual([]);
+  });
+
+  it('ignores files that are not .zip', async () => {
+    await writeFile(join(home, 'Downloads', 'conversations.json'), '[]');
+    await utimes(join(home, 'Downloads', 'conversations.json'), recent, recent);
+
+    const result = await scanZipsByContent({ home, now });
+    expect(result).toEqual([]);
+  });
+
+  it('silently skips corrupt ZIPs', async () => {
+    await writeFile(join(home, 'Downloads', 'broken.zip'), 'not a zip');
+    await utimes(join(home, 'Downloads', 'broken.zip'), recent, recent);
+    await writeZip(
+      join(home, 'Desktop', 'valid.zip'),
+      { 'conversations.json': '[]' },
+      recent,
+    );
+
+    const result = await scanZipsByContent({ home, now });
+    expect(result).toHaveLength(1);
+    expect(result[0]!.filename).toBe('valid.zip');
   });
 });
