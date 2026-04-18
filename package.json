@@ -39,6 +39,10 @@
       {
         "command": "exportal.importFromZip",
         "title": "Exportal: Import claude.ai ZIP"
+      },
+      {
+        "command": "exportal.showPairingInfo",
+        "title": "Exportal: Show bridge pairing token"
       }
     ]
   },

@@ -5,12 +5,20 @@ import { readClaudeAiExport } from '../importers/claudeai/reader.js';
 import { type ClaudeAiConversation } from '../importers/claudeai/schema.js';
 
 import {
+  generateToken,
+  startServer,
+  type ImportPayload,
+  type ServerHandle,
+} from './http-server.js';
+import {
   findRecentClaudeAiExports,
   formatRelativeTime,
   formatSize,
   scanZipsByContent,
   type ClaudeAiZipCandidate,
 } from './zip-finder.js';
+
+const PAIRING_TOKEN_KEY = 'exportal.pairingToken';
 
 /**
  * Exportal — VS Code extension entry point.
@@ -24,11 +32,12 @@ import {
  * Users who need raw output know where to find the CLI.
  */
 export function activate(context: vscode.ExtensionContext): void {
-  const disposable = vscode.commands.registerCommand(
-    'exportal.importFromZip',
-    importFromZipCommand,
+  context.subscriptions.push(
+    vscode.commands.registerCommand('exportal.importFromZip', importFromZipCommand),
+    vscode.commands.registerCommand('exportal.showPairingInfo', () =>
+      showPairingInfoCommand(context),
+    ),
   );
-  context.subscriptions.push(disposable);
 
   const statusBar = vscode.window.createStatusBarItem(
     vscode.StatusBarAlignment.Left,
@@ -39,6 +48,16 @@ export function activate(context: vscode.ExtensionContext): void {
   statusBar.command = 'exportal.importFromZip';
   statusBar.show();
   context.subscriptions.push(statusBar);
+
+  // Start the local bridge server. Failure is non-fatal — the ZIP import
+  // flow still works from the status bar / palette. We surface the error
+  // so the user isn't left wondering why the Chrome companion can't reach
+  // VS Code, but we don't block activation on it.
+  void startBridgeServer(context).then((handle) => {
+    if (handle !== undefined) {
+      context.subscriptions.push({ dispose: () => void handle.close() });
+    }
+  });
 }
 
 export function deactivate(): void {
@@ -46,10 +65,55 @@ export function deactivate(): void {
   // lifetime and VS Code disposes them via `context.subscriptions`.
 }
 
+async function startBridgeServer(
+  context: vscode.ExtensionContext,
+): Promise<ServerHandle | undefined> {
+  const token = getOrCreatePairingToken(context);
+  try {
+    return await startServer(token, (payload) => handleBridgeImport(payload));
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    void vscode.window.showWarningMessage(
+      `Exportal: no se pudo iniciar el puente local. ${message}`,
+    );
+    return undefined;
+  }
+}
+
+function getOrCreatePairingToken(context: vscode.ExtensionContext): string {
+  const existing = context.globalState.get<string>(PAIRING_TOKEN_KEY);
+  if (existing !== undefined && existing.length > 0) return existing;
+  const token = generateToken();
+  void context.globalState.update(PAIRING_TOKEN_KEY, token);
+  return token;
+}
+
+async function handleBridgeImport(payload: ImportPayload): Promise<void> {
+  await openConversationFromZip(payload.zipPath);
+}
+
+async function showPairingInfoCommand(
+  context: vscode.ExtensionContext,
+): Promise<void> {
+  const token = getOrCreatePairingToken(context);
+  const action = await vscode.window.showInformationMessage(
+    'Exportal: token del puente local (para la extensión de Chrome).',
+    { modal: false },
+    'Copiar token',
+  );
+  if (action === 'Copiar token') {
+    await vscode.env.clipboard.writeText(token);
+    void vscode.window.showInformationMessage('Exportal: token copiado al portapapeles.');
+  }
+}
+
 async function importFromZipCommand(): Promise<void> {
   const zipUri = await pickZipFile();
   if (zipUri === undefined) return;
+  await openConversationFromZip(zipUri.fsPath);
+}
 
+async function openConversationFromZip(zipPath: string): Promise<void> {
   let exported;
   try {
     exported = await vscode.window.withProgress(
@@ -58,7 +122,7 @@ async function importFromZipCommand(): Promise<void> {
         title: 'Exportal: leyendo ZIP...',
         cancellable: false,
       },
-      async () => readClaudeAiExport(zipUri.fsPath),
+      async () => readClaudeAiExport(zipPath),
     );
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);

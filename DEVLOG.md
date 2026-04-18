@@ -673,3 +673,41 @@ Post-9a la extensión era instalable desde `.vsix` pero:
 ### Próximo paso
 - Commit 9b y release en GitHub Releases con el `.vsix` como asset (sigue evitando marketplace).
 - Hito 10+: puente Chrome ↔ VS Code (ver memoria `project_chrome_bridge.md`).
+
+## Hito 10a — Servidor HTTP local (puente claude.ai ↔ VS Code, paso 1)
+
+**Fecha:** 2026-04-18
+
+### Decisión de producto antes del código
+Revisé los Consumer Terms §3 de Anthropic: "crawl, scrape, or otherwise harvest data" y "access the Services through automated or non-human means" están prohibidos salvo vía API key oficial. Leer el DOM o endpoints internos de claude.ai desde una extensión de Chrome cae bajo esa prohibición.
+
+**Pivot**: en vez de scrapear claude.ai, la extensión de Chrome observa cuando el usuario dispara el export oficial (vía `chrome.downloads` API) y reenvía el path del ZIP a VS Code. Zero scraping — solo automatiza un flujo que el usuario ya inicia manualmente.
+
+### Alcance cerrado (10a)
+- `src/extension/http-server.ts` — servidor HTTP local, puro (sin imports de `vscode`), testeable con `fetch`. API: `startServer(token, onImport)` + `generateToken()`. Acepta `POST /import` con `{ zipPath: string }`.
+- `tests/extension/http-server.test.ts` — 14 tests cubriendo: método/path incorrectos (405/404), auth (token correcto / incorrecto / ausente / longitud distinta → 401), validación (JSON malo → 400, schema malo → 400, body > 64 KB → 413), handler que tira → 500, selección de puerto en rango 9317-9326, falloff al próximo puerto ocupado, generación de tokens únicos.
+- `extension.ts activate()` — arranca el servidor en background, genera/persiste token en `context.globalState`, registra cleanup. Nuevo comando `exportal.showPairingInfo` que copia el token al portapapeles.
+- Refactor: extraje `openConversationFromZip(zipPath)` del command original para que el flujo del puente y el flujo del file-picker compartan la misma lógica de renderizado.
+
+### Decisiones técnicas
+- **Bind a `127.0.0.1`, no `localhost`**: evita resolución DNS y asegura que nunca expongamos a otras interfaces de red.
+- **Token Bearer + comparación timing-safe**: `crypto.timingSafeEqual` sobre buffers del mismo tamaño (con early-return en longitudes distintas). 256 bits crypto-random, hex.
+- **Puerto fijo en rango 9317-9326**: Chrome puede probar los 10 en secuencia para descubrir al VS Code activo sin handshake de filesystem (MV3 no da filesystem). 10 puertos cubren múltiples VS Code corriendo a la vez en la misma máquina.
+- **Content-Length + streaming limit**: doble defensa. Content-Length rechaza fast path (< 1 ms). Streaming drena el body si el cliente mintió en Content-Length, marca flag `exceeded`, y al `end` rechaza — sin `req.destroy()` porque eso corta el socket antes de que el 413 se flushee al cliente.
+- **Zod para validar payload**: ya era dep del proyecto, reutilizable. Trae mensajes de error estructurados gratis.
+- **Arranque no bloqueante**: si el puerto no está disponible o el server falla, la extensión sigue funcionando vía status bar — solo se pierde el puente de Chrome.
+- **Token persistido en `globalState`**: sobrevive reinstalls del `.vsix`, pero es per-usuario (no per-workspace). El pairing se hace una vez.
+
+### Verificación
+- `npm run ci` → 109/109 tests (de 95 → +14), lint, typecheck, build ✓.
+- Bundle: 844 KB (+5.6 KB de http-server.ts; zod ya venía).
+- No toqué assets ni `.vscodeignore` — el `.vsix` del hito 9b sigue siendo válido conceptualmente; solo crece el bundle ~6 KB al reempaquetar.
+
+### Lo que NO entra acá
+- Extensión de Chrome (10b).
+- Captura del evento de descarga (10c).
+- Handshake de pairing en la UI (Chrome extension pide token → usuario lo copia desde VS Code). Ya está el camino: `exportal.showPairingInfo` copia al portapapeles. La UI del Chrome viene en 10c-d.
+- UI visual del puerto actual en la status bar (lo pensé, pero el usuario no necesita saber el puerto — el Chrome ext lo descubre solo probando el rango).
+
+### Próximo paso (10b)
+Skeleton de extensión de Chrome MV3: manifest + service worker + options page para pegar el token. Sin funcionalidad real — solo validar que se carga unpacked y que el options page persiste el token en `chrome.storage`.
