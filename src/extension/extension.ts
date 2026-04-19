@@ -134,6 +134,20 @@ async function handleBridgeImportInline(payload: ImportInlinePayload): Promise<v
     language: 'markdown',
   });
   await vscode.window.showTextDocument(doc, { preview: false });
+  announceImport(conversation);
+}
+
+function announceImport(conversation: ClaudeAiConversation): void {
+  // Toast after a successful import. The user often triggers the export
+  // from Chrome with VS Code in the background; without this toast the
+  // only confirmation is the new editor tab, which they may not see
+  // until they switch windows. Includes the title so a user who fires
+  // two exports back-to-back can tell them apart.
+  const title = conversation.name.length > 0 ? conversation.name : '(sin título)';
+  const count = conversation.chat_messages.length;
+  void vscode.window.showInformationMessage(
+    `Exportal: "${title}" — ${String(count)} mensajes importados`,
+  );
 }
 
 async function showPairingInfoCommand(
@@ -229,6 +243,7 @@ async function openConversationFromZip(
     language: 'markdown',
   });
   await vscode.window.showTextDocument(doc, { preview: false });
+  announceImport(conversation);
 }
 
 async function pickZipFile(): Promise<vscode.Uri | undefined> {
