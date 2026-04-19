@@ -24,11 +24,14 @@ const PAIRING_TOKEN_KEY = 'exportal.pairingToken';
  * Exportal — VS Code extension entry point.
  *
  * Thin wrapper over the already-tested core: `readClaudeAiExport` and
- * `formatConversation`. The extension exists to remove the five CLI
- * steps (find ZIP, remember command, type UUID, run, open editor) and
- * collapse them into: palette → file picker → quick pick → editor.
+ * `formatConversation`. Surfaces:
+ *  - A status bar button + command that auto-detects the most recent
+ *    claude.ai export ZIP in Downloads/Desktop and opens it as Markdown.
+ *  - A local HTTP bridge (see `http-server.ts`) that accepts import
+ *    requests from a future Chrome companion extension.
+ *  - A command to reveal the pairing token used by the Chrome companion.
  *
- * Redaction is forced on here — there is deliberately no UI toggle.
+ * Redaction is forced on — there is deliberately no UI toggle.
  * Users who need raw output know where to find the CLI.
  */
 export function activate(context: vscode.ExtensionContext): void {
@@ -50,13 +53,26 @@ export function activate(context: vscode.ExtensionContext): void {
   context.subscriptions.push(statusBar);
 
   // Start the local bridge server. Failure is non-fatal — the ZIP import
-  // flow still works from the status bar / palette. We surface the error
-  // so the user isn't left wondering why the Chrome companion can't reach
-  // VS Code, but we don't block activation on it.
+  // flow still works from the status bar / palette.
+  //
+  // Server startup is async, so we register a disposable synchronously
+  // that tracks the in-flight startup: if VS Code deactivates us before
+  // the server finishes listening, the disposable closes the handle as
+  // soon as it resolves. Without this, a fast deactivate would leak the
+  // listening port (the handle would be pushed to a disposed subscription
+  // array, which VS Code no longer watches).
+  let disposed = false;
+  let activeHandle: ServerHandle | undefined;
+  context.subscriptions.push({
+    dispose: () => {
+      disposed = true;
+      if (activeHandle !== undefined) void activeHandle.close();
+    },
+  });
   void startBridgeServer(context).then((handle) => {
-    if (handle !== undefined) {
-      context.subscriptions.push({ dispose: () => void handle.close() });
-    }
+    if (handle === undefined) return;
+    if (disposed) void handle.close();
+    else activeHandle = handle;
   });
 }
 
@@ -89,15 +105,18 @@ function getOrCreatePairingToken(context: vscode.ExtensionContext): string {
 }
 
 async function handleBridgeImport(payload: ImportPayload): Promise<void> {
-  await openConversationFromZip(payload.zipPath);
+  await openConversationFromZip(payload.zipPath, { rethrow: true });
 }
 
 async function showPairingInfoCommand(
   context: vscode.ExtensionContext,
 ): Promise<void> {
   const token = getOrCreatePairingToken(context);
+  // The Chrome companion probes ports 9317-9326; we don't need to tell
+  // the user which one we landed on — but we do need to give them the
+  // token so they can paste it into the extension's options page.
   const action = await vscode.window.showInformationMessage(
-    'Exportal: token del puente local (para la extensión de Chrome).',
+    'Exportal: copiá el token para emparejar la extensión de Chrome.',
     { modal: false },
     'Copiar token',
   );
@@ -113,7 +132,20 @@ async function importFromZipCommand(): Promise<void> {
   await openConversationFromZip(zipUri.fsPath);
 }
 
-async function openConversationFromZip(zipPath: string): Promise<void> {
+interface OpenOptions {
+  /**
+   * If true, re-throw after surfacing errors as notifications. Used by
+   * the HTTP bridge path so the Chrome companion gets a proper 5xx
+   * status instead of a silent 200. The command path leaves this false
+   * — user already sees the error in VS Code, no caller to inform.
+   */
+  readonly rethrow?: boolean;
+}
+
+async function openConversationFromZip(
+  zipPath: string,
+  options: OpenOptions = {},
+): Promise<void> {
   let exported;
   try {
     exported = await vscode.window.withProgress(
@@ -127,6 +159,7 @@ async function openConversationFromZip(zipPath: string): Promise<void> {
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     await vscode.window.showErrorMessage(`Exportal: no se pudo leer el ZIP. ${message}`);
+    if (options.rethrow) throw err;
     return;
   }
 
