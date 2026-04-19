@@ -22,7 +22,9 @@ export default tseslint.config(
     languageOptions: {
       globals: {
         chrome: 'readonly',
+        console: 'readonly',
         document: 'readonly',
+        fetch: 'readonly',
         self: 'readonly',
         window: 'readonly',
         HTMLInputElement: 'readonly',

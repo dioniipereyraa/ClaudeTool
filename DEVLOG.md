@@ -764,3 +764,40 @@ Skeleton de extensión de Chrome MV3: manifest + service worker + options page p
 ### Próximo paso (10c)
 
 Listener a `chrome.downloads.onCreated` filtrando por nombre `data-*.zip` (o por contenido de claude.ai). Al matchear, probar POST a `http://127.0.0.1:PORT/import` con el token guardado, recorriendo el rango 9317-9326. Feedback visual vía `chrome.notifications` o al icono.
+
+## Hito 10c — Auto-forward de exports de claude.ai a VS Code
+
+**Fecha:** 2026-04-19
+
+### Objetivo
+Eliminar todo input manual del usuario después de disparar el export en claude.ai: Chrome detecta la descarga, valida que sea un export oficial y postea el path al servidor local. En VS Code aparece el QuickPick de conversaciones sin pasar por status bar ni palette.
+
+### Alcance cerrado
+- `chrome/manifest.json`: permiso `downloads` agregado.
+- `chrome/background.js`: reescrito. Un único listener top-level en `chrome.downloads.onChanged` filtrando por `state === 'complete'` + filename regex `/(^|[\/])data-.+\.zip$/i` + URL/referrer conteniendo `claude.ai`. Probing del rango 9317-9326 con el token guardado en `chrome.storage.local`. Cache del último puerto exitoso en `chrome.storage.session` para atajo en uso recurrente.
+- `eslint.config.js`: globals `console` y `fetch` agregados para `chrome/**/*.js`.
+
+### Decisiones técnicas
+- **Listener top-level en `onChanged`, no en `onCreated`**: MV3 evicts el service worker a los ~30s idle. Un listener dinámico registrado tras `onCreated` se pierde si el worker muere antes del fin de la descarga. Top-level `onChanged` se re-registra en cada wake-up y garantiza que capturamos el evento `complete` sin importar cuánto tardó la descarga.
+- **Doble filtro (filename + URL/referrer)**: el patrón de filename `data-*.zip` es bastante específico pero tolerante a colisiones. Exigir que la URL tenga `claude.ai` evita que cualquier ZIP llamado `data-x.zip` bajado de otro lado dispare el flujo.
+- **Port probing en orden con caché**: arranca por el último puerto exitoso. Si falla, recorre el rango. Cache vive en `storage.session` para que se resetee en cada reinicio de Chrome — si VS Code abre en otro puerto entre sesiones, re-descubrimos rápido.
+- **Detección de auth error por short-circuit**: si un puerto responde 401, asumimos que es Exportal con token mal y paramos de probar. Un 401 desde otro servicio arbitrario sería un bug en ese servicio, no nuestro problema.
+- **Badge en lugar de notificaciones**: evita agregar el permiso `notifications` (más fricción si publicamos al Web Store). Estados: `OK` verde, `AUTH` rojo (token rechazado), `OFF` rojo (no hay servidor), `SET` amarillo (token sin configurar).
+- **`chrome.storage.session` vs `storage.local`**: token es persistente (`local`), último puerto es efímero (`session`). Ambas usan el mismo permiso `storage`.
+
+### Verificación manual (flujo golden path)
+1. `chrome://extensions` → refresh de Exportal Companion → aceptar prompt de permiso `downloads`.
+2. Pin de la extensión al toolbar (Chrome no autopinea; sin pin el badge queda oculto detrás del puzzle icon).
+3. Disparar export en claude.ai → abrir el link del email → descarga automática.
+4. Badge "OK" verde aparece en el ícono cuando termina.
+5. En VS Code: aparece el QuickPick de conversaciones sin intervención. Usuario confirmó: "aparece ok en exportal web y me tiro la de que hacer en vs code".
+
+### Lo que NO entra en 10c
+- UI de setup del token en primer uso (hoy: si no hay token, badge `SET` + log en consola. Usuario tiene que saber abrir Opciones).
+- Icono de claude.ai diferenciado (el ZIP se detecta pero el badge es genérico).
+- Retry con back-off si el server está respondiendo pero lento.
+- Tests automatizados (Chrome ext testing sigue difiriéndose; el flujo es end-to-end humano).
+
+### Próximos pasos posibles
+- **10d** (opcional): packaging del `.crx` y distribución. Primera versión puede ir como zip en GitHub Releases (sideload con "Load unpacked"), esquivando Chrome Web Store mientras validamos el producto.
+- **10e** (opcional): content script en claude.ai que pone un botón "Enviar a VS Code" al lado del botón de export, eliminando incluso el paso de disparar el export — mismo efecto pero más polish.
