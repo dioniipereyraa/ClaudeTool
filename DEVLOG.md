@@ -801,3 +801,40 @@ Eliminar todo input manual del usuario después de disparar el export en claude.
 ### Próximos pasos posibles
 - **10d** (opcional): packaging del `.crx` y distribución. Primera versión puede ir como zip en GitHub Releases (sideload con "Load unpacked"), esquivando Chrome Web Store mientras validamos el producto.
 - **10e** (opcional): content script en claude.ai que pone un botón "Enviar a VS Code" al lado del botón de export, eliminando incluso el paso de disparar el export — mismo efecto pero más polish.
+
+---
+
+## Hito 10d — Packaging del companion para distribución
+**Fecha:** 2026-04-19
+
+### Objetivo
+Poder publicar el companion en GitHub Releases como un `.zip` que cualquiera baje, extraiga y cargue con "Load unpacked". Evitar divergencia entre la versión de `package.json` y la del `manifest.json` del companion.
+
+### Alcance cerrado
+- `scripts/package-chrome.mjs`: nuevo. Lee `package.json` raíz, patchea `manifest.version` **en memoria** (el árbol de fuentes queda limpio), arma un zip flat (sin carpeta envolvente) con todos los archivos de `chrome/` vía JSZip con compresión DEFLATE. Output: `exportal-companion-<version>.zip` en la raíz.
+- `package.json`: scripts `package:chrome` (standalone) y `package:all` (vsix + chrome en cascada).
+- `.gitignore`: patrón `exportal-companion-*.zip` para no commitear artifacts.
+- `.vscodeignore`: mismo patrón para que no se cuele en el `.vsix`.
+- `README.md`: sección "Chrome companion (opcional)" con pasos de instalación desde zip de Releases y el comando de build desde fuente.
+
+### Decisiones técnicas
+- **Patch del manifest en memoria, no en disco**: el `manifest.json` del árbol queda con `version: "0.0.0"` para que no haya drift entre ramas ni commits ruidosos en cada bump. La versión de verdad vive en `package.json`, que es la fuente canónica para todo el repo (vsix, CLI, companion).
+- **Zip flat, no carpeta envolvente**: Chrome "Load unpacked" acepta tanto flat como nested, pero flat es menos fricción para el usuario (extrae → elige la misma carpeta, sin tener que entrar a un subdirectorio).
+- **JSZip en vez de `zip` del SO**: ya es dependencia para leer ZIPs de claude.ai. Reusarla evita agregar `archiver` o depender de un binario de sistema (Windows no trae `zip`).
+- **`.zip` y no `.crx`**: Chrome bloquea sideload de `.crx` no firmados fuera del Web Store. Load unpacked desde zip extraído es el patrón estándar para distribución OSS pre-publicación.
+- **Script guard `manifest_version !== 3`**: defensive, detecta regresiones si alguien baja el manifest a MV2 por error.
+
+### Verificación
+- `node scripts/package-chrome.mjs` → `Wrote exportal-companion-0.0.0.zip (5.4 KB)`.
+- Inspección del zip: 5 archivos flat (`background.js`, `icon-128.png`, `manifest.json`, `options.html`, `options.js`); `manifest.version = "0.0.0"` matcheando `package.json`.
+- Lint + typecheck limpios.
+
+### Lo que NO entra en 10d
+- Publicación en Chrome Web Store (requiere cuenta de developer de pago + review process).
+- Firma del `.crx` (no aplica, usamos zip).
+- GitHub Action que adjunte el zip automáticamente al crear un release tag (se puede hacer en un hito de CI dedicado).
+- Auto-update del companion (no existe sin CWS; el usuario tiene que reinstalar manualmente).
+
+### Próximos pasos posibles
+- GitHub Action que corra `package:all` en `release: published` y suba los artifacts como assets.
+- Publicar en Chrome Web Store una vez que el producto esté estable y haya users reales pidiéndolo.

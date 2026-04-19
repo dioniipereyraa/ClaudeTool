@@ -32,6 +32,21 @@ npm run package:vsix
 code --install-extension exportal-*.vsix
 ```
 
+## Chrome companion (opcional)
+
+Extensión de Chrome que detecta cuando claude.ai termina de descargar un export oficial y se lo pasa a la extensión de VS Code por un servidor HTTP local. Click-free: no pega, no navega, no escanea carpetas.
+
+**Instalación**:
+
+1. Descargá `exportal-companion-<version>.zip` desde [Releases](https://github.com/dioniipereyraa/ClaudeTool/releases) y extraelo.
+2. Chrome → `chrome://extensions` → activá **Modo desarrollador** → **Cargar sin empaquetar** → elegí la carpeta extraída.
+3. En VS Code: `Ctrl+Shift+P` → **Exportal: Show bridge pairing token** → copiá el token.
+4. Click derecho sobre el icono de Exportal Companion → **Opciones** → pegá el token → **Guardar**.
+
+Desde ahí, cada vez que pidas un export en claude.ai y hagas click en el link del mail, la extensión lo reenvía a VS Code automáticamente. El badge del icono muestra el estado (`OK` verde, `AUTH`/`OFF` rojo, `SET` amarillo).
+
+Para buildearlo desde fuente: `npm run package:chrome` genera el zip en la raíz del repo.
+
 ## CLI
 
 Para exportar sesiones de Claude Code a Markdown, o para importar un ZIP de claude.ai desde la terminal:

@@ -60,6 +60,8 @@
     "typecheck": "tsc --noEmit",
     "ci": "npm run lint && npm run typecheck && npm run test && npm run build",
     "package:vsix": "npm run build && vsce package --no-dependencies",
+    "package:chrome": "node scripts/package-chrome.mjs",
+    "package:all": "npm run package:vsix && npm run package:chrome",
     "build:icon": "node scripts/build-icon.mjs"
   },
   "overrides": {

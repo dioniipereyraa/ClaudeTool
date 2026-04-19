@@ -42,6 +42,7 @@ dist/extension/*.map
 
 # Package-local files
 *.vsix
+exportal-companion-*.zip
 *.log
 *.tsbuildinfo
 package-lock.json
