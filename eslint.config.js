@@ -18,6 +18,18 @@ export default tseslint.config(
     },
   },
   {
+    files: ['chrome/**/*.js'],
+    languageOptions: {
+      globals: {
+        chrome: 'readonly',
+        document: 'readonly',
+        self: 'readonly',
+        window: 'readonly',
+        HTMLInputElement: 'readonly',
+      },
+    },
+  },
+  {
     files: ['src/**/*.ts', 'tests/**/*.ts', '*.config.ts'],
     extends: [
       ...tseslint.configs.recommendedTypeChecked,

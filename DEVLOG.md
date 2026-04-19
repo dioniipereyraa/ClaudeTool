@@ -711,3 +711,56 @@ Revisé los Consumer Terms §3 de Anthropic: "crawl, scrape, or otherwise harves
 
 ### Próximo paso (10b)
 Skeleton de extensión de Chrome MV3: manifest + service worker + options page para pegar el token. Sin funcionalidad real — solo validar que se carga unpacked y que el options page persiste el token en `chrome.storage`.
+
+## Audit pre-10b (bugfixes) + Hito 10b — Chrome companion skeleton
+
+**Fecha:** 2026-04-18
+
+### Audit: bugs encontrados y arreglados (antes de arrancar 10b)
+
+1. **Bridge devolvía `200 ok:true` cuando el ZIP fallaba al leerse** — `openConversationFromZip` atrapaba el error, lo mostraba como `showErrorMessage` y retornaba normal. El handler HTTP respondía 200, engañando al cliente futuro. **Fix**: opción `{ rethrow: true }` en la ruta del bridge. La ruta del command sigue igual (usuario ve el error en VS Code, no hay caller externo al que informar).
+2. **Race en `activate()`**: `startBridgeServer` es async y el dispose se pusheaba en el `.then()`. Si VS Code desactivaba la ext antes de que el server estuviera listening, el push caía en un subscriptions array ya disposado → server huérfano con puerto ocupado hasta fin del proceso. **Fix**: registrar disposable sincrónicamente con flag `disposed`; cuando el handle resuelve, si ya se desactivó, cerrar; si no, guardar el handle para que el dispose lo cierre.
+3. **JSDoc de `activate()` obsoleto** — describía el flujo original (palette → file picker), no el actual (status bar + auto-detect + bridge). **Fix**: reescrito enumerando las 3 capas reales.
+4. **UX flaco en `showPairingInfoCommand`** — mensaje genérico que no explicaba para qué sirve el token. **Fix**: mensaje ahora dice explícitamente "para emparejar la extensión de Chrome".
+
+**Verificación**: `npm run ci` → 109/109 tests ✓. Los cambios son internos al flujo del bridge, no rompen tests existentes.
+
+### Hito 10b — Chrome companion extension skeleton
+
+**Alcance cerrado**: extensión MV3 *unpacked*-installable, sin funcionalidad de puente real todavía.
+
+- `chrome/manifest.json` — MV3, `minimum_chrome_version: 116`, permisos mínimos (`storage`), host permission para `http://127.0.0.1/*`, icono reusado de `assets/icon.png`.
+- `chrome/background.js` — service worker stub con listeners `install`/`activate` vacíos. Notas sobre la efimeridad de los service workers MV3 para que en 10c no caiga en el pozo común de guardar estado en variables de módulo.
+- `chrome/options.html` + `chrome/options.js` — página de opciones con input de token + botón Guardar/Borrar + validación de regex `/^[0-9a-f]{64}$/`. Persiste en `chrome.storage.local` bajo la clave `exportal.pairingToken`.
+- `chrome/icon-128.png` — copia de `assets/icon.png`.
+- `eslint.config.js` — bloque nuevo para `chrome/**/*.js` con globals (`chrome`, `document`, `self`, `window`, `HTMLInputElement`).
+- `.vscodeignore` — `chrome/**` excluido del `.vsix` (vive junto a la VS Code ext pero no se empaqueta con ella).
+
+### Decisiones técnicas
+
+- **JS plano, sin build**: el skeleton es trivial (manifest + storage.set + storage.get). Si en 10c-d crece, migrar a TS es mecánico. Evita agregar otro pipeline de esbuild.
+- **`minimum_chrome_version: 116`** — cualquier Chrome moderno. Permite usar `chrome.storage.local` con Promises (sin callbacks).
+- **`permissions: ["storage"]` solo**: `downloads` viene en 10c. Minimizar permisos al principio reduce la fricción del permission-dialog en Chrome Web Store si alguna vez publicamos.
+- **`host_permissions` a `http://127.0.0.1/*`**: sin esto, `fetch()` desde el service worker a localhost se bloquea por mixed-content aunque sea mismo host. El path glob cubre los 10 puertos del rango.
+- **Options page usa solo web platform APIs + `chrome.storage`**: zero deps. Dark-mode nativo vía `color-scheme: light dark` + `color-mix()`.
+- **Código en el mismo repo** bajo `chrome/`: un DEVLOG, un CI, una PR por feature cross-cut. No monorepo-tooling — solo un directorio.
+
+### Verificación manual pendiente
+
+1. `chrome://extensions` → Developer mode ON → **Load unpacked** → elegir `d:\Dionisio\ClaudeTool\chrome`.
+2. Debería aparecer "Exportal Companion" con el ícono de Exportal.
+3. Click derecho en el icono → **Opciones** → pegar un token de 64 hex chars → Guardar → ve "Token guardado." en verde.
+4. Cerrar la página de opciones, reabrir → el token sigue ahí (persistencia en `chrome.storage.local` OK).
+5. Probar validación: token corto → "El token debe tener 64 caracteres hexadecimales." en rojo.
+
+### Lo que NO entra en 10b
+
+- `chrome.downloads.onCreated` listener (10c).
+- `fetch` al servidor local (10c/d).
+- Dialog de "VS Code no detectado" si el server no responde (10d).
+- Packaging del `.crx` / distribución (10e).
+- Tests automatizados del Chrome ext (seguimos difiriendo hasta que haya lógica no-trivial).
+
+### Próximo paso (10c)
+
+Listener a `chrome.downloads.onCreated` filtrando por nombre `data-*.zip` (o por contenido de claude.ai). Al matchear, probar POST a `http://127.0.0.1:PORT/import` con el token guardado, recorriendo el rango 9317-9326. Feedback visual vía `chrome.notifications` o al icono.

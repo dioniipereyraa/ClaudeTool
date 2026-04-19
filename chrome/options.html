@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <title>Exportal Companion — opciones</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        font-family:
+          system-ui,
+          -apple-system,
+          Segoe UI,
+          sans-serif;
+      }
+      body {
+        max-width: 520px;
+        margin: 0;
+        padding: 24px;
+        line-height: 1.5;
+      }
+      h1 {
+        font-size: 18px;
+        margin: 0 0 8px;
+      }
+      p {
+        margin: 0 0 16px;
+        color: color-mix(in srgb, currentColor 70%, transparent);
+      }
+      label {
+        display: block;
+        font-size: 12px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        margin-bottom: 4px;
+      }
+      input {
+        width: 100%;
+        box-sizing: border-box;
+        padding: 8px 10px;
+        font-family: ui-monospace, Menlo, Consolas, monospace;
+        font-size: 13px;
+        border: 1px solid color-mix(in srgb, currentColor 20%, transparent);
+        border-radius: 6px;
+        background: transparent;
+        color: inherit;
+      }
+      .row {
+        display: flex;
+        gap: 8px;
+        margin-top: 12px;
+      }
+      button {
+        padding: 8px 14px;
+        font-size: 13px;
+        border: 1px solid color-mix(in srgb, currentColor 20%, transparent);
+        border-radius: 6px;
+        background: color-mix(in srgb, currentColor 8%, transparent);
+        color: inherit;
+        cursor: pointer;
+      }
+      button:hover {
+        background: color-mix(in srgb, currentColor 14%, transparent);
+      }
+      #status {
+        margin-top: 12px;
+        font-size: 12px;
+        min-height: 1em;
+      }
+      #status[data-kind='ok'] {
+        color: #16a34a;
+      }
+      #status[data-kind='err'] {
+        color: #dc2626;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Exportal Companion</h1>
+    <p>
+      Pegá el token que aparece en VS Code (comando
+      <strong>Exportal: Show bridge pairing token</strong>) para emparejar esta
+      extensión con tu editor.
+    </p>
+    <label for="token">Token del puente local</label>
+    <input id="token" type="text" spellcheck="false" autocomplete="off" />
+    <div class="row">
+      <button id="save" type="button">Guardar</button>
+      <button id="clear" type="button">Borrar</button>
+    </div>
+    <div id="status" aria-live="polite"></div>
+    <script src="options.js" type="module"></script>
+  </body>
+</html>

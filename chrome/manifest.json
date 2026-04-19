@@ -1,0 +1,24 @@
+{
+  "manifest_version": 3,
+  "name": "Exportal Companion",
+  "version": "0.0.0",
+  "description": "Puente entre claude.ai y la extensión de VS Code Exportal. Reenvía los exports oficiales al servidor local.",
+  "minimum_chrome_version": "116",
+  "icons": {
+    "128": "icon-128.png"
+  },
+  "action": {
+    "default_icon": "icon-128.png",
+    "default_title": "Exportal Companion"
+  },
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "options_ui": {
+    "page": "options.html",
+    "open_in_tab": false
+  },
+  "permissions": ["storage"],
+  "host_permissions": ["http://127.0.0.1/*"]
+}

@@ -29,6 +29,7 @@ vitest.config.*
 DEVLOG.md
 .claude/**
 exports/**
+chrome/**
 
 # Everything under dist/ except the extension bundle itself
 dist/index.*
