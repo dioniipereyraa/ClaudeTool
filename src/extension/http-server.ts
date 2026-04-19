@@ -23,14 +23,52 @@ import { z } from 'zod';
 
 const PORT_RANGE_START = 9317;
 const PORT_RANGE_END = 9326;
-const MAX_BODY_BYTES = 64 * 1024;
+// The ZIP-path endpoint only carries a filesystem path + UUID.
+const MAX_BODY_BYTES_IMPORT = 64 * 1024;
+// The inline endpoint carries a full conversation JSON scraped from
+// claude.ai's internal API. Real conversations with long tool_use/tool_result
+// blocks can easily exceed 1 MB; 10 MB gives comfortable headroom without
+// becoming a memory-abuse vector (bearer-token auth is still required).
+const MAX_BODY_BYTES_IMPORT_INLINE = 10 * 1024 * 1024;
+
+// Permissive UUID-ish shape: hex + hyphens, typical claude.ai conversation
+// UUIDs are RFC-4122 (36 chars) but we accept a wider range to stay robust
+// against format tweaks. We never use this as a security boundary — it only
+// controls which conversation we pre-select.
+const ConversationIdSchema = z
+  .string()
+  .regex(/^[0-9a-f-]{8,64}$/i, 'invalid conversation id');
 
 const ImportPayload = z.object({
   zipPath: z.string().min(1),
+  conversationId: ConversationIdSchema.optional(),
 });
 export type ImportPayload = z.infer<typeof ImportPayload>;
 
+// Inline payload: a single conversation object, as returned by claude.ai's
+// internal `/api/organizations/<org>/chat_conversations/<id>` endpoint. We
+// leave the shape opaque here — the importer module owns the schema and
+// will reject malformed data with its own error message. `z.unknown()`
+// would accept `undefined` as a valid absent field, so we explicitly
+// refine to require a non-null object.
+const ImportInlinePayload = z.object({
+  conversation: z
+    .unknown()
+    .refine(
+      (v): v is Record<string, unknown> => v !== null && typeof v === 'object' && !Array.isArray(v),
+      { message: 'conversation must be an object' },
+    ),
+  userFullName: z.string().optional(),
+});
+export type ImportInlinePayload = z.infer<typeof ImportInlinePayload>;
+
 export type ImportHandler = (payload: ImportPayload) => Promise<void>;
+export type ImportInlineHandler = (payload: ImportInlinePayload) => Promise<void>;
+
+export interface BridgeHandlers {
+  readonly onImport: ImportHandler;
+  readonly onImportInline: ImportInlineHandler;
+}
 
 export interface ServerHandle {
   readonly port: number;
@@ -44,11 +82,11 @@ export function generateToken(): string {
 
 export async function startServer(
   token: string,
-  onImport: ImportHandler,
+  handlers: BridgeHandlers,
 ): Promise<ServerHandle> {
   for (let port = PORT_RANGE_START; port <= PORT_RANGE_END; port++) {
     try {
-      return await listenOnPort(port, token, onImport);
+      return await listenOnPort(port, token, handlers);
     } catch (err) {
       if (isAddrInUse(err)) continue;
       throw err;
@@ -62,11 +100,11 @@ export async function startServer(
 function listenOnPort(
   port: number,
   token: string,
-  onImport: ImportHandler,
+  handlers: BridgeHandlers,
 ): Promise<ServerHandle> {
   return new Promise((resolve, reject) => {
     const server = http.createServer((req, res) => {
-      void handleRequest(req, res, token, onImport);
+      void handleRequest(req, res, token, handlers);
     });
     const onError = (err: Error): void => {
       reject(err);
@@ -93,16 +131,23 @@ async function handleRequest(
   req: http.IncomingMessage,
   res: http.ServerResponse,
   expectedToken: string,
-  onImport: ImportHandler,
+  handlers: BridgeHandlers,
 ): Promise<void> {
   if (req.method !== 'POST') {
     sendJson(res, 405, { error: 'method_not_allowed' });
     return;
   }
-  if (req.url !== '/import') {
+
+  let maxBytes: number;
+  if (req.url === '/import') {
+    maxBytes = MAX_BODY_BYTES_IMPORT;
+  } else if (req.url === '/import-inline') {
+    maxBytes = MAX_BODY_BYTES_IMPORT_INLINE;
+  } else {
     sendJson(res, 404, { error: 'not_found' });
     return;
   }
+
   const auth = req.headers.authorization ?? '';
   const provided = /^Bearer (.+)$/.exec(auth)?.[1];
   if (provided === undefined || !tokensMatch(provided, expectedToken)) {
@@ -114,14 +159,14 @@ async function handleRequest(
   // oversized body. Defense-in-depth streaming limit below catches
   // clients that lie about Content-Length.
   const declaredLength = Number(req.headers['content-length'] ?? '0');
-  if (declaredLength > MAX_BODY_BYTES) {
+  if (declaredLength > maxBytes) {
     sendJson(res, 413, { error: 'payload_too_large' });
     return;
   }
 
   let body: string;
   try {
-    body = await readBody(req, MAX_BODY_BYTES);
+    body = await readBody(req, maxBytes);
   } catch (err) {
     if (err instanceof PayloadTooLargeError) {
       sendJson(res, 413, { error: 'payload_too_large' });
@@ -139,20 +184,36 @@ async function handleRequest(
     return;
   }
 
-  const parsed = ImportPayload.safeParse(raw);
+  if (req.url === '/import') {
+    const parsed = ImportPayload.safeParse(raw);
+    if (!parsed.success) {
+      sendJson(res, 400, { error: 'invalid_payload' });
+      return;
+    }
+    try {
+      await handlers.onImport(parsed.data);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      sendJson(res, 500, { error: 'import_failed', message });
+      return;
+    }
+    sendJson(res, 200, { ok: true });
+    return;
+  }
+
+  // /import-inline
+  const parsed = ImportInlinePayload.safeParse(raw);
   if (!parsed.success) {
     sendJson(res, 400, { error: 'invalid_payload' });
     return;
   }
-
   try {
-    await onImport(parsed.data);
+    await handlers.onImportInline(parsed.data);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     sendJson(res, 500, { error: 'import_failed', message });
     return;
   }
-
   sendJson(res, 200, { ok: true });
 }
 

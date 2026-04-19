@@ -163,6 +163,7 @@ const ProjectSchema = z
   .passthrough();
 
 export const ConversationsFileSchema = z.array(ConversationSchema);
+export const SingleConversationSchema = ConversationSchema;
 export const UsersFileSchema = z.array(UserProfileSchema);
 export const MemoriesFileSchema = z.array(MemorySchema);
 export const ProjectsFileSchema = z.array(ProjectSchema);
@@ -187,6 +188,11 @@ export type ClaudeAiProjectDoc = z.infer<typeof ProjectDocSchema>;
  */
 export function parseConversations(raw: unknown): ClaudeAiConversation[] | null {
   const result = ConversationsFileSchema.safeParse(raw);
+  return result.success ? result.data : null;
+}
+
+export function parseSingleConversation(raw: unknown): ClaudeAiConversation | null {
+  const result = SingleConversationSchema.safeParse(raw);
   return result.success ? result.data : null;
 }
 

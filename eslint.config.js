@@ -26,6 +26,8 @@ export default tseslint.config(
         document: 'readonly',
         fetch: 'readonly',
         self: 'readonly',
+        setInterval: 'readonly',
+        setTimeout: 'readonly',
         window: 'readonly',
         HTMLInputElement: 'readonly',
       },

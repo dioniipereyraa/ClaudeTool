@@ -13,6 +13,7 @@ const PORT_RANGE_START = 9317;
 const PORT_RANGE_END = 9326;
 const TOKEN_KEY = 'exportal.pairingToken';
 const LAST_PORT_KEY = 'exportal.lastPort';
+const PENDING_CONVERSATION_KEY = 'exportal.pendingConversationId';
 
 // claude.ai export ZIPs are named `data-<something>.zip`. We match the
 // basename loosely — any dash-separated token after `data-` — because
@@ -22,6 +23,49 @@ const FILENAME_PATTERN = /(^|[\\/])data-.+\.zip$/i;
 chrome.downloads.onChanged.addListener((delta) => {
   if (delta.state?.current !== 'complete') return;
   void handleCompletedDownload(delta.id);
+});
+
+// Messages from the claude.ai content script:
+//   - exportal:setPending → remember the conversation UUID so the next
+//     official-export ZIP we observe gets auto-opened in VS Code.
+//   - exportal:sendInline → POST the scraped conversation JSON to the
+//     VS Code bridge right now, no ZIP in the middle.
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  // Only accept from claude.ai tabs — defense-in-depth against any other
+  // page that somehow tries to talk to us.
+  const url = sender.tab?.url ?? sender.url ?? '';
+  if (!url.startsWith('https://claude.ai/')) {
+    sendResponse({ ok: false, error: 'bad_origin' });
+    return false;
+  }
+
+  if (message?.type === 'exportal:setPending') {
+    const id = message.conversationId;
+    if (typeof id !== 'string' || !UUID_PATTERN.test(id)) {
+      sendResponse({ ok: false, error: 'bad_id' });
+      return false;
+    }
+    chrome.storage.session
+      .set({ [PENDING_CONVERSATION_KEY]: id })
+      .then(() => sendResponse({ ok: true }))
+      .catch((err) => sendResponse({ ok: false, error: String(err) }));
+    return true; // keep message channel open for async sendResponse
+  }
+
+  if (message?.type === 'exportal:sendInline') {
+    const conversation = message.conversation;
+    if (conversation === null || typeof conversation !== 'object') {
+      sendResponse({ ok: false, error: 'bad_payload' });
+      return false;
+    }
+    forwardInlineConversation(conversation)
+      .then((result) => sendResponse(result))
+      .catch((err) => sendResponse({ ok: false, error: String(err) }));
+    return true;
+  }
+
+  return false;
 });
 
 async function handleCompletedDownload(id) {
@@ -50,13 +94,20 @@ async function forwardToExportal(zipPath) {
     return;
   }
 
+  const conversationId = await getPendingConversationId();
   const ports = await buildPortOrder();
   let sawAuthError = false;
 
   for (const port of ports) {
-    const result = await tryPort(port, token, zipPath);
+    const result = await tryPort(port, token, zipPath, conversationId);
     if (result === 'ok') {
       await chrome.storage.session.set({ [LAST_PORT_KEY]: port });
+      // Clear the pending ID only after a successful forward. If the user
+      // re-exports without clicking the button again, the next export
+      // goes through the normal QuickPick path instead of a stale match.
+      if (conversationId !== undefined) {
+        await chrome.storage.session.remove(PENDING_CONVERSATION_KEY);
+      }
       await setBadge('OK', '#16a34a');
       return;
     }
@@ -78,7 +129,9 @@ async function forwardToExportal(zipPath) {
   }
 }
 
-async function tryPort(port, token, zipPath) {
+async function tryPort(port, token, zipPath, conversationId) {
+  const body = { zipPath };
+  if (conversationId !== undefined) body.conversationId = conversationId;
   try {
     const res = await fetch(`http://127.0.0.1:${port}/import`, {
       method: 'POST',
@@ -86,7 +139,7 @@ async function tryPort(port, token, zipPath) {
         Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ zipPath }),
+      body: JSON.stringify(body),
     });
     if (res.status === 200) return 'ok';
     if (res.status === 401) return 'auth';
@@ -94,6 +147,65 @@ async function tryPort(port, token, zipPath) {
   } catch {
     return 'network';
   }
+}
+
+async function forwardInlineConversation(conversation) {
+  const token = await getToken();
+  if (token === undefined) {
+    await setBadge('SET', '#ca8a04');
+    return { ok: false, error: 'no_token' };
+  }
+  const body = JSON.stringify({ conversation });
+  const ports = await buildPortOrder();
+  let sawAuthError = false;
+  let sawOutdated = false;
+  for (const port of ports) {
+    try {
+      const res = await fetch(`http://127.0.0.1:${port}/import-inline`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body,
+      });
+      if (res.status === 200) {
+        await chrome.storage.session.set({ [LAST_PORT_KEY]: port });
+        await setBadge('OK', '#16a34a');
+        return { ok: true };
+      }
+      if (res.status === 401) {
+        sawAuthError = true;
+        break;
+      }
+      // Any HTTP response that isn't 200/401 means a server is there
+      // but doesn't accept us — most commonly our own bridge on an
+      // older build (404: /import-inline didn't exist yet). We keep
+      // probing the remaining ports in case the user has a second
+      // VS Code instance running a newer build, but remember that we
+      // saw HTTP so we can report "outdated" instead of "offline" if
+      // nothing else answers.
+      sawOutdated = true;
+    } catch {
+      // network error — keep probing
+    }
+  }
+  if (sawAuthError) {
+    await setBadge('AUTH', '#dc2626');
+    return { ok: false, error: 'bridge_auth' };
+  }
+  if (sawOutdated) {
+    await setBadge('OLD', '#dc2626');
+    return { ok: false, error: 'bridge_outdated' };
+  }
+  await setBadge('OFF', '#dc2626');
+  return { ok: false, error: 'bridge_offline' };
+}
+
+async function getPendingConversationId() {
+  const stored = await chrome.storage.session.get(PENDING_CONVERSATION_KEY);
+  const id = stored[PENDING_CONVERSATION_KEY];
+  return typeof id === 'string' && id.length > 0 ? id : undefined;
 }
 
 async function getToken() {

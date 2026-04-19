@@ -2,11 +2,15 @@ import * as vscode from 'vscode';
 
 import { formatConversation } from '../formatters/claudeai-markdown.js';
 import { readClaudeAiExport } from '../importers/claudeai/reader.js';
-import { type ClaudeAiConversation } from '../importers/claudeai/schema.js';
+import {
+  parseSingleConversation,
+  type ClaudeAiConversation,
+} from '../importers/claudeai/schema.js';
 
 import {
   generateToken,
   startServer,
+  type ImportInlinePayload,
   type ImportPayload,
   type ServerHandle,
 } from './http-server.js';
@@ -86,7 +90,10 @@ async function startBridgeServer(
 ): Promise<ServerHandle | undefined> {
   const token = getOrCreatePairingToken(context);
   try {
-    return await startServer(token, (payload) => handleBridgeImport(payload));
+    return await startServer(token, {
+      onImport: (payload) => handleBridgeImport(payload),
+      onImportInline: (payload) => handleBridgeImportInline(payload),
+    });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     void vscode.window.showWarningMessage(
@@ -105,7 +112,28 @@ function getOrCreatePairingToken(context: vscode.ExtensionContext): string {
 }
 
 async function handleBridgeImport(payload: ImportPayload): Promise<void> {
-  await openConversationFromZip(payload.zipPath, { rethrow: true });
+  await openConversationFromZip(payload.zipPath, {
+    rethrow: true,
+    ...(payload.conversationId !== undefined && {
+      preferConversationId: payload.conversationId,
+    }),
+  });
+}
+
+async function handleBridgeImportInline(payload: ImportInlinePayload): Promise<void> {
+  // The Chrome companion scraped this directly from claude.ai's internal
+  // conversation API, so the shape should match — but we re-validate here
+  // because the bridge is a trust boundary.
+  const conversation = parseSingleConversation(payload.conversation);
+  if (conversation === null) {
+    throw new Error('invalid conversation shape');
+  }
+  const { markdown } = formatConversation(conversation, { redact: true });
+  const doc = await vscode.workspace.openTextDocument({
+    content: markdown,
+    language: 'markdown',
+  });
+  await vscode.window.showTextDocument(doc, { preview: false });
 }
 
 async function showPairingInfoCommand(
@@ -140,6 +168,15 @@ interface OpenOptions {
    * — user already sees the error in VS Code, no caller to inform.
    */
   readonly rethrow?: boolean;
+  /**
+   * Conversation UUID extracted from the claude.ai URL at the moment
+   * the user clicked "Enviar a VS Code". If set and a conversation with
+   * that UUID is present in the export, we open it directly and skip
+   * the QuickPick. A mismatch falls back to the normal picker — the
+   * export is a point-in-time snapshot and may not include the latest
+   * conversations.
+   */
+  readonly preferConversationId?: string;
 }
 
 async function openConversationFromZip(
@@ -177,7 +214,12 @@ async function openConversationFromZip(
     return;
   }
 
-  const conversation = await pickConversation(exported.conversations);
+  const preselected =
+    options.preferConversationId === undefined
+      ? undefined
+      : exported.conversations.find((c) => c.uuid === options.preferConversationId);
+
+  const conversation = preselected ?? (await pickConversation(exported.conversations));
   if (conversation === undefined) return;
 
   const { markdown } = formatConversation(conversation, { redact: true });
