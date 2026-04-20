@@ -3,7 +3,7 @@
 Puente entre **claude.ai** y **Claude Code** (VS Code). Exportá cualquier chat de claude.ai a Markdown limpio con un click o un atajo de teclado — listo para pegar como contexto en Claude Code.
 
 > **Estado**: v0.1.0 — primera release usable. Extensión de VS Code + companion de Chrome + CLI.
-> Changelog: [`CHANGELOG.md`](./CHANGELOG.md). Modelo de amenazas: [`SECURITY.md`](./SECURITY.md). Avance detallado: [`DEVLOG.md`](./DEVLOG.md).
+> Changelog: [`CHANGELOG.md`](./CHANGELOG.md). Modelo de amenazas: [`SECURITY.md`](./SECURITY.md). Avance detallado: [`DEVLOG.md`](./DEVLOG.md). Qué viene: [`ROADMAP.md`](./ROADMAP.md).
 
 ## Qué resuelve
 
