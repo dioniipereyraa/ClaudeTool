@@ -36,7 +36,7 @@ code --install-extension exportal-*.vsix
 
 Al abrir VS Code por primera vez aparece un modal con el **token de emparejamiento** y los pasos para configurar Chrome. Si te distraés, lo reabrís con `Ctrl+Shift+P` → **Exportal: Show bridge pairing token**.
 
-![Modal de onboarding en VS Code](https://raw.githubusercontent.com/dioniipereyraa/ClaudeTool/main/docs/screenshots/onboarding.png)
+![Modal de onboarding en VS Code](https://raw.githubusercontent.com/dioniipereyraa/ClaudeTool/main/docs/screenshots/onboarding.jpeg)
 
 ### Companion de Chrome
 

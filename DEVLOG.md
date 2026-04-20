@@ -838,3 +838,104 @@ Poder publicar el companion en GitHub Releases como un `.zip` que cualquiera baj
 ### Próximos pasos posibles
 - GitHub Action que corra `package:all` en `release: published` y suba los artifacts como assets.
 - Publicar en Chrome Web Store una vez que el producto esté estable y haya users reales pidiéndolo.
+
+---
+
+## Hito 10e — One-click export desde claude.ai (API interna)
+**Fecha:** 2026-04-19
+
+### Objetivo
+Eliminar el paso "disparar export oficial → esperar email → bajar ZIP". Desde claude.ai, un click exporta la conversación actual directamente a VS Code leyendo la misma API interna que usa la web, con las cookies de sesión del usuario.
+
+### Alcance cerrado
+- `chrome/manifest.json`: bloque `content_scripts` inyectando `content-script.js` en `https://claude.ai/*` (`run_at: document_idle`). Permiso `host_permissions` extendido a `https://claude.ai/*` para que el fetch no lo frene el CORS del content script.
+- `chrome/content-script.js`: nuevo. Monta un panel flotante en claude.ai con dos botones:
+  - **Exportar este chat**: lee `GET /api/organizations` → elige la primera org → `GET /api/organizations/<org>/chat_conversations/<id>?tree=True&rendering_mode=messages` (mismos headers que la web, `credentials: 'include'`). Manda el JSON al bridge local por POST a `/import/inline`. VS Code abre el Markdown.
+  - **Preparar export oficial**: guarda el UUID del chat actual en `chrome.storage.session`; cuando el ZIP oficial llega, el flujo de 10c lo abre directo en esa conversación.
+- `src/extension/http-server.ts`: ruta nueva `POST /import/inline` que acepta `{conversation: <JSON>}`, lo valida con Zod shape y lo escribe a un tmp para reusar el pipeline de import desde ZIP.
+- `src/extension/extension.ts`: `handleBridgeImportInline` que envuelve el handler y abre el Markdown resultante.
+- Toast de éxito en la ext de VS Code después del import (commit `ea94518`): antes solo se abría el tab, ahora también aparece un mensaje no-modal "Exportado: <título>".
+
+### Decisiones técnicas
+- **Content script en vez de extension-page popup**: el botón tiene que vivir *dentro* de claude.ai para no romper el flujo del usuario. Un popup exige click al icono del toolbar + tener el tab activo — UX peor.
+- **Reusar cookies de sesión con `credentials: 'include'`**: el fetch desde el content script hereda las cookies de claude.ai automáticamente. No necesitamos OAuth ni manejar tokens — la sesión del browser *es* la credencial.
+- **`chat_conversations/<id>?tree=True&rendering_mode=messages`**: es el endpoint exacto que usa la UI. Devuelve el árbol completo con tool_use, thinking, resultados, attachments — todo lo que nuestro parser ya sabe procesar.
+- **Primera org de la lista**: el 99% de los usuarios tienen 1 org. Si alguien tiene múltiples, arreglamos cuando pase.
+- **Ruta `/import/inline` separada de `/import`**: `/import` acepta un path a un ZIP local; `/import/inline` acepta el JSON de una conversación específica. Shapes distintas, validación distinta, respuestas distintas — mejor rutas separadas que un discriminated union.
+- **Escribir el JSON a tmp y delegar en el pipeline existente**: evita reimplementar el parseo. El único costo es un write+read efímero; a cambio, todo el código de redacción/formatting sigue pasando por el mismo path probado.
+
+### Verificación
+- Flujo end-to-end: abrir claude.ai en un chat → panel aparece → "Exportar este chat" → Markdown abre en VS Code. Tiempos <2s en conversaciones de tamaño moderado.
+- Sin cambios en tests del core (el shape parseado es el mismo que el del ZIP oficial).
+- Lint + typecheck limpios.
+
+### Lo que NO entra en 10e
+- UI de selector de org si el usuario tiene más de una.
+- Manejo de conversaciones muy largas con paginación (si existe en la API interna; hasta ahora el endpoint devuelve todo de una).
+- Polish del panel (estilos, keyboard shortcuts, branding) — viene en la sesión siguiente.
+
+### Próximos pasos
+- Sesión de pulido: darle identidad visual al panel, atajos de teclado, onboarding claro, y hardening del error handling para release v0.1.0.
+
+---
+
+## v0.1.0 — Pulido, hardening y primera release
+**Fecha:** 2026-04-20
+
+### Objetivo
+Dejar el producto en estado de "instalable por un tercero sin que explote". No feature work nuevo — todo lo que falta para que el camino feliz sea agradable, los errores sean informativos, y los artifacts sean reproducibles.
+
+### Alcance cerrado
+
+**UX del panel en claude.ai** (commit `86903d4`):
+- Panel siempre-expandido reemplazado por **FAB circular + popover**. El FAB es un círculo navy pequeño en esquina inferior derecha con el ícono de download-arrow y un acento naranja; click lo expande al popover con los dos botones.
+- **Atajos de teclado** `Alt+Shift+E` (exportar este chat) y `Alt+Shift+O` (preparar export oficial). Listeners en fase de captura, guardados a rutas `/chat/<uuid>` y a no-concurrent-action. Toast de feedback.
+- **Paleta del logo**: navy `#1e1b4b`, naranja `#fb923c`, blanco. Primer intento fue botón primario naranja sobre popover navy — el usuario lo vetó inmediatamente ("se asimila a los colores de Boca Juniors"). Cambiado a botón primario **blanco con texto navy bold**, secundario navy con texto blanco. El naranja queda como acento chico en el FAB (línea de base) y en el ícono del companion.
+- Onboarding: modal `showInformationMessage({ modal: true })` al primer activate de la ext VS Code, con el token + pasos numerados + "Copiar token". Re-abrible con comando `Exportal: Show bridge pairing token`.
+- `chrome/options.html`: acento actualizado al naranja de marca, botón Guardar con peso 700 para contraste, CSS var `--brand-navy`.
+
+**Hardening del error handling** (commit `f2ce90d`):
+- Clase `BridgeError` exportada en `src/extension/http-server.ts` con código `invalid_shape`. El dispatcher `sendHandlerError` mapea BridgeError → 422 con `{error: 'invalid_shape', message}`; errores genéricos → 500 `import_failed`.
+- `handleBridgeImportInline` ahora lanza `BridgeError('invalid_shape')` cuando el JSON no matchea el shape de Zod, en vez de un Error genérico. El content script lo distingue del 404/410 de "bridge desactualizado" y deja de probar puertos.
+- `chrome/background.js`: `forwardInlineConversation` distingue 422/413 (definitivo, abortar probing) de 404 (sigue probando — puede ser otro puerto).
+- Content script: AbortController con timeout de 15s en los fetch a claude.ai para no quedar colgados.
+- Cross-realm error handling: `explainError` duck-typea `.message` en vez de `instanceof Error` (Errors cruzan mal entre realms: content-script ↔ page ↔ vm sandbox de tests).
+
+**Código compartido pure.js** (commit `3653192`):
+- Problema: `content-script.js`, `background.js` y tests necesitan la misma lógica (UUID pattern, filename matcher, port probing order, error code table). Duplicarla tres veces era la tentación; meter un bundler solo para eso era overkill.
+- Solución: `chrome/pure.js` como IIFE clásica que expone `ExportalPure` global. Content scripts lo cargan vía `"js": ["pure.js", "content-script.js"]` en el manifest. Service worker lo carga vía `importScripts('./pure.js')` (requirió volver al SW clásico, sin `"type": "module"`). Tests lo cargan con `vm.runInContext` en sandbox aislado.
+- 26 tests unitarios en `tests/chrome/pure.test.ts` cubriendo los 6 export: `extractConversationIdFromPath`, `isClaudeAiExport`, `buildPortOrder`, `extractOrgIds`, `parseBridgeErrorCode`, `explainError`.
+- `eslint.config.js`: globals `AbortController`, `ExportalPure`, `importScripts`, `module`, `requestAnimationFrame`, `clearTimeout` para `chrome/**/*.js`.
+
+**Release hygiene** (commits `f764f30`, `c3e80b0`):
+- Ambas extensiones a versión `0.1.0` (primera release "usable").
+- `CHANGELOG.md` en formato Keep-a-Changelog con entrada `[0.1.0] — 2026-04-20` listando features agregados + notas de seguridad.
+- `README.md` reescrito: sección "Cómo se usa — camino feliz" lidera con FAB + atajos; tabla comparativa "Exportar este chat" vs "Preparar export oficial"; leyenda de estados del badge; 3 screenshots con URLs absolutas a `raw.githubusercontent.com` (funcionan en GitHub, en el Marketplace y en el `.vsix`).
+- `docs/screenshots/`: `fab.png`, `onboarding.jpeg` (token blurreado a mano), `options.png` (con banner verde "Emparejado").
+
+### Decisiones técnicas
+- **FAB + popover en vez de panel permanente**: el panel siempre-visible ocupaba espacio e interrumpía. El FAB está ahí cuando se necesita, invisible cuando no.
+- **`Alt+Shift+E/O` como atajos**: descartados `Ctrl+Shift+*` (colisiones con claude.ai y con DevTools del browser), `Ctrl+E` (find-in-page), `Alt+E` (menú Edit). `Alt+Shift+*` tiene cero colisiones conocidas en Chrome + claude.ai + extensiones populares.
+- **Botón primario blanco, no naranja**: el par naranja-sobre-navy se leía como la camiseta de Boca Juniors. El blanco-sobre-navy es tipográficamente más legible además.
+- **`pure.js` como classic script, no ESM**: los `content_scripts` del manifest MV3 no aceptan `"type": "module"`, y los service workers clásicos tampoco. Classic IIFE + `module.exports` a pie de página cubre los tres consumidores (content script, SW, Node/vitest) sin build step.
+- **Duck-typing `.message` en `explainError`**: `instanceof Error` falla cuando el Error cruza realms (content script → page, vm sandbox → outer). Chequear `typeof err.message === 'string'` funciona igual y cubre el caso de tests.
+- **`BridgeError` en vez de códigos mágicos en mensajes**: antes el content script parseaba el string del error para decidir si seguir probando puertos. Ahora hay un canal estructurado (`{error: <code>}`) y una clase tipada del lado del server. Fail-soft para errores no mapeados.
+- **Screenshots con URLs absolutas a raw.githubusercontent.com**: vsce warneaba sobre relative image paths. Absolutas resuelven en GitHub web, Marketplace, y dentro del `.vsix` sin cambio.
+- **Onboarding modal bloqueante**: `showInformationMessage({ modal: true })` fuerza al usuario a leer el token antes de seguir. Alternativa era un toast no-modal que se podía ignorar — descartada porque el usuario que ignora el token llega al companion sin nada para pegar y no entiende por qué no funciona.
+
+### Verificación
+- `npm run ci` → 135 tests (109 previos + 26 nuevos de pure.js), lint, typecheck, build ✓.
+- Camino feliz end-to-end: instalar vsix → modal de onboarding aparece → copiar token → cargar companion unpacked → pegar token en Opciones → banner verde "Emparejado" → abrir claude.ai → click en FAB → Markdown abre en VS Code + toast de éxito. También validado por `Alt+Shift+E` sin tocar el panel.
+- Artifacts: `exportal-0.1.0.vsix` (831 KB) y `exportal-companion-0.1.0.zip` (9.2 KB) reproducibles desde `npm run package:all`.
+
+### Lo que NO entra en v0.1.0
+- Publicación en Chrome Web Store (requiere cuenta de developer de pago + review).
+- Publicación en VS Code Marketplace (pendiente de decisión del usuario — el `.vsix` ya está listo).
+- GitHub Action de release automático (manual por ahora con `gh release create`).
+- Soporte para usuarios con múltiples orgs de claude.ai.
+- Telemetría o crash reporting (explicito: zero-network, nada sale de la máquina).
+
+### Próximos pasos posibles
+- `gh release create v0.1.0` con los dos artifacts adjuntos cuando haya tiempo de verificar el flujo de instalación en una máquina limpia.
+- Feedback de primeros usuarios (amigos, colegas) antes de decidir si publicamos al Marketplace/Web Store o si hay que iterar más en UX.
+- Selector de org si alguien lo pide.

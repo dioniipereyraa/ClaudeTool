@@ -6,6 +6,17 @@ Companion (Chrome extension) are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 and versions follow [Semantic Versioning](https://semver.org/).
 
+## [0.1.1] — 2026-04-20
+
+Documentation-only release. No code changes to either extension.
+
+### Changed
+
+- Added screenshots for FAB popover, VS Code onboarding modal, and
+  Chrome options page; README image references updated accordingly.
+- DEVLOG extended with entries for Hito 10e (one-click export via
+  claude.ai internal API) and the v0.1.0 polish/hardening session.
+
 ## [0.1.0] — 2026-04-20
 
 First usable release. Both extensions share the same version number;
