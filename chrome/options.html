@@ -6,6 +6,11 @@
     <style>
       :root {
         color-scheme: light dark;
+        --brand-navy: #1e1b4b;
+        --accent: #fb923c;
+        --accent-hover: #f97316;
+        --ok: #16a34a;
+        --err: #dc2626;
         font-family:
           system-ui,
           -apple-system,
@@ -13,18 +18,69 @@
           sans-serif;
       }
       body {
-        max-width: 520px;
+        max-width: 560px;
         margin: 0;
         padding: 24px;
         line-height: 1.5;
       }
       h1 {
-        font-size: 18px;
-        margin: 0 0 8px;
+        font-size: 20px;
+        margin: 0 0 4px;
       }
-      p {
-        margin: 0 0 16px;
+      .subtitle {
+        margin: 0 0 20px;
+        color: color-mix(in srgb, currentColor 60%, transparent);
+        font-size: 13px;
+      }
+      .status-banner {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 12px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+        font-size: 13px;
+        font-weight: 500;
+      }
+      .status-banner[data-state='missing'] {
+        background: color-mix(in srgb, var(--err) 12%, transparent);
+        color: var(--err);
+      }
+      .status-banner[data-state='ok'] {
+        background: color-mix(in srgb, var(--ok) 12%, transparent);
+        color: var(--ok);
+      }
+      .status-banner .dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: currentColor;
+      }
+      h2 {
+        font-size: 14px;
+        margin: 24px 0 10px;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
         color: color-mix(in srgb, currentColor 70%, transparent);
+      }
+      ol.steps {
+        padding-left: 22px;
+        margin: 0 0 16px;
+      }
+      ol.steps li {
+        margin-bottom: 10px;
+      }
+      code,
+      kbd {
+        font-family: ui-monospace, Menlo, Consolas, monospace;
+        font-size: 12.5px;
+        padding: 1px 6px;
+        border-radius: 4px;
+        background: color-mix(in srgb, currentColor 10%, transparent);
+      }
+      kbd {
+        border: 1px solid color-mix(in srgb, currentColor 20%, transparent);
+        font-weight: 600;
       }
       label {
         display: block;
@@ -32,12 +88,12 @@
         font-weight: 600;
         text-transform: uppercase;
         letter-spacing: 0.04em;
-        margin-bottom: 4px;
+        margin-bottom: 6px;
       }
       input {
         width: 100%;
         box-sizing: border-box;
-        padding: 8px 10px;
+        padding: 10px 12px;
         font-family: ui-monospace, Menlo, Consolas, monospace;
         font-size: 13px;
         border: 1px solid color-mix(in srgb, currentColor 20%, transparent);
@@ -45,14 +101,19 @@
         background: transparent;
         color: inherit;
       }
+      input:focus {
+        outline: none;
+        border-color: var(--accent);
+      }
       .row {
         display: flex;
         gap: 8px;
         margin-top: 12px;
       }
       button {
-        padding: 8px 14px;
+        padding: 9px 16px;
         font-size: 13px;
+        font-weight: 500;
         border: 1px solid color-mix(in srgb, currentColor 20%, transparent);
         border-radius: 6px;
         background: color-mix(in srgb, currentColor 8%, transparent);
@@ -62,33 +123,80 @@
       button:hover {
         background: color-mix(in srgb, currentColor 14%, transparent);
       }
+      button.primary {
+        background: var(--accent);
+        color: var(--brand-navy);
+        border-color: var(--accent);
+        font-weight: 700;
+      }
+      button.primary:hover {
+        background: var(--accent-hover);
+      }
       #status {
         margin-top: 12px;
         font-size: 12px;
         min-height: 1em;
       }
       #status[data-kind='ok'] {
-        color: #16a34a;
+        color: var(--ok);
       }
       #status[data-kind='err'] {
-        color: #dc2626;
+        color: var(--err);
+      }
+      .hint {
+        margin-top: 6px;
+        font-size: 12px;
+        color: color-mix(in srgb, currentColor 60%, transparent);
       }
     </style>
   </head>
   <body>
     <h1>Exportal Companion</h1>
-    <p>
-      Pegá el token que aparece en VS Code (comando
-      <strong>Exportal: Show bridge pairing token</strong>) para emparejar esta
-      extensión con tu editor.
+    <p class="subtitle">
+      Emparejá esta extensión con la de VS Code para exportar chats de
+      claude.ai con un click.
     </p>
+
+    <div id="banner" class="status-banner" data-state="missing">
+      <span class="dot"></span>
+      <span id="banner-text">Sin emparejar — pegá tu token abajo.</span>
+    </div>
+
+    <h2>¿Cómo obtengo el token?</h2>
+    <ol class="steps">
+      <li>
+        Instalá la extensión <strong>Exportal</strong> en VS Code (busca
+        "Exportal" en el Marketplace o instala el <code>.vsix</code>).
+      </li>
+      <li>
+        En VS Code abrí la paleta de comandos
+        (<kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>P</kbd>) y ejecutá
+        <code>Exportal: Show bridge pairing token</code>.
+      </li>
+      <li>
+        Click en <strong>Copiar token</strong>. Volvé acá y pegalo en el
+        campo de abajo.
+      </li>
+    </ol>
+
     <label for="token">Token del puente local</label>
-    <input id="token" type="text" spellcheck="false" autocomplete="off" />
+    <input
+      id="token"
+      type="text"
+      spellcheck="false"
+      autocomplete="off"
+      placeholder="64 caracteres hexadecimales"
+    />
+    <div class="hint">
+      Debe coincidir exactamente con el que muestra VS Code. 64 caracteres
+      en <code>0-9</code> y <code>a-f</code>.
+    </div>
     <div class="row">
-      <button id="save" type="button">Guardar</button>
+      <button id="save" type="button" class="primary">Guardar</button>
       <button id="clear" type="button">Borrar</button>
     </div>
     <div id="status" aria-live="polite"></div>
+
     <script src="options.js" type="module"></script>
   </body>
 </html>

@@ -11,10 +11,22 @@ const tokenInput = /** @type {HTMLInputElement} */ (document.getElementById('tok
 const saveButton = document.getElementById('save');
 const clearButton = document.getElementById('clear');
 const statusEl = document.getElementById('status');
+const banner = document.getElementById('banner');
+const bannerText = document.getElementById('banner-text');
 
 function setStatus(kind, message) {
   statusEl.textContent = message;
   statusEl.dataset.kind = kind;
+}
+
+function setBannerState(paired) {
+  if (paired) {
+    banner.dataset.state = 'ok';
+    bannerText.textContent = 'Emparejado — listo para exportar desde claude.ai.';
+  } else {
+    banner.dataset.state = 'missing';
+    bannerText.textContent = 'Sin emparejar — pegá tu token abajo.';
+  }
 }
 
 async function load() {
@@ -23,6 +35,9 @@ async function load() {
   if (typeof token === 'string' && token.length > 0) {
     tokenInput.value = token;
     setStatus('', 'Token guardado.');
+    setBannerState(true);
+  } else {
+    setBannerState(false);
   }
 }
 
@@ -34,12 +49,14 @@ async function save() {
   }
   await chrome.storage.local.set({ [TOKEN_KEY]: value });
   setStatus('ok', 'Token guardado.');
+  setBannerState(true);
 }
 
 async function clear() {
   await chrome.storage.local.remove(TOKEN_KEY);
   tokenInput.value = '';
   setStatus('', 'Token eliminado.');
+  setBannerState(false);
 }
 
 saveButton.addEventListener('click', () => {

@@ -2,7 +2,7 @@
   "name": "exportal",
   "displayName": "Exportal",
   "version": "0.0.0",
-  "description": "Bridge between claude.ai and Claude Code — export Claude Code sessions to clean Markdown and import claude.ai exports as context.",
+  "description": "Bridge between claude.ai and VS Code. One-click conversation import via the Exportal Companion Chrome extension — run \"Exportal: Show bridge pairing token\" to connect.",
   "private": true,
   "type": "module",
   "license": "MIT",

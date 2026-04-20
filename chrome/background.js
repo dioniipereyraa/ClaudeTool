@@ -25,6 +25,58 @@ chrome.downloads.onChanged.addListener((delta) => {
   void handleCompletedDownload(delta.id);
 });
 
+// Click on the toolbar icon: if the user hasn't paired yet, take them
+// straight to the options page so they can paste the token. Once paired
+// we let the click fall through (no popup) — the options page is still
+// reachable from chrome://extensions → Details → Extension options.
+chrome.action.onClicked.addListener(() => {
+  void (async () => {
+    const token = await getToken();
+    if (token === undefined) {
+      await chrome.runtime.openOptionsPage();
+    } else {
+      // Still open options — it's the only place the user can manage the
+      // token or see pairing status. The badge is also cleared here so
+      // a stale "SET"/"AUTH" doesn't linger after the user has dealt
+      // with whatever prompted it.
+      await chrome.runtime.openOptionsPage();
+      await chrome.action.setBadgeText({ text: '' });
+    }
+  })();
+});
+
+// On install AND on every service-worker wake-up, reflect pairing state
+// in the toolbar badge so the user can see at a glance whether the
+// extension is ready to go.
+chrome.runtime.onInstalled.addListener(() => {
+  void refreshPairingBadge();
+});
+chrome.runtime.onStartup.addListener(() => {
+  void refreshPairingBadge();
+});
+// Also reflect changes made from the options page without needing a
+// reload — storage.onChanged fires in every context (including this SW).
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area !== 'local') return;
+  if (!(TOKEN_KEY in changes)) return;
+  void refreshPairingBadge();
+});
+
+async function refreshPairingBadge() {
+  const token = await getToken();
+  if (token === undefined) {
+    await setBadge('SET', '#ca8a04');
+    await chrome.action.setTitle({
+      title: 'Exportal Companion — click para emparejar con VS Code',
+    });
+  } else {
+    await chrome.action.setBadgeText({ text: '' });
+    await chrome.action.setTitle({
+      title: 'Exportal Companion — emparejado',
+    });
+  }
+}
+
 // Messages from the claude.ai content script:
 //   - exportal:setPending → remember the conversation UUID so the next
 //     official-export ZIP we observe gets auto-opened in VS Code.

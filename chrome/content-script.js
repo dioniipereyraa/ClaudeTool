@@ -1,35 +1,52 @@
 // Exportal Companion — content script for claude.ai.
 //
-// Two export actions surface as a small floating panel on /chat/<uuid>:
+// Surfaces two export actions on /chat/<uuid>:
 //
-//   1. "Exportar este chat" (primary)
-//      Fetches the active conversation from claude.ai's internal API
-//      (same origin, reuses session cookies) and forwards the JSON to
-//      the VS Code bridge immediately. No ZIP, no email wait.
+//   1. "Exportar este chat" (primary) — fetches the active conversation
+//      from claude.ai's internal API (same origin, reuses session
+//      cookies) and forwards the JSON to the VS Code bridge immediately.
+//      No ZIP, no email wait.
 //
-//   2. "Preparar export oficial" (secondary)
-//      Stores the conversation UUID so that when the user triggers the
-//      Settings → Export data flow, the background worker can match the
-//      eventually-downloaded ZIP to this conversation and auto-open it
-//      in VS Code.
+//   2. "Preparar export oficial" (secondary) — stores the conversation
+//      UUID so that when the user triggers Settings → Export data, the
+//      background worker can match the eventually-downloaded ZIP to
+//      this conversation and auto-open it in VS Code.
 //
-// This script DOES NOT read the DOM for conversation content. The first
-// action uses the internal JSON API directly — same data the claude.ai
-// frontend itself consumes. The CSRF/auth boundary is already enforced
-// by Anthropic's session cookies.
+// UI: a small circular FAB sits at bottom-right. Clicking it toggles a
+// popover with the two buttons. The FAB stays out of the way of
+// conversation content — expanding only on demand keeps the panel
+// discoverable without being intrusive. Keyboard shortcuts
+// (Alt+Shift+E / Alt+Shift+O) trigger the same actions without needing
+// to open the popover.
 //
-// claude.ai is a SPA with client-side navigation. Content scripts run in
-// an isolated world, so we can't wrap the page's history.pushState — we
-// poll the URL with a light interval instead (cheap: one regex + one
-// string compare per tick).
+// This script DOES NOT read the DOM for conversation content. The
+// primary action uses the internal JSON API directly — same data the
+// claude.ai frontend itself consumes. CSRF/auth is enforced by
+// Anthropic's session cookies.
+//
+// claude.ai is a SPA with client-side navigation. Content scripts run
+// in an isolated world, so we can't wrap history.pushState — we poll
+// the URL instead (cheap: one regex + one string compare per tick).
 
 const PANEL_ID = 'exportal-panel';
+const FAB_ID = 'exportal-fab';
+const POPOVER_ID = 'exportal-popover';
 const PRIMARY_BTN_ID = 'exportal-send-now';
 const SECONDARY_BTN_ID = 'exportal-prepare-official';
+const TOAST_ID = 'exportal-toast';
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const POLL_INTERVAL_MS = 500;
 
+// Brand palette (matches assets/icon.svg): navy frame, white body,
+// orange highlight. FAB + popover wear the navy; the primary action
+// uses orange as the call-to-action accent from the logo.
+const BRAND_NAVY = '#1e1b4b';
+const BRAND_NAVY_HOVER = '#312e81';
+const BRAND_ORANGE = '#fb923c';
+
 let lastPathname = '';
+let shortcutsInstalled = false;
+let actionInFlight = false;
 
 function currentConversationId() {
   const match = /^\/chat\/([^/?#]+)/.exec(window.location.pathname);
@@ -52,9 +69,14 @@ function syncPanel() {
     return;
   }
 
+  const panel = buildPanel(id);
+  document.body.appendChild(panel);
+}
+
+function buildPanel(conversationId) {
   const panel = document.createElement('div');
   panel.id = PANEL_ID;
-  panel.dataset.conversationId = id;
+  panel.dataset.conversationId = conversationId;
   Object.assign(panel.style, {
     position: 'fixed',
     bottom: '20px',
@@ -62,8 +84,92 @@ function syncPanel() {
     zIndex: '2147483647',
     display: 'flex',
     flexDirection: 'column',
-    gap: '6px',
+    alignItems: 'flex-end',
+    gap: '10px',
     fontFamily: 'system-ui, -apple-system, "Segoe UI", sans-serif',
+  });
+
+  const popover = buildPopover();
+  const fab = buildFab();
+  panel.appendChild(popover);
+  panel.appendChild(fab);
+
+  // Collapse when clicking outside the panel.
+  document.addEventListener('click', (ev) => {
+    const p = document.getElementById(PANEL_ID);
+    if (p === null) return;
+    if (p.contains(ev.target)) return;
+    setExpanded(false);
+  });
+
+  return panel;
+}
+
+function buildFab() {
+  const fab = document.createElement('button');
+  fab.id = FAB_ID;
+  fab.type = 'button';
+  fab.setAttribute('aria-label', 'Exportal — abrir acciones');
+  fab.setAttribute('aria-expanded', 'false');
+  fab.title = 'Exportal (Alt+Shift+E exportar ahora, Alt+Shift+O export oficial)';
+  Object.assign(fab.style, {
+    width: '44px',
+    height: '44px',
+    padding: '0',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    background: BRAND_NAVY,
+    border: '1.5px solid rgba(255,255,255,0.08)',
+    borderRadius: '50%',
+    boxShadow: '0 4px 14px rgba(0,0,0,0.3)',
+    cursor: 'pointer',
+    transition: 'background 0.15s ease, transform 0.15s ease',
+  });
+  fab.innerHTML = iconSvg();
+  fab.addEventListener('mouseenter', () => {
+    fab.style.background = BRAND_NAVY_HOVER;
+  });
+  fab.addEventListener('mouseleave', () => {
+    fab.style.background = BRAND_NAVY;
+  });
+  fab.addEventListener('click', (ev) => {
+    ev.stopPropagation();
+    const panel = document.getElementById(PANEL_ID);
+    const expanded = panel?.dataset.expanded === 'true';
+    setExpanded(!expanded);
+  });
+  return fab;
+}
+
+function iconSvg() {
+  // Download-style arrow. White shaft + chevron echo the white strokes
+  // of the "E" in the logo; the orange base line mirrors the orange
+  // highlight bar through the middle of the E in assets/icon.svg.
+  return (
+    `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" ` +
+    `stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" ` +
+    `aria-hidden="true">` +
+    `<path d="M12 3v12" stroke="#ffffff"/>` +
+    `<path d="M7 10l5 5 5-5" stroke="#ffffff"/>` +
+    `<path d="M4 21h16" stroke="${BRAND_ORANGE}"/>` +
+    `</svg>`
+  );
+}
+
+function buildPopover() {
+  const popover = document.createElement('div');
+  popover.id = POPOVER_ID;
+  Object.assign(popover.style, {
+    display: 'none',
+    flexDirection: 'column',
+    gap: '6px',
+    padding: '10px',
+    background: BRAND_NAVY,
+    border: '1px solid rgba(255,255,255,0.08)',
+    borderRadius: '12px',
+    boxShadow: '0 10px 30px rgba(0,0,0,0.4)',
+    minWidth: '220px',
   });
 
   const primary = makeButton({
@@ -79,9 +185,30 @@ function syncPanel() {
     onClick: handleSecondaryClick,
   });
 
-  panel.appendChild(primary);
-  panel.appendChild(secondary);
-  document.body.appendChild(panel);
+  const hint = document.createElement('div');
+  hint.textContent = 'Alt+Shift+E · Alt+Shift+O';
+  Object.assign(hint.style, {
+    fontSize: '10.5px',
+    color: 'rgba(255,255,255,0.55)',
+    textAlign: 'center',
+    marginTop: '4px',
+    letterSpacing: '0.02em',
+  });
+
+  popover.appendChild(primary);
+  popover.appendChild(secondary);
+  popover.appendChild(hint);
+  return popover;
+}
+
+function setExpanded(expanded) {
+  const panel = document.getElementById(PANEL_ID);
+  const fab = document.getElementById(FAB_ID);
+  const popover = document.getElementById(POPOVER_ID);
+  if (panel === null || fab === null || popover === null) return;
+  panel.dataset.expanded = expanded ? 'true' : 'false';
+  fab.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+  popover.style.display = expanded ? 'flex' : 'none';
 }
 
 function makeButton({ id, label, primary, onClick }) {
@@ -90,17 +217,16 @@ function makeButton({ id, label, primary, onClick }) {
   btn.type = 'button';
   btn.textContent = label;
   const palette = primary
-    ? { bg: '#7c3aed', bgHover: '#6d28d9', fg: '#fff', padding: '10px 14px', fontSize: '13px', fontWeight: '600' }
-    : { bg: '#27272a', bgHover: '#3f3f46', fg: '#e4e4e7', padding: '7px 12px', fontSize: '12px', fontWeight: '500' };
+    ? { bg: '#ffffff', bgHover: '#f1f1f4', fg: BRAND_NAVY, fontWeight: '700' }
+    : { bg: 'rgba(255,255,255,0.08)', bgHover: 'rgba(255,255,255,0.16)', fg: '#e4e4e7', fontWeight: '500' };
   Object.assign(btn.style, {
-    padding: palette.padding,
-    fontSize: palette.fontSize,
+    padding: '9px 14px',
+    fontSize: '13px',
     fontWeight: palette.fontWeight,
     color: palette.fg,
     background: palette.bg,
     border: 'none',
-    borderRadius: '999px',
-    boxShadow: '0 4px 14px rgba(0,0,0,0.25)',
+    borderRadius: '8px',
     cursor: 'pointer',
     transition: 'background 0.15s ease',
     textAlign: 'center',
@@ -123,11 +249,7 @@ async function handleSecondaryClick(btn) {
   const id = panelConversationId();
   if (id === undefined) return;
   try {
-    const response = await chrome.runtime.sendMessage({
-      type: 'exportal:setPending',
-      conversationId: id,
-    });
-    if (response?.ok !== true) throw new Error(response?.error ?? 'unknown');
+    await runSecondaryAction(id);
     flash(btn, 'Listo — dispará el export oficial', '#16a34a');
   } catch (err) {
     console.warn('Exportal: no pude guardar la conversación pendiente.', err);
@@ -144,13 +266,7 @@ async function handlePrimaryClick(btn) {
   try {
     const conversation = await fetchConversation(id);
     btn.textContent = 'Enviando a VS Code…';
-    const response = await chrome.runtime.sendMessage({
-      type: 'exportal:sendInline',
-      conversation,
-    });
-    if (response?.ok !== true) {
-      throw new Error(response?.error ?? 'unknown');
-    }
+    await sendInline(conversation);
     btn.textContent = originalText;
     flash(btn, 'Abierto en VS Code', '#16a34a');
   } catch (err) {
@@ -160,6 +276,58 @@ async function handlePrimaryClick(btn) {
   } finally {
     btn.disabled = false;
   }
+}
+
+// Shortcut-driven variants: same underlying actions, but feedback is a
+// floating toast (the popover may be closed).
+async function runPrimaryFromShortcut() {
+  if (actionInFlight) return;
+  const id = currentConversationId();
+  if (id === undefined) return;
+  actionInFlight = true;
+  showToast('Exportando…', 'info');
+  try {
+    const conversation = await fetchConversation(id);
+    await sendInline(conversation);
+    showToast('Abierto en VS Code', 'ok');
+  } catch (err) {
+    console.warn('Exportal: export inline falló.', err);
+    showToast(explainError(err), 'err');
+  } finally {
+    actionInFlight = false;
+  }
+}
+
+async function runSecondaryFromShortcut() {
+  if (actionInFlight) return;
+  const id = currentConversationId();
+  if (id === undefined) return;
+  actionInFlight = true;
+  try {
+    await runSecondaryAction(id);
+    showToast('Listo — dispará el export oficial', 'ok');
+  } catch (err) {
+    console.warn('Exportal: no pude guardar la conversación pendiente.', err);
+    showToast('Error — ver consola', 'err');
+  } finally {
+    actionInFlight = false;
+  }
+}
+
+async function runSecondaryAction(id) {
+  const response = await chrome.runtime.sendMessage({
+    type: 'exportal:setPending',
+    conversationId: id,
+  });
+  if (response?.ok !== true) throw new Error(response?.error ?? 'unknown');
+}
+
+async function sendInline(conversation) {
+  const response = await chrome.runtime.sendMessage({
+    type: 'exportal:sendInline',
+    conversation,
+  });
+  if (response?.ok !== true) throw new Error(response?.error ?? 'unknown');
 }
 
 function explainError(err) {
@@ -223,11 +391,74 @@ function flash(btn, text, color) {
   }, 1800);
 }
 
+function showToast(text, kind) {
+  const existing = document.getElementById(TOAST_ID);
+  if (existing !== null) existing.remove();
+
+  const toast = document.createElement('div');
+  toast.id = TOAST_ID;
+  toast.textContent = text;
+  const bg = kind === 'ok' ? '#16a34a' : kind === 'err' ? '#dc2626' : '#3f3f46';
+  Object.assign(toast.style, {
+    position: 'fixed',
+    bottom: '78px',
+    right: '20px',
+    zIndex: '2147483647',
+    padding: '10px 14px',
+    background: bg,
+    color: '#fff',
+    fontFamily: 'system-ui, -apple-system, "Segoe UI", sans-serif',
+    fontSize: '13px',
+    fontWeight: '500',
+    borderRadius: '8px',
+    boxShadow: '0 6px 18px rgba(0,0,0,0.3)',
+    opacity: '0',
+    transform: 'translateY(6px)',
+    transition: 'opacity 0.15s ease, transform 0.15s ease',
+    pointerEvents: 'none',
+  });
+  document.body.appendChild(toast);
+  // Force layout then animate in.
+  requestAnimationFrame(() => {
+    toast.style.opacity = '1';
+    toast.style.transform = 'translateY(0)';
+  });
+  const ttl = kind === 'info' ? 1200 : 2000;
+  setTimeout(() => {
+    toast.style.opacity = '0';
+    toast.style.transform = 'translateY(6px)';
+    setTimeout(() => toast.remove(), 200);
+  }, ttl);
+}
+
+function installShortcuts() {
+  if (shortcutsInstalled) return;
+  shortcutsInstalled = true;
+  window.addEventListener(
+    'keydown',
+    (ev) => {
+      // Require Alt+Shift, no Ctrl/Meta, and only on /chat/<uuid> pages.
+      if (!ev.altKey || !ev.shiftKey || ev.ctrlKey || ev.metaKey) return;
+      if (currentConversationId() === undefined) return;
+      const key = ev.key.toLowerCase();
+      if (key === 'e') {
+        ev.preventDefault();
+        void runPrimaryFromShortcut();
+      } else if (key === 'o') {
+        ev.preventDefault();
+        void runSecondaryFromShortcut();
+      }
+    },
+    true, // capture: fire before page handlers
+  );
+}
+
 function tick() {
   if (window.location.pathname === lastPathname) return;
   lastPathname = window.location.pathname;
   syncPanel();
 }
 
+installShortcuts();
 setInterval(tick, POLL_INTERVAL_MS);
 tick();

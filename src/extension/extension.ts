@@ -23,6 +23,7 @@ import {
 } from './zip-finder.js';
 
 const PAIRING_TOKEN_KEY = 'exportal.pairingToken';
+const ONBOARDING_SHOWN_KEY = 'exportal.onboardingShown';
 
 /**
  * Exportal — VS Code extension entry point.
@@ -78,6 +79,12 @@ export function activate(context: vscode.ExtensionContext): void {
     if (disposed) void handle.close();
     else activeHandle = handle;
   });
+
+  // First-run onboarding: show a modal with the pairing token and
+  // step-by-step instructions. Modal dialogs in VS Code stay on screen
+  // until the user interacts with them — deliberate, so if the user is
+  // distracted during install they still see it when they come back.
+  void showOnboardingIfNeeded(context);
 }
 
 export function deactivate(): void {
@@ -154,12 +161,44 @@ async function showPairingInfoCommand(
   context: vscode.ExtensionContext,
 ): Promise<void> {
   const token = getOrCreatePairingToken(context);
-  // The Chrome companion probes ports 9317-9326; we don't need to tell
-  // the user which one we landed on — but we do need to give them the
-  // token so they can paste it into the extension's options page.
+  await showPairingModal(token, { firstRun: false });
+  // After the user manually invokes this command, consider onboarding
+  // done — they obviously know how to find the token now.
+  void context.globalState.update(ONBOARDING_SHOWN_KEY, true);
+}
+
+async function showOnboardingIfNeeded(
+  context: vscode.ExtensionContext,
+): Promise<void> {
+  const shown = context.globalState.get<boolean>(ONBOARDING_SHOWN_KEY);
+  if (shown === true) return;
+  const token = getOrCreatePairingToken(context);
+  await showPairingModal(token, { firstRun: true });
+  void context.globalState.update(ONBOARDING_SHOWN_KEY, true);
+}
+
+async function showPairingModal(
+  token: string,
+  { firstRun }: { firstRun: boolean },
+): Promise<void> {
+  // Modal dialogs in VS Code block the editor workspace until dismissed,
+  // which is exactly what onboarding needs — the user cannot miss this
+  // even if they tabbed away during install. The `detail` field renders
+  // as multi-line prose, perfect for the step list + the token itself.
+  const headline = firstRun
+    ? 'Exportal está activo. Para exportar chats de claude.ai con un click, emparejá la extensión de Chrome con este token.'
+    : 'Exportal — token de emparejamiento para la extensión de Chrome.';
+  const detail =
+    `TOKEN:\n${token}\n\n` +
+    `PASOS:\n` +
+    `1. Instalá la extensión "Exportal Companion" en Chrome.\n` +
+    `2. Abrí chrome://extensions → "Detalles" de Exportal Companion → "Opciones de la extensión".\n` +
+    `3. Pegá el token y guardá.\n\n` +
+    `Podés volver a ver el token con Ctrl+Shift+P → "Exportal: Show bridge pairing token".`;
+
   const action = await vscode.window.showInformationMessage(
-    'Exportal: copiá el token para emparejar la extensión de Chrome.',
-    { modal: false },
+    headline,
+    { modal: true, detail },
     'Copiar token',
   );
   if (action === 'Copiar token') {

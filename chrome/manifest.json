@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Exportal Companion",
   "version": "0.0.0",
-  "description": "Puente entre claude.ai y la extensión de VS Code Exportal. Reenvía los exports oficiales al servidor local.",
+  "description": "Exportá chats de claude.ai a VS Code con un click. Requiere la extensión Exportal en VS Code — emparejá con el token que aparece ahí (ver Opciones).",
   "minimum_chrome_version": "116",
   "icons": {
     "128": "icon-128.png"
