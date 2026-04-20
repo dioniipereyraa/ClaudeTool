@@ -8,17 +8,16 @@
 // The single top-level `onChanged` listener is re-registered every time
 // Chrome wakes the worker, which is the supported pattern for long-lived
 // event handling.
+//
+// The worker is a classic service worker (not `"type": "module"`) so
+// we can importScripts() the pure-logic helpers and share them with
+// the content script + unit tests without a bundler.
 
-const PORT_RANGE_START = 9317;
-const PORT_RANGE_END = 9326;
+importScripts('./pure.js');
+
 const TOKEN_KEY = 'exportal.pairingToken';
 const LAST_PORT_KEY = 'exportal.lastPort';
 const PENDING_CONVERSATION_KEY = 'exportal.pendingConversationId';
-
-// claude.ai export ZIPs are named `data-<something>.zip`. We match the
-// basename loosely — any dash-separated token after `data-` — because
-// Anthropic has shifted naming schemes over time (date, UUID, batch).
-const FILENAME_PATTERN = /(^|[\\/])data-.+\.zip$/i;
 
 chrome.downloads.onChanged.addListener((delta) => {
   if (delta.state?.current !== 'complete') return;
@@ -82,7 +81,6 @@ async function refreshPairingBadge() {
 //     official-export ZIP we observe gets auto-opened in VS Code.
 //   - exportal:sendInline → POST the scraped conversation JSON to the
 //     VS Code bridge right now, no ZIP in the middle.
-const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   // Only accept from claude.ai tabs — defense-in-depth against any other
   // page that somehow tries to talk to us.
@@ -94,7 +92,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   if (message?.type === 'exportal:setPending') {
     const id = message.conversationId;
-    if (typeof id !== 'string' || !UUID_PATTERN.test(id)) {
+    if (typeof id !== 'string' || !ExportalPure.UUID_PATTERN.test(id)) {
       sendResponse({ ok: false, error: 'bad_id' });
       return false;
     }
@@ -124,18 +122,8 @@ async function handleCompletedDownload(id) {
   const items = await chrome.downloads.search({ id });
   const item = items[0];
   if (!item) return;
-  if (!isClaudeAiExport(item)) return;
+  if (!ExportalPure.isClaudeAiExport(item.filename, item.url, item.referrer)) return;
   await forwardToExportal(item.filename);
-}
-
-function isClaudeAiExport(item) {
-  const filename = item.filename ?? '';
-  if (!FILENAME_PATTERN.test(filename)) return false;
-  // Defense-in-depth against unrelated ZIPs that happen to start with
-  // `data-`: require the download to have originated from claude.ai.
-  const url = item.url ?? '';
-  const referrer = item.referrer ?? '';
-  return url.includes('claude.ai') || referrer.includes('claude.ai');
 }
 
 async function forwardToExportal(zipPath) {
@@ -271,8 +259,7 @@ async function forwardInlineConversation(conversation) {
 async function readErrorCode(res) {
   try {
     const body = await res.json();
-    const code = body?.error;
-    return typeof code === 'string' && code.length > 0 ? code : undefined;
+    return ExportalPure.parseBridgeErrorCode(body);
   } catch {
     return undefined;
   }
@@ -293,12 +280,7 @@ async function getToken() {
 async function buildPortOrder() {
   const stored = await chrome.storage.session.get(LAST_PORT_KEY);
   const lastPort = stored[LAST_PORT_KEY];
-  const all = [];
-  for (let p = PORT_RANGE_START; p <= PORT_RANGE_END; p++) all.push(p);
-  if (typeof lastPort === 'number' && all.includes(lastPort)) {
-    return [lastPort, ...all.filter((p) => p !== lastPort)];
-  }
-  return all;
+  return ExportalPure.buildPortOrder(typeof lastPort === 'number' ? lastPort : undefined);
 }
 
 async function setBadge(text, color) {

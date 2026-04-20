@@ -34,7 +34,6 @@ const POPOVER_ID = 'exportal-popover';
 const PRIMARY_BTN_ID = 'exportal-send-now';
 const SECONDARY_BTN_ID = 'exportal-prepare-official';
 const TOAST_ID = 'exportal-toast';
-const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const POLL_INTERVAL_MS = 500;
 
 // Brand palette (matches assets/icon.svg): navy frame, white body,
@@ -49,10 +48,7 @@ let shortcutsInstalled = false;
 let actionInFlight = false;
 
 function currentConversationId() {
-  const match = /^\/chat\/([^/?#]+)/.exec(window.location.pathname);
-  if (match === null) return undefined;
-  const id = match[1];
-  return UUID_PATTERN.test(id) ? id : undefined;
+  return ExportalPure.extractConversationIdFromPath(window.location.pathname);
 }
 
 function syncPanel() {
@@ -331,20 +327,7 @@ async function sendInline(conversation) {
 }
 
 function explainError(err) {
-  const msg = err instanceof Error ? err.message : String(err);
-  // claude.ai fetch errors
-  if (msg === 'no_org') return 'Sin organización — ver consola';
-  if (msg === 'not_found') return 'No encontré la conversación';
-  if (msg === 'session_expired') return 'Sesión expirada — iniciá sesión en claude.ai';
-  if (msg === 'invalid_response') return 'Respuesta inesperada de claude.ai';
-  if (msg === 'timeout') return 'Timeout — claude.ai tarda en responder';
-  // Bridge errors
-  if (msg === 'bridge_offline') return 'VS Code no responde';
-  if (msg === 'bridge_outdated') return 'VS Code desactualizado — rebuildeá';
-  if (msg === 'bridge_auth') return 'Token inválido — revisá Opciones';
-  if (msg === 'invalid_shape') return 'Shape de claude.ai cambió — ver consola';
-  if (msg === 'payload_too_large') return 'Conversación muy grande';
-  return 'Error — ver consola';
+  return ExportalPure.explainError(err);
 }
 
 // claude.ai's internal API is usually quick; 15s is a generous upper
@@ -373,10 +356,7 @@ async function fetchOrganizationIds() {
   if (res.status === 401 || res.status === 403) throw new Error('session_expired');
   if (!res.ok) throw new Error(`claude_api_${String(res.status)}`);
   const data = await parseJsonOrThrow(res);
-  if (!Array.isArray(data)) return [];
-  return data
-    .map((o) => (o !== null && typeof o === 'object' ? o.uuid : undefined))
-    .filter((v) => typeof v === 'string' && v.length > 0);
+  return ExportalPure.extractOrgIds(data);
 }
 
 async function fetchClaudeApi(url) {
