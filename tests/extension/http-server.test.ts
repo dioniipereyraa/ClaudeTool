@@ -310,6 +310,26 @@ describe('startServer — /import-inline', () => {
     expect(body.error).toBe('import_failed');
     expect(body.message).toBe('boom-inline');
   });
+
+  it('maps BridgeError("invalid_shape") to 422', async () => {
+    const { BridgeError } = await import('../../src/extension/http-server.js');
+    h = await setup({
+      inlineHandler: () =>
+        Promise.reject(new BridgeError('invalid_shape', 'schema mismatch')),
+    });
+    const res = await fetch(`${h.baseUrl}/import-inline`, {
+      method: 'POST',
+      headers: {
+        authorization: `Bearer ${h.handle.token}`,
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({ conversation: { uuid: 'x' } }),
+    });
+    expect(res.status).toBe(422);
+    const body = (await res.json()) as { error: string; message: string };
+    expect(body.error).toBe('invalid_shape');
+    expect(body.message).toBe('schema mismatch');
+  });
 });
 
 describe('startServer — port selection', () => {

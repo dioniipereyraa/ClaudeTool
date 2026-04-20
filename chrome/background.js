@@ -210,10 +210,17 @@ async function forwardInlineConversation(conversation) {
   const body = JSON.stringify({ conversation });
   const ports = await buildPortOrder();
   let sawAuthError = false;
+  // Captures the first response that unambiguously identifies our own
+  // bridge rejecting the payload (422 shape mismatch, 413 too large).
+  // When we see one of these there's no point continuing to probe —
+  // the conversation itself is the problem, not which VS Code instance
+  // we're talking to.
+  let definiteError;
   let sawOutdated = false;
   for (const port of ports) {
+    let res;
     try {
-      const res = await fetch(`http://127.0.0.1:${port}/import-inline`, {
+      res = await fetch(`http://127.0.0.1:${port}/import-inline`, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${token}`,
@@ -221,30 +228,37 @@ async function forwardInlineConversation(conversation) {
         },
         body,
       });
-      if (res.status === 200) {
-        await chrome.storage.session.set({ [LAST_PORT_KEY]: port });
-        await setBadge('OK', '#16a34a');
-        return { ok: true };
-      }
-      if (res.status === 401) {
-        sawAuthError = true;
-        break;
-      }
-      // Any HTTP response that isn't 200/401 means a server is there
-      // but doesn't accept us — most commonly our own bridge on an
-      // older build (404: /import-inline didn't exist yet). We keep
-      // probing the remaining ports in case the user has a second
-      // VS Code instance running a newer build, but remember that we
-      // saw HTTP so we can report "outdated" instead of "offline" if
-      // nothing else answers.
-      sawOutdated = true;
     } catch {
       // network error — keep probing
+      continue;
     }
+    if (res.status === 200) {
+      await chrome.storage.session.set({ [LAST_PORT_KEY]: port });
+      await setBadge('OK', '#16a34a');
+      return { ok: true };
+    }
+    if (res.status === 401) {
+      sawAuthError = true;
+      break;
+    }
+    if (res.status === 422 || res.status === 413) {
+      const code = await readErrorCode(res);
+      definiteError = code ?? (res.status === 413 ? 'payload_too_large' : 'invalid_shape');
+      break;
+    }
+    // Any other HTTP response (most commonly 404 when /import-inline
+    // didn't exist in an older build) suggests an outdated VS Code. We
+    // keep probing in case the user has multiple instances running,
+    // but remember the state so we report "outdated" not "offline".
+    sawOutdated = true;
   }
   if (sawAuthError) {
     await setBadge('AUTH', '#dc2626');
     return { ok: false, error: 'bridge_auth' };
+  }
+  if (definiteError !== undefined) {
+    await setBadge('ERR', '#dc2626');
+    return { ok: false, error: definiteError };
   }
   if (sawOutdated) {
     await setBadge('OLD', '#dc2626');
@@ -252,6 +266,16 @@ async function forwardInlineConversation(conversation) {
   }
   await setBadge('OFF', '#dc2626');
   return { ok: false, error: 'bridge_offline' };
+}
+
+async function readErrorCode(res) {
+  try {
+    const body = await res.json();
+    const code = body?.error;
+    return typeof code === 'string' && code.length > 0 ? code : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 async function getPendingConversationId() {

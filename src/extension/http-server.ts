@@ -65,6 +65,29 @@ export type ImportInlinePayload = z.infer<typeof ImportInlinePayload>;
 export type ImportHandler = (payload: ImportPayload) => Promise<void>;
 export type ImportInlineHandler = (payload: ImportInlinePayload) => Promise<void>;
 
+/**
+ * Thrown by handlers to propagate a specific error code back to the
+ * Chrome companion. Generic Errors still map to 500 `import_failed`;
+ * BridgeError gives us a distinct HTTP status + code so the companion
+ * can show a specific message to the user (e.g. "Shape de claude.ai
+ * cambió" vs "VS Code falló al importar").
+ */
+export class BridgeError extends Error {
+  constructor(
+    readonly code: 'invalid_shape',
+    message?: string,
+  ) {
+    super(message ?? code);
+    this.name = 'BridgeError';
+  }
+}
+
+function statusForBridgeError(code: BridgeError['code']): number {
+  // 422 Unprocessable Entity — body parsed fine, semantics rejected.
+  if (code === 'invalid_shape') return 422;
+  return 500;
+}
+
 export interface BridgeHandlers {
   readonly onImport: ImportHandler;
   readonly onImportInline: ImportInlineHandler;
@@ -193,8 +216,7 @@ async function handleRequest(
     try {
       await handlers.onImport(parsed.data);
     } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      sendJson(res, 500, { error: 'import_failed', message });
+      sendHandlerError(res, err);
       return;
     }
     sendJson(res, 200, { ok: true });
@@ -210,11 +232,22 @@ async function handleRequest(
   try {
     await handlers.onImportInline(parsed.data);
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    sendJson(res, 500, { error: 'import_failed', message });
+    sendHandlerError(res, err);
     return;
   }
   sendJson(res, 200, { ok: true });
+}
+
+function sendHandlerError(res: http.ServerResponse, err: unknown): void {
+  if (err instanceof BridgeError) {
+    sendJson(res, statusForBridgeError(err.code), {
+      error: err.code,
+      message: err.message,
+    });
+    return;
+  }
+  const message = err instanceof Error ? err.message : String(err);
+  sendJson(res, 500, { error: 'import_failed', message });
 }
 
 function tokensMatch(provided: string, expected: string): boolean {

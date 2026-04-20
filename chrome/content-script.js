@@ -332,13 +332,24 @@ async function sendInline(conversation) {
 
 function explainError(err) {
   const msg = err instanceof Error ? err.message : String(err);
+  // claude.ai fetch errors
   if (msg === 'no_org') return 'Sin organización — ver consola';
   if (msg === 'not_found') return 'No encontré la conversación';
+  if (msg === 'session_expired') return 'Sesión expirada — iniciá sesión en claude.ai';
+  if (msg === 'invalid_response') return 'Respuesta inesperada de claude.ai';
+  if (msg === 'timeout') return 'Timeout — claude.ai tarda en responder';
+  // Bridge errors
   if (msg === 'bridge_offline') return 'VS Code no responde';
   if (msg === 'bridge_outdated') return 'VS Code desactualizado — rebuildeá';
   if (msg === 'bridge_auth') return 'Token inválido — revisá Opciones';
+  if (msg === 'invalid_shape') return 'Shape de claude.ai cambió — ver consola';
+  if (msg === 'payload_too_large') return 'Conversación muy grande';
   return 'Error — ver consola';
 }
+
+// claude.ai's internal API is usually quick; 15s is a generous upper
+// bound that still aborts a hung request instead of silently spinning.
+const API_TIMEOUT_MS = 15000;
 
 async function fetchConversation(conversationId) {
   const orgIds = await fetchOrganizationIds();
@@ -348,28 +359,55 @@ async function fetchConversation(conversationId) {
       `/api/organizations/${encodeURIComponent(orgId)}` +
       `/chat_conversations/${encodeURIComponent(conversationId)}` +
       `?tree=True&rendering_mode=messages`;
-    const res = await fetch(url, {
-      credentials: 'same-origin',
-      headers: { accept: 'application/json' },
-    });
+    const res = await fetchClaudeApi(url);
     if (res.status === 404) continue;
+    if (res.status === 401 || res.status === 403) throw new Error('session_expired');
     if (!res.ok) throw new Error(`claude_api_${String(res.status)}`);
-    return await res.json();
+    return await parseJsonOrThrow(res);
   }
   throw new Error('not_found');
 }
 
 async function fetchOrganizationIds() {
-  const res = await fetch('/api/organizations', {
-    credentials: 'same-origin',
-    headers: { accept: 'application/json' },
-  });
+  const res = await fetchClaudeApi('/api/organizations');
+  if (res.status === 401 || res.status === 403) throw new Error('session_expired');
   if (!res.ok) throw new Error(`claude_api_${String(res.status)}`);
-  const data = await res.json();
+  const data = await parseJsonOrThrow(res);
   if (!Array.isArray(data)) return [];
   return data
     .map((o) => (o !== null && typeof o === 'object' ? o.uuid : undefined))
     .filter((v) => typeof v === 'string' && v.length > 0);
+}
+
+async function fetchClaudeApi(url) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
+  try {
+    return await fetch(url, {
+      credentials: 'same-origin',
+      headers: { accept: 'application/json' },
+      signal: controller.signal,
+    });
+  } catch (err) {
+    if (err?.name === 'AbortError') throw new Error('timeout');
+    throw err;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function parseJsonOrThrow(res) {
+  // claude.ai normally replies JSON, but a misrouted request (e.g.
+  // session cookie dropped mid-deploy) can silently return the SPA
+  // HTML shell with a 200. Reject that explicitly so the user sees
+  // a useful message instead of the Zod shape-mismatch downstream.
+  const contentType = res.headers.get('content-type') ?? '';
+  if (!contentType.includes('json')) throw new Error('invalid_response');
+  try {
+    return await res.json();
+  } catch {
+    throw new Error('invalid_response');
+  }
 }
 
 function panelConversationId() {

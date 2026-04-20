@@ -21,7 +21,9 @@ export default tseslint.config(
     files: ['chrome/**/*.js'],
     languageOptions: {
       globals: {
+        AbortController: 'readonly',
         chrome: 'readonly',
+        clearTimeout: 'readonly',
         console: 'readonly',
         document: 'readonly',
         fetch: 'readonly',

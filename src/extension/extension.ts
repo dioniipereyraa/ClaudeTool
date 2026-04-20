@@ -8,6 +8,7 @@ import {
 } from '../importers/claudeai/schema.js';
 
 import {
+  BridgeError,
   generateToken,
   startServer,
   type ImportInlinePayload,
@@ -130,10 +131,13 @@ async function handleBridgeImport(payload: ImportPayload): Promise<void> {
 async function handleBridgeImportInline(payload: ImportInlinePayload): Promise<void> {
   // The Chrome companion scraped this directly from claude.ai's internal
   // conversation API, so the shape should match — but we re-validate here
-  // because the bridge is a trust boundary.
+  // because the bridge is a trust boundary. A specific BridgeError code
+  // lets the companion show "Shape de claude.ai cambió" instead of a
+  // generic "import failed", which is the likely cause when Anthropic
+  // tweaks the internal API.
   const conversation = parseSingleConversation(payload.conversation);
   if (conversation === null) {
-    throw new Error('invalid conversation shape');
+    throw new BridgeError('invalid_shape', 'conversation JSON did not match expected schema');
   }
   const { markdown } = formatConversation(conversation, { redact: true });
   const doc = await vscode.workspace.openTextDocument({
