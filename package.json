@@ -1,7 +1,7 @@
 {
   "name": "exportal",
   "displayName": "Exportal",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Bridge between claude.ai and VS Code. One-click conversation import via the Exportal Companion Chrome extension — run \"Exportal: Show bridge pairing token\" to connect.",
   "private": true,
   "type": "module",
@@ -69,7 +69,7 @@
     "format:check": "prettier --check .",
     "typecheck": "tsc --noEmit",
     "ci": "npm run lint && npm run typecheck && npm run test && npm run build",
-    "package:vsix": "npm run build && vsce package --no-dependencies",
+    "package:vsix": "npm run build && vsce package --no-dependencies --no-rewrite-relative-links",
     "package:chrome": "node scripts/package-chrome.mjs",
     "package:all": "npm run package:vsix && npm run package:chrome",
     "build:icon": "node scripts/build-icon.mjs"

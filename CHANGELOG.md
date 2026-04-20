@@ -6,6 +6,18 @@ Companion (Chrome extension) are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 and versions follow [Semantic Versioning](https://semver.org/).
 
+## [0.2.1] — 2026-04-20
+
+### Fixed
+
+- Packaging: README image references no longer rewritten to
+  `github.com/.../raw/HEAD/...` URLs during `vsce package`. The
+  v0.2.0 vsix shipped with rewritten URLs that 404 against the
+  currently-private repository, so the README rendered with broken
+  images in VS Code's extension details view. The `--no-rewrite-
+  relative-links` flag preserves relative paths; VS Code resolves them
+  against the installed extension directory.
+
 ## [0.2.0] — 2026-04-20
 
 ### Added

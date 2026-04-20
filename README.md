@@ -24,7 +24,7 @@ O con atajo de teclado (sin abrir el panel):
 
 El auto-attach al chat de Claude Code se puede desactivar con el setting `exportal.autoAttachToClaudeCode`. Agregá `.exportal/` a tu `.gitignore` si no querés versionar los imports.
 
-![FAB expandido en claude.ai](https://raw.githubusercontent.com/dioniipereyraa/ClaudeTool/main/docs/screenshots/fab.png)
+![FAB expandido en claude.ai](docs/screenshots/fab.png)
 
 ## Instalación
 
@@ -38,7 +38,7 @@ code --install-extension exportal-*.vsix
 
 Al abrir VS Code por primera vez aparece un modal con el **token de emparejamiento** y los pasos para configurar Chrome. Si te distraés, lo reabrís con `Ctrl+Shift+P` → **Exportal: Show bridge pairing token**.
 
-![Modal de onboarding en VS Code](https://raw.githubusercontent.com/dioniipereyraa/ClaudeTool/main/docs/screenshots/onboarding.jpeg)
+![Modal de onboarding en VS Code](docs/screenshots/onboarding.jpeg)
 
 ### Companion de Chrome
 
@@ -48,7 +48,7 @@ Al abrir VS Code por primera vez aparece un modal con el **token de emparejamien
 
 El badge del ícono refleja el estado: `OK` verde (importó), `SET` amarillo (falta token), `OFF` rojo (VS Code no responde), `AUTH` rojo (token inválido), `OLD` rojo (VS Code desactualizado), `ERR` rojo (otros).
 
-![Página de opciones del companion](https://raw.githubusercontent.com/dioniipereyraa/ClaudeTool/main/docs/screenshots/options.png)
+![Página de opciones del companion](docs/screenshots/options.png)
 
 ## Dos formas de exportar
 

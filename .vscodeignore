@@ -27,7 +27,9 @@ vitest.config.*
 
 # Project meta that doesn't belong in the extension bundle
 DEVLOG.md
+ROADMAP.md
 .claude/**
+.exportal/**
 exports/**
 chrome/**
 
