@@ -6,6 +6,17 @@ Companion (Chrome extension) are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 and versions follow [Semantic Versioning](https://semver.org/).
 
+## [0.2.2] — 2026-04-20
+
+### Changed
+
+- vsix ships a slimmer `README.vsix.md` without image references. VS Code's
+  extension Details viewer only resolves absolute HTTPS image URLs, so the
+  relative screenshots from v0.2.1 rendered as broken icons even after the
+  `--no-rewrite-relative-links` fix. The GitHub README keeps the screenshots;
+  both files are tracked and must be kept in sync by hand. `npm run
+  package:vsix` swaps them around `vsce package` automatically.
+
 ## [0.2.1] — 2026-04-20
 
 ### Fixed
