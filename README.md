@@ -1,51 +1,72 @@
 # Exportal
 
-Puente entre **claude.ai** y **Claude Code** (VS Code). Exporta sesiones de Claude Code a Markdown limpio e importa exports de claude.ai como contexto con un click.
+Puente entre **claude.ai** y **Claude Code** (VS Code). Exportá cualquier chat de claude.ai a Markdown limpio con un click o un atajo de teclado — listo para pegar como contexto en Claude Code.
 
-> **Estado**: MVP funcional. Extensión de VS Code + CLI.
-> Avance detallado en [`DEVLOG.md`](./DEVLOG.md). Modelo de amenazas y redacción en [`SECURITY.md`](./SECURITY.md).
+> **Estado**: v0.1.0 — primera release usable. Extensión de VS Code + companion de Chrome + CLI.
+> Changelog: [`CHANGELOG.md`](./CHANGELOG.md). Modelo de amenazas: [`SECURITY.md`](./SECURITY.md). Avance detallado: [`DEVLOG.md`](./DEVLOG.md).
 
 ## Qué resuelve
 
-Cuando pasás de charlar con Claude en la web a Claude Code (o al revés), perdés todo el contexto y hay que re-explicar el proyecto. Exportal genera un archivo Markdown limpio que podés pegar en la otra plataforma como contexto inicial.
+Cuando pasás de claude.ai a Claude Code (o viceversa), perdés todo el contexto y toca re-explicar el proyecto. Exportal genera un Markdown limpio con toda la conversación — incluyendo tool use, pensamientos y resultados — que pegás como contexto inicial.
 
-## Extensión de VS Code
+## Cómo se usa — camino feliz
 
-El camino feliz:
+Con las dos extensiones instaladas y emparejadas:
 
-1. Exportá tu data desde `claude.ai` → recibís un email con un ZIP (`data-*.zip`).
-2. Guardalo en `Downloads` o `Desktop`.
-3. En VS Code: `Ctrl+Shift+P` → **Exportal: Import claude.ai ZIP**.
-4. La extensión detecta el ZIP automáticamente, elegís una conversación del listado, y se abre como Markdown redactado en un editor nuevo.
+1. Abrí cualquier chat en `claude.ai/chat/<uuid>`.
+2. Click en el botón flotante de Exportal (esquina inferior derecha) → **Exportar este chat**.
+3. VS Code abre la conversación como Markdown en un tab nuevo.
 
-Fallbacks transparentes:
+O con atajo de teclado (sin abrir el panel):
 
-- Si renombraste el ZIP: ofrece escanear por contenido en `Downloads` y `Desktop`.
-- Si está en otra carpeta: file picker tradicional.
+- `Alt+Shift+E` — exportá el chat actual a VS Code.
+- `Alt+Shift+O` — preparar el export oficial (por si querés la versión con todos tus chats; la extensión reenvía el ZIP cuando llega por email).
 
-**Instalación (por ahora desde `.vsix`)**:
+![FAB expandido en claude.ai](https://raw.githubusercontent.com/dioniipereyraa/ClaudeTool/main/docs/screenshots/fab.png)
+
+## Instalación
+
+### Extensión de VS Code
 
 ```bash
 npm install
-npm run build
 npm run package:vsix
 code --install-extension exportal-*.vsix
 ```
 
-## Chrome companion (opcional)
+Al abrir VS Code por primera vez aparece un modal con el **token de emparejamiento** y los pasos para configurar Chrome. Si te distraés, lo reabrís con `Ctrl+Shift+P` → **Exportal: Show bridge pairing token**.
 
-Extensión de Chrome que detecta cuando claude.ai termina de descargar un export oficial y se lo pasa a la extensión de VS Code por un servidor HTTP local. Click-free: no pega, no navega, no escanea carpetas.
+![Modal de onboarding en VS Code](https://raw.githubusercontent.com/dioniipereyraa/ClaudeTool/main/docs/screenshots/onboarding.png)
 
-**Instalación**:
+### Companion de Chrome
 
-1. Descargá `exportal-companion-<version>.zip` desde [Releases](https://github.com/dioniipereyraa/ClaudeTool/releases) y extraelo.
-2. Chrome → `chrome://extensions` → activá **Modo desarrollador** → **Cargar sin empaquetar** → elegí la carpeta extraída.
-3. En VS Code: `Ctrl+Shift+P` → **Exportal: Show bridge pairing token** → copiá el token.
-4. Click derecho sobre el icono de Exportal Companion → **Opciones** → pegá el token → **Guardar**.
+1. Descargá `exportal-companion-<version>.zip` desde [Releases](https://github.com/dioniipereyraa/ClaudeTool/releases) y extraelo — o corré `npm run package:chrome` para buildearlo.
+2. Chrome → `chrome://extensions` → activá **Modo desarrollador** → **Cargar sin empaquetar** → elegí la carpeta.
+3. Click en el ícono de Exportal Companion en la barra → pegá el token de VS Code → **Guardar**.
 
-Desde ahí, cada vez que pidas un export en claude.ai y hagas click en el link del mail, la extensión lo reenvía a VS Code automáticamente. El badge del icono muestra el estado (`OK` verde, `AUTH`/`OFF` rojo, `SET` amarillo).
+El badge del ícono refleja el estado: `OK` verde (importó), `SET` amarillo (falta token), `OFF` rojo (VS Code no responde), `AUTH` rojo (token inválido), `OLD` rojo (VS Code desactualizado), `ERR` rojo (otros).
 
-Para buildearlo desde fuente: `npm run package:chrome` genera el zip en la raíz del repo.
+![Página de opciones del companion](https://raw.githubusercontent.com/dioniipereyraa/ClaudeTool/main/docs/screenshots/options.png)
+
+## Dos formas de exportar
+
+| Método | Cuándo sirve | Qué hace |
+|---|---|---|
+| **Exportar este chat** (botón o `Alt+Shift+E`) | Querés *este* chat ahora mismo. | Lee la API interna de claude.ai (mismas cookies de sesión), manda el JSON al bridge local de VS Code, abre el Markdown. Cero ZIPs, cero mails. |
+| **Preparar export oficial** (botón o `Alt+Shift+O`) | Querés *todos* tus chats, o el export oficial completo con attachments/proyectos. | Guarda el UUID del chat actual. Cuando el ZIP oficial de claude.ai termina de descargar, el companion se lo pasa a VS Code y VS Code abre directo ese chat del listado. |
+
+## CLI (opcional)
+
+```bash
+# Export de una sesión de Claude Code
+npx exportal export <sessionId> --out session.md
+
+# Import desde un ZIP de claude.ai
+npx exportal import list ./data-abc.zip              # lista conversaciones
+npx exportal import show ./data-abc.zip <uuid>       # renderiza una
+```
+
+Ambos redactan secretos por defecto. Ver `--help`.
 
 ## CLI
 
