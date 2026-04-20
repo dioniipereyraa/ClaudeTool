@@ -2,7 +2,7 @@
 
 Puente entre **claude.ai** y **Claude Code** (VS Code). Exportá cualquier chat de claude.ai a Markdown limpio con un click o un atajo de teclado — listo para pegar como contexto en Claude Code.
 
-> **Estado**: v0.2.1 — primera release usable. Extensión de VS Code + companion de Chrome + CLI.
+> **Estado**: v0.3.0 — bidireccional (claude.ai ↔ Claude Code). Extensión de VS Code + companion de Chrome + CLI.
 > Changelog y docs completas: [repo en GitHub](https://github.com/dioniipereyraa/ClaudeTool).
 
 ## Qué resuelve
@@ -23,6 +23,10 @@ O con atajo de teclado (sin abrir el panel):
 - `Alt+Shift+O` — preparar el export oficial (por si querés la versión con todos tus chats; la extensión reenvía el ZIP cuando llega por email).
 
 El auto-attach al chat de Claude Code se puede desactivar con el setting `exportal.autoAttachToClaudeCode`. Agregá `.exportal/` a tu `.gitignore` si no querés versionar los imports.
+
+### Al revés: Claude Code → claude.ai
+
+`Ctrl+Shift+P` → **Exportal: Send Claude Code session to claude.ai**. Elegís una de las sesiones de Claude Code del proyecto actual, Exportal renderiza el chat a Markdown, lo copia al portapapeles y abre `claude.ai/new`. Pegás con `Ctrl+V` y arrancás un chat nuevo con todo el contexto. claude.ai no tiene API de escritura — el paso de pegar es manual por diseño.
 
 ## Instalación
 

@@ -6,6 +6,18 @@ Companion (Chrome extension) are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 and versions follow [Semantic Versioning](https://semver.org/).
 
+## [0.3.0] — 2026-04-20
+
+### Added
+
+- **Send Claude Code session to claude.ai** (hito 15). New command
+  `Exportal: Send Claude Code session to claude.ai` lists the sessions
+  for the open workspace's cwd, renders the chosen one as Markdown
+  (redaction on, tool/thinking blocks off), copies it to the clipboard
+  and opens `claude.ai/new`. The paste is manual because claude.ai has
+  no public write API. Warns with a modal when the payload is larger
+  than ~150 KB.
+
 ## [0.2.2] — 2026-04-20
 
 ### Changed

@@ -1126,3 +1126,58 @@ en `push` de tags `v*`:
   respectivamente.
 - Prerelease flag (`draft` o `prerelease`). El action publica directo;
   si querés preview, taggeás sobre un branch de prueba.
+
+---
+
+## 2026-04-20 — Hito 15 · Send Claude Code session to claude.ai (v0.3.0)
+
+### Qué hicimos
+- Nuevo comando `exportal.sendSessionToClaudeAi` en la extensión:
+  lista las sesiones del cwd actual (`~/.claude/projects/<encoded>/`),
+  QuickPick con el primer mensaje de usuario como label + fecha +
+  turnos, renderiza con `formatAsMarkdown` (redact on, tools/thinking
+  off), copia al portapapeles y abre `claude.ai/new` en el browser.
+- Reuso total del core: `encodeProjectDir`, `listSessionFiles`,
+  `describeSession`, `readJsonl`, `formatAsMarkdown`. Cero dependencias
+  nuevas en el bundle.
+- Guard de tamaño: si el Markdown supera 150 KB, modal que pide
+  confirmación explícita antes de copiar. claude.ai acepta payloads
+  grandes pero los renderiza mal y a veces los trunca.
+- Toast post-acción: "Markdown copiado. Pegalo con Ctrl+V en el chat
+  nuevo" — el usuario sabe que el paso siguiente es manual.
+
+### Decisiones clave y por qué
+- **Paste manual, no automation**: claude.ai no expone API pública de
+  *write*. Cualquier intento de injectar el texto via DOM sería frágil
+  (claude.ai cambia markup cada release) y huele a scraping. Preferimos
+  un UX claro ("copiá + pegá") que una magia que se rompe en silencio.
+- **Tools y thinking OFF por defecto**: una sesión de Claude Code con
+  tool use completo puede ser 300+ KB. El caso común es "llevar el
+  contexto a claude.ai para consultar otra cosa", donde lo importante
+  son los mensajes, no los Bash outputs intermedios. Quien necesite
+  todo usa el CLI con `--include-tools --include-thinking`.
+- **Sólo paleta de comandos, sin botón en status bar**: ya hay un
+  botón de "Importar claude.ai". Un segundo botón genera confusión
+  ("¿este era el de ida o el de vuelta?"). La paleta es suficiente
+  para un flujo ocasional.
+- **`openExternal(claude.ai/new)`**: usa el browser default. No
+  asumimos que el usuario tiene una tab abierta ni intentamos
+  encontrarla — siempre abre un chat limpio.
+- **Redacción on, sin flag en UI**: mismo principio fail-closed de
+  toda la extensión. Si alguien necesita raw, el CLI está ahí.
+
+### Verificación
+- Typecheck, lint, 154/154 tests verdes.
+- El comando queda registrado en `package.json` → `contributes.commands`.
+- Manual: F5 → paleta → "Send Claude Code session..." → elegí sesión
+  del proyecto actual → chequeo portapapeles → `claude.ai/new` abre.
+
+### Lo que NO entra
+- Hito 19 (reconstruir `.jsonl` para que aparezca en `/resume` de
+  Claude Code) — ese era el camino *web → VS Code* alternativo al
+  auto-attach, no el *VS Code → web* de esta entrada. Sigue en ROADMAP.
+- Selector de modelo / sistema de plantillas ("iniciá el prompt con X
+  instrucción"). YAGNI hasta ver el patrón de uso real.
+- Pegado automático (via `SendKeys`, Puppeteer, extensión de Chrome
+  escuchando clipboard). Todo eso es frágil o invasivo; el paso manual
+  de Ctrl+V es aceptable.

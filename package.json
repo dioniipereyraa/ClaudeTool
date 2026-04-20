@@ -1,7 +1,7 @@
 {
   "name": "exportal",
   "displayName": "Exportal",
-  "version": "0.2.2",
+  "version": "0.3.0",
   "description": "Bridge between claude.ai and VS Code. One-click conversation import via the Exportal Companion Chrome extension — run \"Exportal: Show bridge pairing token\" to connect.",
   "private": true,
   "type": "module",
@@ -43,6 +43,10 @@
       {
         "command": "exportal.showPairingInfo",
         "title": "Exportal: Show bridge pairing token"
+      },
+      {
+        "command": "exportal.sendSessionToClaudeAi",
+        "title": "Exportal: Send Claude Code session to claude.ai"
       }
     ],
     "configuration": {

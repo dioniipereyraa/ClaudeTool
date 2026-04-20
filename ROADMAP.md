@@ -48,14 +48,6 @@ Items concretos y cerrados se mueven al `DEVLOG.md`. Releases formales al
 - Impacto: probablemente afecta al 1-5% de usuarios.
 - Disparador: primer bug report real. Hasta entonces YAGNI.
 
-### Hito 15 — Import reverso (Claude Code → claude.ai)
-- Idea: desde VS Code, "Send this session to claude.ai" genera un
-  mensaje inicial pegable en un chat nuevo.
-- Bloqueo técnico: claude.ai no expone API de *write* para crear
-  mensajes. Tendría que ser copy-to-clipboard + instrucción al usuario.
-- Valor real: cuestionable vs. simplemente pegar el Markdown manual.
-- **Why low priority**: el usuario puede hacerlo a mano en 10s.
-
 ### Hito 16 — Soporte para artifacts de claude.ai
 - claude.ai embebe artifacts (React components, code snippets
   interactivos, HTML). Hoy el parser los ignora silenciosamente.

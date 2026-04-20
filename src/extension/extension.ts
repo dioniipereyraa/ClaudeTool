@@ -1,6 +1,11 @@
 import * as vscode from 'vscode';
 
+import { encodeProjectDir } from '../core/paths.js';
+import { readJsonl } from '../core/reader.js';
+import { describeSession, listSessionFiles } from '../core/session.js';
+import { type SessionMetadata } from '../core/types.js';
 import { formatConversation } from '../formatters/claudeai-markdown.js';
+import { formatAsMarkdown } from '../formatters/markdown.js';
 import { readClaudeAiExport } from '../importers/claudeai/reader.js';
 import {
   parseSingleConversation,
@@ -46,6 +51,10 @@ export function activate(context: vscode.ExtensionContext): void {
     vscode.commands.registerCommand('exportal.importFromZip', importFromZipCommand),
     vscode.commands.registerCommand('exportal.showPairingInfo', () =>
       showPairingInfoCommand(context),
+    ),
+    vscode.commands.registerCommand(
+      'exportal.sendSessionToClaudeAi',
+      sendSessionToClaudeAiCommand,
     ),
   );
 
@@ -474,4 +483,101 @@ async function attachToClaudeCodeIfAvailable(
   } catch {
     // Intentional swallow — see JSDoc. The user still has the .md open.
   }
+}
+
+// claude.ai quietly accepts very large messages but renders them poorly
+// and occasionally rejects them silently. 150 KB is comfortably below
+// that ceiling; above it, we warn the user before copying.
+const CLAUDE_AI_SIZE_WARN_BYTES = 150_000;
+
+/**
+ * Hito 15 — send a Claude Code session to claude.ai.
+ *
+ * Lists sessions of the open workspace's cwd, lets the user pick one,
+ * renders it as Markdown (redaction on, tool/thinking blocks off for
+ * a pasteable payload), copies it to the clipboard and opens
+ * claude.ai/new. The paste itself is manual because claude.ai has no
+ * public write API — anything else would be lying to the user.
+ */
+async function sendSessionToClaudeAiCommand(): Promise<void> {
+  const folder = vscode.workspace.workspaceFolders?.[0];
+  if (folder === undefined) {
+    await vscode.window.showInformationMessage(
+      'Exportal: abrí una carpeta de proyecto primero. Busco las sesiones de Claude Code del cwd actual.',
+    );
+    return;
+  }
+
+  const projectDir = encodeProjectDir(folder.uri.fsPath);
+  const files = await listSessionFiles(projectDir);
+  if (files.length === 0) {
+    await vscode.window.showInformationMessage(
+      'Exportal: no encontré sesiones de Claude Code para este proyecto. Abrí Claude Code y tené al menos un chat guardado.',
+    );
+    return;
+  }
+
+  const metas = await Promise.all(files.map(async (f) => describeSession(f)));
+  const metadata = await pickSession(metas);
+  if (metadata === undefined) return;
+
+  let markdown: string;
+  try {
+    const events = await readJsonl(metadata.filePath);
+    const formatted = formatAsMarkdown(events, metadata, { redact: true });
+    markdown = formatted.markdown;
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    await vscode.window.showErrorMessage(
+      `Exportal: no pude leer la sesión. ${message}`,
+    );
+    return;
+  }
+
+  const sizeBytes = Buffer.byteLength(markdown, 'utf8');
+  if (sizeBytes > CLAUDE_AI_SIZE_WARN_BYTES) {
+    const kb = (sizeBytes / 1024).toFixed(0);
+    const proceed = await vscode.window.showWarningMessage(
+      `Exportal: la sesión pesa ${kb} KB. Mensajes muy largos pueden ser rechazados o renderizados parcialmente en claude.ai.`,
+      { modal: true },
+      'Copiar igual',
+    );
+    if (proceed !== 'Copiar igual') return;
+  }
+
+  await vscode.env.clipboard.writeText(markdown);
+  await vscode.env.openExternal(vscode.Uri.parse('https://claude.ai/new'));
+  void vscode.window.showInformationMessage(
+    'Exportal: Markdown copiado. Pegalo con Ctrl+V en el chat nuevo de claude.ai.',
+  );
+}
+
+interface SessionQuickPickItem extends vscode.QuickPickItem {
+  readonly metadata: SessionMetadata;
+}
+
+async function pickSession(
+  metas: readonly SessionMetadata[],
+): Promise<SessionMetadata | undefined> {
+  const sorted = [...metas].sort(compareSessionsByStartedDesc);
+  const items: SessionQuickPickItem[] = sorted.map((m) => ({
+    label: m.firstUserText ?? '(sesión sin mensajes de usuario)',
+    description: m.startedAt?.slice(0, 10) ?? '????-??-??',
+    detail: `${String(m.turnCount)} turnos · ${m.sessionId.slice(0, 8)}`,
+    metadata: m,
+  }));
+  const selected = await vscode.window.showQuickPick(items, {
+    title: `Exportal — ${String(metas.length)} sesiones de Claude Code`,
+    placeHolder: 'Elegí una sesión para enviar a claude.ai',
+    matchOnDescription: true,
+    matchOnDetail: true,
+  });
+  return selected?.metadata;
+}
+
+function compareSessionsByStartedDesc(a: SessionMetadata, b: SessionMetadata): number {
+  const ax = a.startedAt ?? '';
+  const bx = b.startedAt ?? '';
+  if (ax === bx) return 0;
+  return ax < bx ? 1 : -1;
 }
