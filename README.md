@@ -15,12 +15,14 @@ Con las dos extensiones instaladas y emparejadas:
 
 1. Abrí cualquier chat en `claude.ai/chat/<uuid>`.
 2. Click en el botón flotante de Exportal (esquina inferior derecha) → **Exportar este chat**.
-3. VS Code abre la conversación como Markdown en un tab nuevo.
+3. VS Code guarda la conversación en `<workspace>/.exportal/<timestamp>-<slug>.md`, abre el archivo, **y automáticamente abre el panel de Claude Code con el Markdown adjunto como `@-mention`**. Solo escribís tu prompt y listo.
 
 O con atajo de teclado (sin abrir el panel):
 
 - `Alt+Shift+E` — exportá el chat actual a VS Code.
 - `Alt+Shift+O` — preparar el export oficial (por si querés la versión con todos tus chats; la extensión reenvía el ZIP cuando llega por email).
+
+El auto-attach al chat de Claude Code se puede desactivar con el setting `exportal.autoAttachToClaudeCode`. Agregá `.exportal/` a tu `.gitignore` si no querés versionar los imports.
 
 ![FAB expandido en claude.ai](https://raw.githubusercontent.com/dioniipereyraa/ClaudeTool/main/docs/screenshots/fab.png)
 

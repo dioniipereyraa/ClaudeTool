@@ -6,6 +6,26 @@ Companion (Chrome extension) are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 and versions follow [Semantic Versioning](https://semver.org/).
 
+## [0.2.0] — 2026-04-20
+
+### Added
+
+- **Auto-attach to Claude Code**: after importing a conversation, the
+  Exportal extension now opens the Claude Code sidebar and inserts the
+  exported Markdown as an `@-mention` in the chat input. The user only
+  has to type their prompt (or hit Enter) — no manual file-drop needed.
+  Requires the official Claude Code extension; fails soft if absent.
+- Setting `exportal.autoAttachToClaudeCode` (default `true`) to disable
+  the auto-attach behavior.
+
+### Changed
+
+- Imported conversations are now written to
+  `<workspace>/.exportal/<timestamp>-<slug>.md` instead of an unsaved
+  editor tab. This gives the `@-mention` a real file path to reference
+  and leaves a browsable history of imports. Falls back to an untitled
+  document if no workspace folder is open.
+
 ## [0.1.1] — 2026-04-20
 
 Documentation-only release. No code changes to either extension.

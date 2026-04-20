@@ -7,6 +7,7 @@ import {
   type ClaudeAiConversation,
 } from '../importers/claudeai/schema.js';
 
+import { buildExportTimestamp, slugify } from './export-paths.js';
 import {
   BridgeError,
   generateToken,
@@ -140,12 +141,9 @@ async function handleBridgeImportInline(payload: ImportInlinePayload): Promise<v
     throw new BridgeError('invalid_shape', 'conversation JSON did not match expected schema');
   }
   const { markdown } = formatConversation(conversation, { redact: true });
-  const doc = await vscode.workspace.openTextDocument({
-    content: markdown,
-    language: 'markdown',
-  });
-  await vscode.window.showTextDocument(doc, { preview: false });
+  const savedUri = await persistAndOpenMarkdown(conversation, markdown);
   announceImport(conversation);
+  await attachToClaudeCodeIfAvailable(savedUri);
 }
 
 function announceImport(conversation: ClaudeAiConversation): void {
@@ -281,12 +279,9 @@ async function openConversationFromZip(
 
   const { markdown } = formatConversation(conversation, { redact: true });
 
-  const doc = await vscode.workspace.openTextDocument({
-    content: markdown,
-    language: 'markdown',
-  });
-  await vscode.window.showTextDocument(doc, { preview: false });
+  const savedUri = await persistAndOpenMarkdown(conversation, markdown);
   announceImport(conversation);
+  await attachToClaudeCodeIfAvailable(savedUri);
 }
 
 async function pickZipFile(): Promise<vscode.Uri | undefined> {
@@ -410,4 +405,73 @@ async function pickConversation(
 function compareByCreatedDesc(a: ClaudeAiConversation, b: ClaudeAiConversation): number {
   if (a.created_at === b.created_at) return 0;
   return a.created_at < b.created_at ? 1 : -1;
+}
+
+/**
+ * Writes the export to `<workspace>/.exportal/<timestamp>-<slug>.md` and
+ * opens it. Falls back to an untitled document if there's no workspace
+ * folder open — in that case Claude Code's @-mention won't resolve (it
+ * needs a real file path), so the caller gets `undefined` back.
+ *
+ * Returns the URI of the saved file, or `undefined` if we fell back to
+ * untitled. `attachToClaudeCodeIfAvailable` uses that to decide whether
+ * to attempt the auto-attach.
+ */
+async function persistAndOpenMarkdown(
+  conversation: ClaudeAiConversation,
+  markdown: string,
+): Promise<vscode.Uri | undefined> {
+  const folder = vscode.workspace.workspaceFolders?.[0];
+  if (folder === undefined) {
+    const doc = await vscode.workspace.openTextDocument({
+      content: markdown,
+      language: 'markdown',
+    });
+    await vscode.window.showTextDocument(doc, { preview: false });
+    return undefined;
+  }
+
+  const dir = vscode.Uri.joinPath(folder.uri, '.exportal');
+  const filename = `${buildExportTimestamp()}-${slugify(conversation.name)}.md`;
+  const fileUri = vscode.Uri.joinPath(dir, filename);
+
+  await vscode.workspace.fs.createDirectory(dir);
+  await vscode.workspace.fs.writeFile(fileUri, new TextEncoder().encode(markdown));
+
+  const doc = await vscode.workspace.openTextDocument(fileUri);
+  await vscode.window.showTextDocument(doc, { preview: false });
+  return fileUri;
+}
+
+/**
+ * If Claude Code for VS Code is installed and the user hasn't opted out,
+ * open its sidebar and invoke its insert-@-mention command. Claude
+ * Code's command reads from the active editor, so the caller must have
+ * just `showTextDocument`'d the exported file.
+ *
+ * Fails soft for every path: Claude Code missing, command renamed in a
+ * future version, setting disabled, no saved file. In each case the
+ * user still has the Markdown open and can drag it into the chat
+ * manually — same UX as before this auto-attach existed.
+ */
+async function attachToClaudeCodeIfAvailable(
+  savedUri: vscode.Uri | undefined,
+): Promise<void> {
+  if (savedUri === undefined) return;
+  const enabled = vscode.workspace
+    .getConfiguration('exportal')
+    .get<boolean>('autoAttachToClaudeCode', true);
+  if (!enabled) return;
+
+  const commands = await vscode.commands.getCommands(true);
+  if (!commands.includes('claude-vscode.insertAtMention')) return;
+
+  try {
+    if (commands.includes('claude-vscode.sidebar.open')) {
+      await vscode.commands.executeCommand('claude-vscode.sidebar.open');
+    }
+    await vscode.commands.executeCommand('claude-vscode.insertAtMention');
+  } catch {
+    // Intentional swallow — see JSDoc. The user still has the .md open.
+  }
 }

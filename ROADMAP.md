@@ -39,6 +39,19 @@ Items concretos y cerrados se mueven al `DEVLOG.md`. Releases formales al
 
 ## Long-term (features)
 
+### Hito 19 — Import como "chat del historial" (reconstruir .jsonl)
+- Idea: en vez de abrir un `.md`, generar un `.jsonl` válido en
+  `~/.claude/projects/<cwd-encoded>/` para que la conversación aparezca
+  en `/resume` de Claude Code como si fuera un chat local.
+- **Why**: UX ideal — el usuario "continúa" la conversación de claude.ai
+  en Claude Code sin ningún paso extra.
+- **Risks**: el formato `.jsonl` es ingeniería inversa; los `uuid` /
+  `parentUuid` tienen reglas de encadenamiento no documentadas; el
+  state manager de Claude Code puede rechazar o ensuciarse si mapeamos
+  mal algún campo (`cwd`, `sessionId`, `gitBranch`, `toolUseResult`).
+- **Bloqueado por**: auditoría a fondo del formato y fixtures reales.
+  Vale la pena solo si Hito 18 resulta insuficiente en la práctica.
+
 ### Hito 14 — Selector de org para cuentas con múltiples organizaciones
 - Estado actual: agarramos `organizations[0]` sin preguntar.
 - Impacto: probablemente afecta al 1-5% de usuarios.

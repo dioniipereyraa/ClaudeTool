@@ -939,3 +939,128 @@ Dejar el producto en estado de "instalable por un tercero sin que explote". No f
 - `gh release create v0.1.0` con los dos artifacts adjuntos cuando haya tiempo de verificar el flujo de instalación en una máquina limpia.
 - Feedback de primeros usuarios (amigos, colegas) antes de decidir si publicamos al Marketplace/Web Store o si hay que iterar más en UX.
 - Selector de org si alguien lo pide.
+
+---
+
+## Hito 18 — Auto-attach del export al chat de Claude Code (v0.2.0)
+**Fecha:** 2026-04-20
+
+### Objetivo
+Eliminar el último paso manual del camino feliz: después de importar
+una conversación, el usuario tenía que decirle a Claude Code "usá este
+`.md` como contexto" (pegando el contenido, drag&drop, o `@archivo`).
+Objetivo: que el `@-mention` aparezca solo en el input de Claude Code,
+listo para enviar.
+
+### Research previo
+Auditoría del `extension.js` de la extensión oficial Claude Code
+(`anthropic.claude-code` v2.1.114 instalada localmente) para mapear los
+comandos públicos. Hallazgos relevantes:
+- `claude-vscode.sidebar.open` — abre el panel lateral.
+- `claude-vscode.insertAtMention` — lee el **editor activo**, toma
+  `workspace.asRelativePath(document.fileName)`, y dispara un evento
+  interno que agrega `@<ruta>` al input del chat (con soporte para
+  rangos de línea si hay selección).
+- Conclusión: no hace falta pasar argumentos; basta con que el `.md`
+  importado sea el editor activo al momento del executeCommand.
+
+### Alcance cerrado
+
+**[src/extension/extension.ts](src/extension/extension.ts)**:
+- Nuevo helper `persistAndOpenMarkdown(conversation, markdown)`:
+  escribe a `<workspace>/.exportal/<timestamp>-<slug>.md` via
+  `vscode.workspace.fs.writeFile`. Si no hay workspace abierto, cae en
+  el fallback de `openTextDocument({ content, language })` (untitled) y
+  devuelve `undefined`.
+- Nuevo helper `attachToClaudeCodeIfAvailable(savedUri)`:
+  - Early-return si `savedUri` es undefined (sin archivo real → el
+    `@-mention` no puede resolverse).
+  - Early-return si el setting `exportal.autoAttachToClaudeCode` está
+    en `false`.
+  - `vscode.commands.getCommands(true)` para ver si Claude Code está
+    instalado; si no, early-return.
+  - `sidebar.open` + `insertAtMention` dentro de un `try/catch` que
+    swallowea errores (fail-soft: el usuario todavía tiene el `.md`
+    abierto y puede adjuntarlo a mano).
+- Los dos call-sites de import (bridge inline y bridge ZIP) ahora
+  llaman a ambos helpers en vez de hacer `openTextDocument` inline.
+
+**[src/extension/export-paths.ts](src/extension/export-paths.ts)** (nuevo):
+- `buildExportTimestamp(date)` — `YYYY-MM-DD-HHmm`, ordenable
+  lexicográficamente.
+- `slugify(raw)` — lowercase, NFD + strip diacríticos, colapsar no-
+  alfanuméricos a `-`, trim, cap a 40 chars, placeholder
+  `conversacion` si el input no tiene alfanuméricos.
+- Módulo separado del `extension.ts` para que los tests lo importen
+  sin arrastrar `vscode` (el harness de vitest no resuelve `vscode`).
+
+**[tests/extension/export-paths.test.ts](tests/extension/export-paths.test.ts)** (nuevo):
+- 10 tests: formato y zero-padding del timestamp, orden lexicográfico,
+  slugify de español con diacríticos, colapso de símbolos, length cap,
+  placeholder para strings vacíos/simbólicos.
+
+**[package.json](package.json)**:
+- `contributes.configuration` con `exportal.autoAttachToClaudeCode`
+  (boolean, default `true`).
+
+**[README.md](README.md)**:
+- Paso 3 del "camino feliz" actualizado para reflejar el auto-attach.
+- Hint explícito sobre gitignorear `.exportal/`.
+
+**[CHANGELOG.md](CHANGELOG.md)**: entrada `[0.2.0]`.
+
+### Decisiones técnicas
+
+- **Persistir en lugar de untitled**: `claude-vscode.insertAtMention`
+  llama a `asRelativePath(document.fileName)`. Para un documento
+  untitled eso devuelve algo tipo `Untitled-1`, que no resuelve como
+  archivo real. Persistir a disco es precondición del @-mention.
+- **Path `<workspace>/.exportal/`** (oculto por convención Unix):
+  confirmado con el usuario. Visible en el file explorer pero no
+  intrusivo, fácil de gitignorear. El usuario puede explorar el
+  historial de imports como archivos normales.
+- **Filename `<timestamp>-<slug>.md`**: timestamp con precisión de
+  minuto + slug corto del título. Colisiones solo si el mismo chat se
+  exporta dos veces en el mismo minuto — en ese caso `writeFile`
+  sobrescribe, lo cual es el comportamiento deseado (misma conversación).
+- **Setting opt-out (default on)**: discutido con el usuario.
+  Justificado porque es el camino feliz esperado; si molesta, un
+  toggle en `settings.json` alcanza.
+- **Try/catch en `attachToClaudeCodeIfAvailable`**: el contrato de
+  compatibilidad con Claude Code es frágil — es una extensión de
+  tercero cuyos comandos podrían renombrarse. El import no debería
+  fallar si el auto-attach falla.
+- **Slug con strip de diacríticos (NFD + regex de combining marks)**:
+  nombres de conversación en español son comunes ("Código en
+  producción") y dar nombres de archivo con acentos crea problemas en
+  Windows y en git logs. Diacríticos fuera, alfanumérico solamente.
+- **Módulo `export-paths.ts` separado**: el patrón de pure-logic
+  separada ya existe en el proyecto (`chrome/pure.js`). Lo replico del
+  lado del host para tener tests unitarios sin vscode-mock.
+
+### Verificación
+
+- `npm run ci` → 154 tests (144 previos + 10 nuevos), lint, typecheck,
+  build 850 KB (+6 KB por los nuevos helpers).
+- Verificación manual pendiente en una máquina con Claude Code
+  instalado: exportar una conversación desde claude.ai → verificar que
+  (a) se crea el archivo en `.exportal/`, (b) el sidebar de Claude
+  Code se abre, (c) el `@-mention` aparece precargado en el input.
+- Fallback sin Claude Code: debería funcionar igual que antes (archivo
+  abierto + toast), sin errores ni sidebar fantasma.
+- Fallback sin workspace: untitled + toast, sin auto-attach, sin
+  errores.
+
+### Lo que NO entra en 18
+- Selector de conversación integrado al chat (el user pasa siempre por
+  el archivo abierto).
+- Limpieza automática de `.exportal/` viejos — el usuario administra
+  su workspace.
+- Auto-attach para el flujo de ZIP/QuickPick cuando hay múltiples
+  conversaciones: funciona igual (ambos call-sites usan el helper),
+  pero no se validó end-to-end todavía.
+
+### Próximos pasos
+- Verificación manual en escenario real.
+- Cuando sea estable, evaluar Hito 19 (reconstruir `.jsonl` para que
+  aparezca en `/resume`) — solo si el Hito 18 resulta insuficiente.
