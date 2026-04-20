@@ -6,20 +6,11 @@ Items concretos y cerrados se mueven al `DEVLOG.md`. Releases formales al
 
 ## Near-term (release hygiene)
 
-### Release v0.1.1 (mecánico)
-- [ ] `npm run package:all` con version bump aplicado.
-- [ ] `gh release create v0.1.1` adjuntando `exportal-0.1.1.vsix` y
-  `exportal-companion-0.1.1.zip`.
+### Release v0.2.0
+- [ ] `git tag v0.2.0 && git push --tags` — el Action de release corre
+  solo y adjunta los dos artifacts.
 - [ ] Verificar el flujo de instalación en una máquina limpia (vsix
   desde release + zip del companion sideloaded).
-
-### Hito 11 — GitHub Action de release automático
-- Trigger: push de tag `v*`.
-- Corre `npm run ci` + `npm run package:all`.
-- Crea release con los dos artifacts adjuntos y el body generado desde
-  la entrada correspondiente de `CHANGELOG.md`.
-- **Por qué**: hoy el release es manual y frágil (fácil olvidar algún
-  paso). El tag es la única intervención humana.
 
 ## Medium-term (distribución)
 

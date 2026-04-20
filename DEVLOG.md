@@ -1064,3 +1064,65 @@ comandos públicos. Hallazgos relevantes:
 - Verificación manual en escenario real.
 - Cuando sea estable, evaluar Hito 19 (reconstruir `.jsonl` para que
   aparezca en `/resume`) — solo si el Hito 18 resulta insuficiente.
+
+---
+
+## Hito 11 — GitHub Action de release automático
+**Fecha:** 2026-04-20
+
+### Objetivo
+Eliminar el paso manual de release: `npm run package:all` + crear el
+release en la web + adjuntar los dos artifacts. Con tag-push alcanza.
+
+### Alcance cerrado
+[.github/workflows/release.yml](.github/workflows/release.yml) — corre
+en `push` de tags `v*`:
+1. `npm ci` + `npm run ci` (lint/typecheck/tests/build) como
+   pre-requisito.
+2. `npm run package:all` — genera `exportal-<ver>.vsix` y
+   `exportal-companion-<ver>.zip`.
+3. Sanity check: los nombres de archivo coinciden con el tag (detecta
+   drift entre `package.json`/`manifest.json` y el tag pusheado).
+4. Extrae la sección `## [X.Y.Z]` del `CHANGELOG.md` a
+   `release-notes.md` con un `awk` mínimo.
+5. `softprops/action-gh-release@v2` crea el release con el body del
+   CHANGELOG y ambos artifacts adjuntos.
+
+### Decisiones técnicas
+
+- **Trigger solo en `v*` tag-push**: no PR, no branch-push. Releases
+  son eventos deliberados; no tiene sentido que el branch principal
+  los dispare por error.
+- **`permissions: contents: write` explícito**: desde GitHub default
+  tightening (abril 2023) los workflows corren con permisos read-only
+  salvo que se pidan. Sin esto, `gh-release` falla al publicar.
+- **`softprops/action-gh-release@v2`**: es la acción estándar del
+  ecosistema — mantenida, versionada, con semver estable. Alternativa
+  (`gh release create` en bash) requeriría authenticar el CLI y es más
+  frágil ante cambios de gh.
+- **Sanity check de versiones**: si alguien pushea `v0.3.0` pero
+  `package.json` dice `0.2.0`, el build genera `exportal-0.2.0.vsix` y
+  el check falla explícitamente. Protege contra taggear prematuro.
+- **`awk` inline en vez de action de terceros para las release
+  notes**: 4 líneas de awk ya hacen el trabajo. Cualquier acción
+  externa es una superficie de supply-chain extra para reemplazar un
+  one-liner.
+- **`fail_on_unmatched_files: true`**: si un artifact no se generó,
+  falla explícito en vez de publicar un release parcial.
+
+### Verificación
+- Workflow no se puede probar end-to-end localmente; la primera
+  corrida real será con `git tag v0.2.0 && git push --tags`.
+- Local: `npm run package:all` verificado, genera ambos artifacts con
+  los nombres correctos. El `awk` del CHANGELOG extrae la entrada
+  `[0.2.0]` sin ruido.
+- Si la primera release falla, iteramos sobre el YAML — es un solo
+  archivo, cambios rápidos.
+
+### Lo que NO entra
+- Firma de los artifacts (code-signing del `.vsix` o `.zip`). No hay
+  publisher key configurada.
+- Publicación automática al Marketplace/Web Store. Hitos 12 y 13
+  respectivamente.
+- Prerelease flag (`draft` o `prerelease`). El action publica directo;
+  si querés preview, taggeás sobre un branch de prueba.

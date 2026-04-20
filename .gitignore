@@ -38,3 +38,4 @@ Thumbs.db
 *-export.json
 test-export*
 exports/
+.exportal/

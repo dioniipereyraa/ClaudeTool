@@ -1,0 +1,63 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - run: npm ci
+
+      - run: npm run ci
+
+      - name: Build release artifacts
+        run: npm run package:all
+
+      - name: Sanity-check artifact versions match the tag
+        run: |
+          tag_version="${GITHUB_REF_NAME#v}"
+          vsix="exportal-${tag_version}.vsix"
+          zip="exportal-companion-${tag_version}.zip"
+          if [[ ! -f "$vsix" ]]; then
+            echo "Missing $vsix — package.json version is out of sync with tag $GITHUB_REF_NAME" >&2
+            exit 1
+          fi
+          if [[ ! -f "$zip" ]]; then
+            echo "Missing $zip — chrome manifest version is out of sync with tag $GITHUB_REF_NAME" >&2
+            exit 1
+          fi
+
+      - name: Extract release notes from CHANGELOG.md
+        id: notes
+        run: |
+          tag_version="${GITHUB_REF_NAME#v}"
+          awk -v ver="$tag_version" '
+            $0 ~ "^## \\[" ver "\\]" { capture = 1; next }
+            capture && /^## \[/ { exit }
+            capture { print }
+          ' CHANGELOG.md > release-notes.md
+          if [[ ! -s release-notes.md ]]; then
+            echo "No CHANGELOG section found for version $tag_version" >&2
+            exit 1
+          fi
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          body_path: release-notes.md
+          files: |
+            exportal-*.vsix
+            exportal-companion-*.zip
+          fail_on_unmatched_files: true
