@@ -90,20 +90,6 @@ Items concretos y cerrados se mueven al `DEVLOG.md`. Releases formales al
 - Caso de uso: conversaciones largas donde solo los últimos turnos son
   relevantes para el contexto que se lleva a Claude Code.
 
-### Hito 24 — Internacionalización (i18n)
-- Hoy ~40-50 strings hardcodeados en español en ambas extensiones.
-- Chrome: `_locales/<lang>/messages.json` + `chrome.i18n.getMessage()`
-  en `background.js`, `content-script.js`, `options.html`, `pure.js`.
-- VS Code: `package.nls.json` + `package.nls.<lang>.json` para
-  strings del manifiesto; `vscode.l10n.t()` para strings en runtime
-  (requiere `l10n` field en package.json apuntando a un bundle).
-- Alcance inicial: es + en. Otros idiomas solo si hay feedback real.
-- **Why**: apunta a audiencia internacional — la extensión en
-  Marketplace/CWS con UI en español pierde alcance.
-- **Risks**: textos de error y estados del badge (`OK`/`SET`/`AUTH`)
-  hay que re-evaluarlos — ¿traducimos, abreviamos en cada idioma, o
-  dejamos los códigos iguales? Decisión a tomar al empezar.
-
 ## Fuera de scope (explícito)
 
 - **Sync bidireccional automático**: viola el principio zero-network y

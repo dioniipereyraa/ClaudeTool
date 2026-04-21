@@ -66,12 +66,12 @@ async function refreshPairingBadge() {
   if (token === undefined) {
     await setBadge('SET', '#ca8a04');
     await chrome.action.setTitle({
-      title: 'Exportal Companion — click para emparejar con VS Code',
+      title: chrome.i18n.getMessage('actionTooltipUnpaired'),
     });
   } else {
     await chrome.action.setBadgeText({ text: '' });
     await chrome.action.setTitle({
-      title: 'Exportal Companion — emparejado',
+      title: chrome.i18n.getMessage('actionTooltipPaired'),
     });
   }
 }
@@ -130,7 +130,7 @@ async function forwardToExportal(zipPath) {
   const token = await getToken();
   if (token === undefined) {
     await setBadge('SET', '#ca8a04');
-    console.warn('Exportal: token no configurado. Abrí Opciones de la extensión.');
+    console.warn('Exportal: token not configured. Open the extension Options.');
     return;
   }
 
@@ -162,10 +162,10 @@ async function forwardToExportal(zipPath) {
 
   if (sawAuthError) {
     await setBadge('AUTH', '#dc2626');
-    console.warn('Exportal: token rechazado. Revisá Opciones.');
+    console.warn('Exportal: token rejected. Check Options.');
   } else {
     await setBadge('OFF', '#dc2626');
-    console.warn('Exportal: no pude contactar al servidor local. ¿VS Code está abierto?');
+    console.warn('Exportal: could not reach the local server. Is VS Code running?');
   }
 }
 

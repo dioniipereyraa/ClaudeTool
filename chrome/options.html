@@ -1,8 +1,8 @@
 <!doctype html>
-<html lang="es">
+<html>
   <head>
     <meta charset="utf-8" />
-    <title>Exportal Companion — opciones</title>
+    <title data-i18n="optionsPageTitle"></title>
     <style>
       :root {
         color-scheme: light dark;
@@ -151,49 +151,33 @@
     </style>
   </head>
   <body>
-    <h1>Exportal Companion</h1>
-    <p class="subtitle">
-      Emparejá esta extensión con la de VS Code para exportar chats de
-      claude.ai con un click.
-    </p>
+    <h1 data-i18n="optionsH1"></h1>
+    <p class="subtitle" data-i18n="optionsSubtitle"></p>
 
     <div id="banner" class="status-banner" data-state="missing">
       <span class="dot"></span>
-      <span id="banner-text">Sin emparejar — pegá tu token abajo.</span>
+      <span id="banner-text"></span>
     </div>
 
-    <h2>¿Cómo obtengo el token?</h2>
+    <h2 data-i18n="howToGetToken"></h2>
     <ol class="steps">
-      <li>
-        Instalá la extensión <strong>Exportal</strong> en VS Code (busca
-        "Exportal" en el Marketplace o instala el <code>.vsix</code>).
-      </li>
-      <li>
-        En VS Code abrí la paleta de comandos
-        (<kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>P</kbd>) y ejecutá
-        <code>Exportal: Show bridge pairing token</code>.
-      </li>
-      <li>
-        Click en <strong>Copiar token</strong>. Volvé acá y pegalo en el
-        campo de abajo.
-      </li>
+      <li data-i18n="stepInstall"></li>
+      <li data-i18n="stepOpenPalette"></li>
+      <li data-i18n="stepCopyToken"></li>
     </ol>
 
-    <label for="token">Token del puente local</label>
+    <label for="token" data-i18n="tokenLabel"></label>
     <input
       id="token"
       type="text"
       spellcheck="false"
       autocomplete="off"
-      placeholder="64 caracteres hexadecimales"
+      data-i18n-placeholder="tokenPlaceholder"
     />
-    <div class="hint">
-      Debe coincidir exactamente con el que muestra VS Code. 64 caracteres
-      en <code>0-9</code> y <code>a-f</code>.
-    </div>
+    <div class="hint" data-i18n="tokenHint"></div>
     <div class="row">
-      <button id="save" type="button" class="primary">Guardar</button>
-      <button id="clear" type="button">Borrar</button>
+      <button id="save" type="button" class="primary" data-i18n="saveButton"></button>
+      <button id="clear" type="button" data-i18n="clearButton"></button>
     </div>
     <div id="status" aria-live="polite"></div>
 

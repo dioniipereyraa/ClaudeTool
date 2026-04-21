@@ -1262,3 +1262,75 @@ en `push` de tags `v*`:
 - Screenshots: reutilizar `docs/screenshots/*` (3 archivos ya
   versionados).
 - Enviar a review y esperar 1-3 días hábiles.
+
+---
+
+## 2026-04-21 — Hito 24 · Internacionalización (es + en)
+
+### Qué hicimos
+- Ambas extensiones pasan a seguir el idioma de la UI del usuario.
+  Default `en`, fallback traducido `es`. No hay toggle manual — lo que
+  cada runtime expone (`vscode.env.language`, `chrome.i18n`) manda.
+- **VS Code**
+  - `package.nls.json` / `package.nls.es.json` para strings del
+    manifiesto (description, títulos de comandos, configuration).
+    `package.json` referencia `%key%` en los lugares correspondientes
+    y declara `"l10n": "./l10n"`.
+  - `l10n/bundle.l10n.es.json` (message-as-key) con ~40 strings de
+    runtime.
+  - `src/extension/extension.ts` pasa todos los strings por
+    `vscode.l10n.t()`. Las constantes de labels de acción (copy
+    token, content scan, browse) se movieron adentro de la función
+    que las usa porque `vscode.l10n.t()` debe invocarse después de
+    que cargue el bundle, no en tiempo de carga del módulo.
+- **Chrome**
+  - `_locales/en/messages.json` (default) + `_locales/es/messages.json`.
+    `default_locale: "en"` en el manifest.
+  - `manifest.json` usa `__MSG_extName__` / `__MSG_extDescription__`
+    en los campos que Chrome localiza de forma nativa.
+  - `options.html` marca cada nodo estático con `data-i18n="key"`
+    (innerHTML) o `data-i18n-placeholder="key"` (atributo);
+    `options.js` lo bootstrap-ea en load. Uso de `innerHTML` es
+    seguro: las traducciones viajan con la extensión, sin input de
+    usuario, y algunas llevan `<strong>/<code>/<kbd>` necesarios
+    para las instrucciones.
+  - `background.js` y `content-script.js` resuelven strings via
+    `chrome.i18n.getMessage()`.
+  - `pure.js` se queda sin tocar `chrome.*` a propósito: el vitest
+    corre el archivo en un `vm` sandbox que no expone la API.
+    `explainError()` ahora devuelve **IDs de mensaje** (`errSessionExpired`,
+    `errBridgeOffline`, …). El content script los resuelve contra el
+    locale activo. Tests actualizados a `toBe('errSessionExpired')`.
+- Badges (`OK`/`SET`/`AUTH`/`OFF`/`OLD`/`ERR`) no se traducen —
+  decidimos tratarlos como códigos tipo-HTTP, universales.
+- Todos los mensajes de `console.warn` quedan en inglés sin pasar por
+  i18n: son para desarrolladores y el idioma source es inglés.
+
+### Verificación
+- `npx vitest run` → 154/154 tests en verde (26 en pure.test.ts).
+- `npx tsc --noEmit` → sin errores.
+- Smoke test manual en Chrome con `--lang=en` y `--lang=es` sobre un
+  `--user-data-dir` temporal: tooltips, options page, FAB y popover
+  cambian de idioma correctamente.
+- VS Code: `Configure Display Language` → `es` / `en` → los títulos
+  de comandos y el modal de onboarding siguen el setting.
+
+### Decisiones clave y por qué
+- **Default `en`, no `es`**: el repo y el target del Marketplace/CWS
+  es internacional. En el peor caso un usuario cae en inglés; en el
+  mejor, Chrome/VS Code le dan español nativo.
+- **Dejar `pure.js` devolviendo IDs**: alternativas eran inyectar un
+  resolver por constructor (complica el shape) o tener un mapa duplicado
+  adentro (dos lugares con strings). Devolver IDs preserva tests,
+  mantiene el archivo reutilizable entre service worker, content
+  script y Node, y el costo al caller es una línea
+  (`chrome.i18n.getMessage(id)`).
+- **Message-as-key en VS Code pero camelCase en Chrome**: seguimos
+  la convención idiomática de cada plataforma. `vscode.l10n.t()`
+  documenta message-as-key como el patrón default; `chrome.i18n`
+  exige nombres cortos y usa camelCase en todos los ejemplos oficiales.
+
+### Pendiente
+- Release 0.4.0 (vsix + zip firmado del companion) cuando apruebe la
+  review del CWS de 0.3.0 — subir ambas versiones juntas evita
+  confundir a usuarios con "versión mínima para emparejar".

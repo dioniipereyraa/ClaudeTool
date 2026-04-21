@@ -63,7 +63,7 @@ export function activate(context: vscode.ExtensionContext): void {
     100,
   );
   statusBar.text = '$(cloud-download) Exportal';
-  statusBar.tooltip = 'Importar conversación de claude.ai';
+  statusBar.tooltip = vscode.l10n.t('Import claude.ai conversation');
   statusBar.command = 'exportal.importFromZip';
   statusBar.show();
   context.subscriptions.push(statusBar);
@@ -115,7 +115,7 @@ async function startBridgeServer(
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     void vscode.window.showWarningMessage(
-      `Exportal: no se pudo iniciar el puente local. ${message}`,
+      vscode.l10n.t('Exportal: could not start the local bridge. {0}', message),
     );
     return undefined;
   }
@@ -161,10 +161,10 @@ function announceImport(conversation: ClaudeAiConversation): void {
   // only confirmation is the new editor tab, which they may not see
   // until they switch windows. Includes the title so a user who fires
   // two exports back-to-back can tell them apart.
-  const title = conversation.name.length > 0 ? conversation.name : '(sin título)';
+  const title = conversation.name.length > 0 ? conversation.name : vscode.l10n.t('(untitled)');
   const count = conversation.chat_messages.length;
   void vscode.window.showInformationMessage(
-    `Exportal: "${title}" — ${String(count)} mensajes importados`,
+    vscode.l10n.t('Exportal: "{0}" — {1} messages imported', title, String(count)),
   );
 }
 
@@ -197,24 +197,37 @@ async function showPairingModal(
   // even if they tabbed away during install. The `detail` field renders
   // as multi-line prose, perfect for the step list + the token itself.
   const headline = firstRun
-    ? 'Exportal está activo. Para exportar chats de claude.ai con un click, emparejá la extensión de Chrome con este token.'
-    : 'Exportal — token de emparejamiento para la extensión de Chrome.';
-  const detail =
-    `TOKEN:\n${token}\n\n` +
-    `PASOS:\n` +
-    `1. Instalá la extensión "Exportal Companion" en Chrome.\n` +
-    `2. Abrí chrome://extensions → "Detalles" de Exportal Companion → "Opciones de la extensión".\n` +
-    `3. Pegá el token y guardá.\n\n` +
-    `Podés volver a ver el token con Ctrl+Shift+P → "Exportal: Show bridge pairing token".`;
+    ? vscode.l10n.t(
+        'Exportal is active. To export claude.ai chats with one click, pair the Chrome extension with this token.',
+      )
+    : vscode.l10n.t('Exportal — pairing token for the Chrome extension.');
+  const detail = [
+    vscode.l10n.t('TOKEN:'),
+    token,
+    '',
+    vscode.l10n.t('STEPS:'),
+    vscode.l10n.t('1. Install the "Exportal Companion" extension in Chrome.'),
+    vscode.l10n.t(
+      '2. Open chrome://extensions → "Details" of Exportal Companion → "Extension options".',
+    ),
+    vscode.l10n.t('3. Paste the token and save.'),
+    '',
+    vscode.l10n.t(
+      'Reopen this dialog with Ctrl+Shift+P → "Exportal: Show bridge pairing token".',
+    ),
+  ].join('\n');
 
+  const copyTokenLabel = vscode.l10n.t('Copy token');
   const action = await vscode.window.showInformationMessage(
     headline,
     { modal: true, detail },
-    'Copiar token',
+    copyTokenLabel,
   );
-  if (action === 'Copiar token') {
+  if (action === copyTokenLabel) {
     await vscode.env.clipboard.writeText(token);
-    void vscode.window.showInformationMessage('Exportal: token copiado al portapapeles.');
+    void vscode.window.showInformationMessage(
+      vscode.l10n.t('Exportal: token copied to clipboard.'),
+    );
   }
 }
 
@@ -252,14 +265,16 @@ async function openConversationFromZip(
     exported = await vscode.window.withProgress(
       {
         location: vscode.ProgressLocation.Notification,
-        title: 'Exportal: leyendo ZIP...',
+        title: vscode.l10n.t('Exportal: reading ZIP...'),
         cancellable: false,
       },
       async () => readClaudeAiExport(zipPath),
     );
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    await vscode.window.showErrorMessage(`Exportal: no se pudo leer el ZIP. ${message}`);
+    await vscode.window.showErrorMessage(
+      vscode.l10n.t('Exportal: could not read the ZIP. {0}', message),
+    );
     if (options.rethrow) throw err;
     return;
   }
@@ -268,12 +283,12 @@ async function openConversationFromZip(
     // Non-blocking — warnings are soft errors (e.g. users.json missing).
     // We surface them so the user knows the export isn't 100% complete,
     // but we don't stop the flow.
-    void vscode.window.showWarningMessage(`Exportal: ${warning}`);
+    void vscode.window.showWarningMessage(vscode.l10n.t('Exportal: {0}', warning));
   }
 
   if (exported.conversations.length === 0) {
     await vscode.window.showInformationMessage(
-      'Exportal: el ZIP no contiene conversaciones.',
+      vscode.l10n.t('Exportal: the ZIP has no conversations.'),
     );
     return;
   }
@@ -299,29 +314,35 @@ async function pickZipFile(): Promise<vscode.Uri | undefined> {
   if (candidates.length === 1) {
     const only = candidates[0]!;
     void vscode.window.showInformationMessage(
-      `Exportal: importando ${only.filename} (${formatRelativeTime(only.mtime)} · ${only.folder})`,
+      vscode.l10n.t(
+        'Exportal: importing {0} ({1} · {2})',
+        only.filename,
+        formatRelativeTime(only.mtime),
+        only.folder,
+      ),
     );
     return vscode.Uri.file(only.path);
   }
   return pickFromCandidates(candidates);
 }
 
-const CONTENT_SCAN_ACTION = 'Revisar .zip por contenido';
-const BROWSE_ACTION = 'Elegir archivo…';
-
 async function handleNoNameMatches(): Promise<vscode.Uri | undefined> {
+  const contentScanAction = vscode.l10n.t('Scan .zip files by content');
+  const browseAction = vscode.l10n.t('Choose file…');
   const action = await vscode.window.showInformationMessage(
-    'Exportal: no encontré exports de claude.ai en Downloads/Desktop. ¿Revisar todos los .zip por contenido?',
-    CONTENT_SCAN_ACTION,
-    BROWSE_ACTION,
+    vscode.l10n.t(
+      'Exportal: no claude.ai exports found in Downloads/Desktop. Scan all .zip files by content?',
+    ),
+    contentScanAction,
+    browseAction,
   );
-  if (action === BROWSE_ACTION) return showOpenDialog();
-  if (action !== CONTENT_SCAN_ACTION) return undefined;
+  if (action === browseAction) return showOpenDialog();
+  if (action !== contentScanAction) return undefined;
 
   const found = await vscode.window.withProgress(
     {
       location: vscode.ProgressLocation.Notification,
-      title: 'Exportal: revisando .zip por contenido...',
+      title: vscode.l10n.t('Exportal: scanning .zip files by content...'),
       cancellable: false,
     },
     async () => scanZipsByContent(),
@@ -329,16 +350,16 @@ async function handleNoNameMatches(): Promise<vscode.Uri | undefined> {
 
   if (found.length === 0) {
     const next = await vscode.window.showInformationMessage(
-      'Exportal: ningún .zip reciente contiene datos de claude.ai.',
-      BROWSE_ACTION,
+      vscode.l10n.t('Exportal: no recent .zip contains claude.ai data.'),
+      browseAction,
     );
-    if (next === BROWSE_ACTION) return showOpenDialog();
+    if (next === browseAction) return showOpenDialog();
     return undefined;
   }
   if (found.length === 1) {
     const only = found[0]!;
     void vscode.window.showInformationMessage(
-      `Exportal: ${only.filename} detectado por contenido. Importando...`,
+      vscode.l10n.t('Exportal: {0} detected by content. Importing...', only.filename),
     );
     return vscode.Uri.file(only.path);
   }
@@ -351,8 +372,8 @@ async function showOpenDialog(): Promise<vscode.Uri | undefined> {
     canSelectFolders: false,
     canSelectMany: false,
     filters: { 'claude.ai export': ['zip'] },
-    openLabel: 'Importar',
-    title: 'Seleccioná el ZIP exportado desde claude.ai',
+    openLabel: vscode.l10n.t('Import'),
+    title: vscode.l10n.t('Select the ZIP exported from claude.ai'),
   });
   return picks?.[0];
 }
@@ -374,13 +395,13 @@ async function pickFromCandidates(
   }));
   items.push({
     id: BROWSE_ITEM_ID,
-    label: 'Elegir otro archivo…',
-    description: 'Abrir el selector de archivos',
+    label: vscode.l10n.t('Choose a different file…'),
+    description: vscode.l10n.t('Open the file picker'),
   });
 
   const selected = await vscode.window.showQuickPick(items, {
-    title: `Exportal — ${String(candidates.length)} exports recientes`,
-    placeHolder: 'Elegí un ZIP de claude.ai',
+    title: vscode.l10n.t('Exportal — {0} recent exports', String(candidates.length)),
+    placeHolder: vscode.l10n.t('Pick a claude.ai ZIP'),
   });
   if (selected === undefined) return undefined;
   if (selected.id === BROWSE_ITEM_ID) return showOpenDialog();
@@ -396,15 +417,19 @@ async function pickConversation(
 ): Promise<ClaudeAiConversation | undefined> {
   const sorted = [...conversations].sort(compareByCreatedDesc);
   const items: ConversationQuickPickItem[] = sorted.map((conv) => ({
-    label: conv.name.length > 0 ? conv.name : '(untitled)',
+    label: conv.name.length > 0 ? conv.name : vscode.l10n.t('(untitled)'),
     description: conv.created_at.slice(0, 10),
-    detail: `${String(conv.chat_messages.length)} mensajes · ${conv.uuid.slice(0, 8)}`,
+    detail: vscode.l10n.t(
+      '{0} messages · {1}',
+      String(conv.chat_messages.length),
+      conv.uuid.slice(0, 8),
+    ),
     conversation: conv,
   }));
 
   const selected = await vscode.window.showQuickPick(items, {
-    title: `Exportal — ${String(conversations.length)} conversaciones`,
-    placeHolder: 'Elegí una conversación para abrir como Markdown',
+    title: vscode.l10n.t('Exportal — {0} conversations', String(conversations.length)),
+    placeHolder: vscode.l10n.t('Pick a conversation to open as Markdown'),
     matchOnDescription: true,
     matchOnDetail: true,
   });
@@ -503,7 +528,9 @@ async function sendSessionToClaudeAiCommand(): Promise<void> {
   const folder = vscode.workspace.workspaceFolders?.[0];
   if (folder === undefined) {
     await vscode.window.showInformationMessage(
-      'Exportal: abrí una carpeta de proyecto primero. Busco las sesiones de Claude Code del cwd actual.',
+      vscode.l10n.t(
+        'Exportal: open a project folder first. Sessions are searched in the current cwd.',
+      ),
     );
     return;
   }
@@ -512,7 +539,9 @@ async function sendSessionToClaudeAiCommand(): Promise<void> {
   const files = await listSessionFiles(projectDir);
   if (files.length === 0) {
     await vscode.window.showInformationMessage(
-      'Exportal: no encontré sesiones de Claude Code para este proyecto. Abrí Claude Code y tené al menos un chat guardado.',
+      vscode.l10n.t(
+        'Exportal: no Claude Code sessions found for this project. Open Claude Code and make sure at least one chat is saved.',
+      ),
     );
     return;
   }
@@ -529,7 +558,7 @@ async function sendSessionToClaudeAiCommand(): Promise<void> {
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     await vscode.window.showErrorMessage(
-      `Exportal: no pude leer la sesión. ${message}`,
+      vscode.l10n.t('Exportal: could not read the session. {0}', message),
     );
     return;
   }
@@ -537,18 +566,24 @@ async function sendSessionToClaudeAiCommand(): Promise<void> {
   const sizeBytes = Buffer.byteLength(markdown, 'utf8');
   if (sizeBytes > CLAUDE_AI_SIZE_WARN_BYTES) {
     const kb = (sizeBytes / 1024).toFixed(0);
+    const copyAnywayLabel = vscode.l10n.t('Copy anyway');
     const proceed = await vscode.window.showWarningMessage(
-      `Exportal: la sesión pesa ${kb} KB. Mensajes muy largos pueden ser rechazados o renderizados parcialmente en claude.ai.`,
+      vscode.l10n.t(
+        'Exportal: session size is {0} KB. Very long messages may be rejected or only partially rendered in claude.ai.',
+        kb,
+      ),
       { modal: true },
-      'Copiar igual',
+      copyAnywayLabel,
     );
-    if (proceed !== 'Copiar igual') return;
+    if (proceed !== copyAnywayLabel) return;
   }
 
   await vscode.env.clipboard.writeText(markdown);
   await vscode.env.openExternal(vscode.Uri.parse('https://claude.ai/new'));
   void vscode.window.showInformationMessage(
-    'Exportal: Markdown copiado. Pegalo con Ctrl+V en el chat nuevo de claude.ai.',
+    vscode.l10n.t(
+      'Exportal: Markdown copied. Paste it with Ctrl+V into the new chat on claude.ai.',
+    ),
   );
 }
 
@@ -561,14 +596,14 @@ async function pickSession(
 ): Promise<SessionMetadata | undefined> {
   const sorted = [...metas].sort(compareSessionsByStartedDesc);
   const items: SessionQuickPickItem[] = sorted.map((m) => ({
-    label: m.firstUserText ?? '(sesión sin mensajes de usuario)',
+    label: m.firstUserText ?? vscode.l10n.t('(session with no user messages)'),
     description: m.startedAt?.slice(0, 10) ?? '????-??-??',
-    detail: `${String(m.turnCount)} turnos · ${m.sessionId.slice(0, 8)}`,
+    detail: vscode.l10n.t('{0} turns · {1}', String(m.turnCount), m.sessionId.slice(0, 8)),
     metadata: m,
   }));
   const selected = await vscode.window.showQuickPick(items, {
-    title: `Exportal — ${String(metas.length)} sesiones de Claude Code`,
-    placeHolder: 'Elegí una sesión para enviar a claude.ai',
+    title: vscode.l10n.t('Exportal — {0} Claude Code sessions', String(metas.length)),
+    placeHolder: vscode.l10n.t('Pick a session to send to claude.ai'),
     matchOnDescription: true,
     matchOnDetail: true,
   });

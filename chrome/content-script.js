@@ -105,9 +105,9 @@ function buildFab() {
   const fab = document.createElement('button');
   fab.id = FAB_ID;
   fab.type = 'button';
-  fab.setAttribute('aria-label', 'Exportal — abrir acciones');
+  fab.setAttribute('aria-label', chrome.i18n.getMessage('fabAriaLabel'));
   fab.setAttribute('aria-expanded', 'false');
-  fab.title = 'Exportal (Alt+Shift+E exportar ahora, Alt+Shift+O export oficial)';
+  fab.title = chrome.i18n.getMessage('fabTooltip');
   Object.assign(fab.style, {
     width: '44px',
     height: '44px',
@@ -170,13 +170,13 @@ function buildPopover() {
 
   const primary = makeButton({
     id: PRIMARY_BTN_ID,
-    label: 'Exportar este chat',
+    label: chrome.i18n.getMessage('btnSendNow'),
     primary: true,
     onClick: handlePrimaryClick,
   });
   const secondary = makeButton({
     id: SECONDARY_BTN_ID,
-    label: 'Preparar export oficial',
+    label: chrome.i18n.getMessage('btnPrepareOfficial'),
     primary: false,
     onClick: handleSecondaryClick,
   });
@@ -246,10 +246,10 @@ async function handleSecondaryClick(btn) {
   if (id === undefined) return;
   try {
     await runSecondaryAction(id);
-    flash(btn, 'Listo — dispará el export oficial', '#16a34a');
+    flash(btn, chrome.i18n.getMessage('feedbackOfficialPrepared'), '#16a34a');
   } catch (err) {
-    console.warn('Exportal: no pude guardar la conversación pendiente.', err);
-    flash(btn, 'Error — ver consola', '#dc2626');
+    console.warn('Exportal: could not save pending conversation.', err);
+    flash(btn, chrome.i18n.getMessage('feedbackError'), '#dc2626');
   }
 }
 
@@ -258,15 +258,15 @@ async function handlePrimaryClick(btn) {
   if (id === undefined) return;
   const originalText = btn.textContent;
   btn.disabled = true;
-  btn.textContent = 'Buscando conversación…';
+  btn.textContent = chrome.i18n.getMessage('feedbackSearching');
   try {
     const conversation = await fetchConversation(id);
-    btn.textContent = 'Enviando a VS Code…';
+    btn.textContent = chrome.i18n.getMessage('feedbackSending');
     await sendInline(conversation);
     btn.textContent = originalText;
-    flash(btn, 'Abierto en VS Code', '#16a34a');
+    flash(btn, chrome.i18n.getMessage('feedbackOpenedInVsCode'), '#16a34a');
   } catch (err) {
-    console.warn('Exportal: export inline falló.', err);
+    console.warn('Exportal: inline export failed.', err);
     btn.textContent = originalText;
     flash(btn, explainError(err), '#dc2626');
   } finally {
@@ -281,13 +281,13 @@ async function runPrimaryFromShortcut() {
   const id = currentConversationId();
   if (id === undefined) return;
   actionInFlight = true;
-  showToast('Exportando…', 'info');
+  showToast(chrome.i18n.getMessage('toastExporting'), 'info');
   try {
     const conversation = await fetchConversation(id);
     await sendInline(conversation);
-    showToast('Abierto en VS Code', 'ok');
+    showToast(chrome.i18n.getMessage('feedbackOpenedInVsCode'), 'ok');
   } catch (err) {
-    console.warn('Exportal: export inline falló.', err);
+    console.warn('Exportal: inline export failed.', err);
     showToast(explainError(err), 'err');
   } finally {
     actionInFlight = false;
@@ -301,10 +301,10 @@ async function runSecondaryFromShortcut() {
   actionInFlight = true;
   try {
     await runSecondaryAction(id);
-    showToast('Listo — dispará el export oficial', 'ok');
+    showToast(chrome.i18n.getMessage('feedbackOfficialPrepared'), 'ok');
   } catch (err) {
-    console.warn('Exportal: no pude guardar la conversación pendiente.', err);
-    showToast('Error — ver consola', 'err');
+    console.warn('Exportal: could not save pending conversation.', err);
+    showToast(chrome.i18n.getMessage('feedbackError'), 'err');
   } finally {
     actionInFlight = false;
   }
@@ -327,7 +327,10 @@ async function sendInline(conversation) {
 }
 
 function explainError(err) {
-  return ExportalPure.explainError(err);
+  // pure.js maps error codes to i18n message IDs; we resolve the ID
+  // against the current locale here since pure.js must stay browser/
+  // Node-agnostic for unit tests.
+  return chrome.i18n.getMessage(ExportalPure.explainError(err));
 }
 
 // claude.ai's internal API is usually quick; 15s is a generous upper

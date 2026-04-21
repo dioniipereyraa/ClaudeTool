@@ -6,6 +6,24 @@ Companion (Chrome extension) are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 and versions follow [Semantic Versioning](https://semver.org/).
 
+## [0.4.0] — 2026-04-21
+
+### Added
+
+- **Internationalization (hito 24).** Both extensions now ship in English
+  and Spanish and follow the user's UI language automatically.
+  - VS Code: command titles and configuration are declared via
+    `package.nls.json` / `package.nls.es.json`; runtime strings go through
+    `vscode.l10n.t()` with bundles under `l10n/`.
+  - Chrome: `manifest.json` uses `__MSG_*__` placeholders against
+    `_locales/en/` and `_locales/es/`; options page, background worker,
+    and claude.ai content script resolve strings via
+    `chrome.i18n.getMessage()`. `default_locale` is `en`.
+  - `chrome/pure.js` stays chrome.*-free: `explainError()` returns i18n
+    message IDs (`errSessionExpired`, `errBridgeOffline`, …) and the
+    content script resolves them against the active locale. Unit tests
+    updated accordingly.
+
 ## [0.3.0] — 2026-04-20
 
 ### Added

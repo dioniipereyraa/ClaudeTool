@@ -1,0 +1,157 @@
+{
+  "extName": {
+    "message": "Exportal Companion",
+    "description": "Extension name shown in the Chrome Web Store and chrome://extensions."
+  },
+  "extDescription": {
+    "message": "Export claude.ai chats to VS Code with one click. Needs the Exportal extension in VS Code (pair with its token).",
+    "description": "Extension description shown in store listings."
+  },
+  "actionTooltipUnpaired": {
+    "message": "Exportal Companion — click to pair with VS Code",
+    "description": "Tooltip on the toolbar icon when the extension hasn't been paired yet."
+  },
+  "actionTooltipPaired": {
+    "message": "Exportal Companion — paired",
+    "description": "Tooltip on the toolbar icon after successful pairing."
+  },
+  "optionsPageTitle": {
+    "message": "Exportal Companion — options",
+    "description": "Browser tab title for the options page."
+  },
+  "optionsH1": {
+    "message": "Exportal Companion",
+    "description": "Options page heading."
+  },
+  "optionsSubtitle": {
+    "message": "Pair this extension with the one in VS Code to export claude.ai chats with one click.",
+    "description": "Short explanation under the options page heading."
+  },
+  "bannerNotPaired": {
+    "message": "Not paired — paste your token below.",
+    "description": "Status banner shown when no token is saved."
+  },
+  "bannerPaired": {
+    "message": "Paired — ready to export from claude.ai.",
+    "description": "Status banner shown after a valid token is saved."
+  },
+  "howToGetToken": {
+    "message": "How do I get the token?",
+    "description": "Heading over the pairing instructions."
+  },
+  "stepInstall": {
+    "message": "Install the <strong>Exportal</strong> extension in VS Code (search for \"Exportal\" in the Marketplace or install the <code>.vsix</code>).",
+    "description": "Pairing step 1 — contains markup rendered via innerHTML."
+  },
+  "stepOpenPalette": {
+    "message": "In VS Code open the command palette (<kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>P</kbd>) and run <code>Exportal: Show bridge pairing token</code>.",
+    "description": "Pairing step 2 — contains markup rendered via innerHTML."
+  },
+  "stepCopyToken": {
+    "message": "Click <strong>Copy token</strong>. Come back here and paste it into the field below.",
+    "description": "Pairing step 3 — contains markup rendered via innerHTML."
+  },
+  "tokenLabel": {
+    "message": "Local bridge token",
+    "description": "Label for the token input field."
+  },
+  "tokenPlaceholder": {
+    "message": "64 hexadecimal characters",
+    "description": "Placeholder text inside the token input."
+  },
+  "tokenHint": {
+    "message": "Must match exactly the one shown by VS Code. 64 characters in <code>0-9</code> and <code>a-f</code>.",
+    "description": "Hint below the token input — contains markup."
+  },
+  "saveButton": {
+    "message": "Save"
+  },
+  "clearButton": {
+    "message": "Clear"
+  },
+  "tokenSaved": {
+    "message": "Token saved.",
+    "description": "Status message after the token is persisted."
+  },
+  "tokenCleared": {
+    "message": "Token cleared.",
+    "description": "Status message after the token is removed."
+  },
+  "tokenInvalid": {
+    "message": "Token must be 64 hexadecimal characters.",
+    "description": "Error shown when pasted token fails the regex check."
+  },
+  "fabAriaLabel": {
+    "message": "Exportal — open actions",
+    "description": "Accessible label for the floating action button on claude.ai."
+  },
+  "fabTooltip": {
+    "message": "Exportal (Alt+Shift+E export now, Alt+Shift+O official export)",
+    "description": "Tooltip on the floating action button."
+  },
+  "btnSendNow": {
+    "message": "Export this chat",
+    "description": "Primary button inside the floating popover."
+  },
+  "btnPrepareOfficial": {
+    "message": "Prepare official export",
+    "description": "Secondary button — stores the conversation UUID for matching the eventual Takeout ZIP."
+  },
+  "feedbackOfficialPrepared": {
+    "message": "Done — now trigger the official export",
+    "description": "Confirmation after the secondary action succeeds."
+  },
+  "feedbackError": {
+    "message": "Error — see console",
+    "description": "Generic error shown on the button after a failed action."
+  },
+  "feedbackSearching": {
+    "message": "Looking up conversation…",
+    "description": "Button text while fetching the conversation from claude.ai."
+  },
+  "feedbackSending": {
+    "message": "Sending to VS Code…",
+    "description": "Button text while POSTing to the local bridge."
+  },
+  "feedbackOpenedInVsCode": {
+    "message": "Opened in VS Code",
+    "description": "Confirmation after a successful inline export."
+  },
+  "toastExporting": {
+    "message": "Exporting…",
+    "description": "Toast shown when the export was triggered via keyboard shortcut."
+  },
+  "errNoOrg": {
+    "message": "No organization — see console"
+  },
+  "errNotFound": {
+    "message": "Conversation not found"
+  },
+  "errSessionExpired": {
+    "message": "Session expired — sign in to claude.ai"
+  },
+  "errInvalidResponse": {
+    "message": "Unexpected response from claude.ai"
+  },
+  "errTimeout": {
+    "message": "Timeout — claude.ai is slow to respond"
+  },
+  "errBridgeOffline": {
+    "message": "VS Code not responding"
+  },
+  "errBridgeOutdated": {
+    "message": "VS Code outdated — rebuild"
+  },
+  "errBridgeAuth": {
+    "message": "Invalid token — check Options"
+  },
+  "errInvalidShape": {
+    "message": "claude.ai shape changed — see console"
+  },
+  "errPayloadTooLarge": {
+    "message": "Conversation too large"
+  },
+  "errGeneric": {
+    "message": "Error — see console"
+  }
+}

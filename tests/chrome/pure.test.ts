@@ -193,29 +193,34 @@ describe('ExportalPure.parseBridgeErrorCode', () => {
 });
 
 describe('ExportalPure.explainError', () => {
-  it('maps known claude.ai error codes to Spanish messages', () => {
-    expect(pure.explainError('session_expired')).toContain('Sesión expirada');
-    expect(pure.explainError('timeout')).toContain('Timeout');
-    expect(pure.explainError('invalid_response')).toContain('Respuesta inesperada');
-    expect(pure.explainError('no_org')).toContain('organización');
-    expect(pure.explainError('not_found')).toContain('No encontré');
+  // explainError returns an i18n *message ID*, not a user-facing string.
+  // The caller (content-script.js) resolves the ID via
+  // chrome.i18n.getMessage against the current locale. This keeps
+  // pure.js chrome.*-free so it can run inside the vitest vm sandbox.
+
+  it('maps known claude.ai error codes to i18n message IDs', () => {
+    expect(pure.explainError('session_expired')).toBe('errSessionExpired');
+    expect(pure.explainError('timeout')).toBe('errTimeout');
+    expect(pure.explainError('invalid_response')).toBe('errInvalidResponse');
+    expect(pure.explainError('no_org')).toBe('errNoOrg');
+    expect(pure.explainError('not_found')).toBe('errNotFound');
   });
 
-  it('maps known bridge error codes to Spanish messages', () => {
-    expect(pure.explainError('bridge_offline')).toContain('VS Code no responde');
-    expect(pure.explainError('bridge_outdated')).toContain('desactualizado');
-    expect(pure.explainError('bridge_auth')).toContain('Token inválido');
-    expect(pure.explainError('invalid_shape')).toContain('Shape de claude.ai');
-    expect(pure.explainError('payload_too_large')).toContain('muy grande');
+  it('maps known bridge error codes to i18n message IDs', () => {
+    expect(pure.explainError('bridge_offline')).toBe('errBridgeOffline');
+    expect(pure.explainError('bridge_outdated')).toBe('errBridgeOutdated');
+    expect(pure.explainError('bridge_auth')).toBe('errBridgeAuth');
+    expect(pure.explainError('invalid_shape')).toBe('errInvalidShape');
+    expect(pure.explainError('payload_too_large')).toBe('errPayloadTooLarge');
   });
 
   it('accepts an Error instance and reads .message', () => {
-    expect(pure.explainError(new Error('session_expired'))).toContain('Sesión expirada');
+    expect(pure.explainError(new Error('session_expired'))).toBe('errSessionExpired');
   });
 
-  it('falls back to a generic message for unknown codes', () => {
-    expect(pure.explainError('wat')).toBe('Error — ver consola');
-    expect(pure.explainError(undefined)).toBe('Error — ver consola');
-    expect(pure.explainError(null)).toBe('Error — ver consola');
+  it('falls back to the generic message ID for unknown codes', () => {
+    expect(pure.explainError('wat')).toBe('errGeneric');
+    expect(pure.explainError(undefined)).toBe('errGeneric');
+    expect(pure.explainError(null)).toBe('errGeneric');
   });
 });

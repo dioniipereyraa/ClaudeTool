@@ -63,6 +63,11 @@ var ExportalPure = (function () {
   }
 
   function explainError(msgOrError) {
+    // Returns an i18n message ID (not a user-facing string). The caller
+    // resolves it against the current locale via chrome.i18n.getMessage.
+    // Keeping this file chrome.*-free is what lets it run inside the
+    // vitest vm sandbox.
+    //
     // Duck-type rather than `instanceof Error` — Errors thrown across
     // realm boundaries (content script vs page, vm sandbox vs outer)
     // don't share a prototype chain. Reading .message if present
@@ -76,18 +81,18 @@ var ExportalPure = (function () {
           ? msgOrError
           : String(msgOrError);
     // claude.ai fetch errors
-    if (msg === 'no_org') return 'Sin organización — ver consola';
-    if (msg === 'not_found') return 'No encontré la conversación';
-    if (msg === 'session_expired') return 'Sesión expirada — iniciá sesión en claude.ai';
-    if (msg === 'invalid_response') return 'Respuesta inesperada de claude.ai';
-    if (msg === 'timeout') return 'Timeout — claude.ai tarda en responder';
+    if (msg === 'no_org') return 'errNoOrg';
+    if (msg === 'not_found') return 'errNotFound';
+    if (msg === 'session_expired') return 'errSessionExpired';
+    if (msg === 'invalid_response') return 'errInvalidResponse';
+    if (msg === 'timeout') return 'errTimeout';
     // Bridge errors
-    if (msg === 'bridge_offline') return 'VS Code no responde';
-    if (msg === 'bridge_outdated') return 'VS Code desactualizado — rebuildeá';
-    if (msg === 'bridge_auth') return 'Token inválido — revisá Opciones';
-    if (msg === 'invalid_shape') return 'Shape de claude.ai cambió — ver consola';
-    if (msg === 'payload_too_large') return 'Conversación muy grande';
-    return 'Error — ver consola';
+    if (msg === 'bridge_offline') return 'errBridgeOffline';
+    if (msg === 'bridge_outdated') return 'errBridgeOutdated';
+    if (msg === 'bridge_auth') return 'errBridgeAuth';
+    if (msg === 'invalid_shape') return 'errInvalidShape';
+    if (msg === 'payload_too_large') return 'errPayloadTooLarge';
+    return 'errGeneric';
   }
 
   return {
