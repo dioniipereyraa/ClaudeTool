@@ -4,29 +4,59 @@ Ideas y hitos futuros. Vivo, se actualiza cada vez que surge algo nuevo.
 Items concretos y cerrados se mueven al `DEVLOG.md`. Releases formales al
 `CHANGELOG.md`. Este archivo es solo la cola de lo pendiente.
 
-## Near-term (release hygiene)
+## Near-term
 
-### Release v0.2.0
-- [ ] `git tag v0.2.0 && git push --tags` — el Action de release corre
-  solo y adjunta los dos artifacts.
-- [ ] Verificar el flujo de instalación en una máquina limpia (vsix
-  desde release + zip del companion sideloaded).
+- [ ] Verificar el flujo de instalación en una máquina limpia (vsix +
+  zip del companion desde releases, emparejar, probar ambos sentidos).
 
 ## Medium-term (distribución)
 
-### Hito 12 — Publicación al VS Code Marketplace
-- Requisitos: cuenta de publisher en Azure DevOps, `vsce publish`.
-- **Por qué**: `code --install-extension exportal-*.vsix` funciona pero
-  exige descarga manual. Marketplace da auto-update.
-- Bloqueado por: decisión del usuario (no urgente hasta tener feedback).
-
 ### Hito 13 — Publicación al Chrome Web Store
-- Requisitos: cuenta de developer ($5 one-time), review process.
+- Requisitos: cuenta de developer (US$5 one-time), review process
+  (~días), justificación de permisos `downloads` + `host_permissions`.
 - **Por qué**: "Load unpacked" exige modo desarrollador activado en
-  Chrome. CWS es un click install.
-- Bloqueado por: validar ToS del store (extensiones que hablan con
-  otros sitios pueden requerir justificación extra) + decisión del
-  usuario.
+  Chrome. CWS es un click install, más creíble para terceros.
+- Orden sugerido: después del Marketplace — el flujo más fricción
+  (pago + review) espera a tener el camino de VS Code sólido.
+
+## Medium-term (soporte multi-IA)
+
+### Hito 20 — Abstracción del core para múltiples proveedores
+- **Por qué primero**: hoy `importers/` y los tipos de dominio asumen
+  claude.ai. Agregar otro proveedor sin abstraer duplica lógica y
+  acumula deuda rápido.
+- Scope: definir `ExportedConversation` como union type
+  (claude/chatgpt/gemini) con metadata común, refactorizar
+  `formatters/` para consumir la union en vez del tipo específico.
+- **Risk**: cada proveedor tiene shape distinto para tool use,
+  multimedia, branching. La abstracción puede filtrarse y terminar
+  siendo menos útil que hacer formatters por proveedor. Decidir al
+  empezar el primer import no-claude.
+
+### Hito 21 — Import de ChatGPT
+- Camino oficial: Settings → Data controls → Export → ZIP por email
+  con `conversations.json`. Formato semi-documentado; tool use
+  (code interpreter, browsing) requiere parsing específico.
+- Camino one-click: extensión de Chrome scrapea la API interna de
+  `chat.openai.com`. Mismo patrón que Hito 10e de claude.ai.
+- Entrega mínima: reader + schema + formatter, sin one-click (se
+  agrega después si hay demanda).
+
+### Hito 22 — Import de Gemini
+- Camino oficial: Google Takeout export — ZIP con HTML/JSON por
+  conversación. Menos uniforme que ChatGPT.
+- Camino one-click: content script en `gemini.google.com`. La API
+  interna de Gemini puede cambiar más que la de los otros dos;
+  aceptar frágil.
+- **Risk**: Gemini tiene menos estabilidad de shape en su API
+  interna que los otros dos. Valor real depende de cuánto lo use
+  el target de usuarios.
+
+### Hito 23 — Popover multi-IA en el Chrome companion
+- Unificar: un único icon + badge, el popover detecta el dominio
+  activo (claude.ai / chat.openai.com / gemini.google.com) y muestra
+  las acciones relevantes.
+- Bloqueado por: Hitos 21 y 22 al menos parcialmente.
 
 ## Long-term (features)
 

@@ -32,6 +32,10 @@ El auto-attach al chat de Claude Code se puede desactivar con el setting `export
 
 ### Extensión de VS Code
 
+Desde el [Marketplace](https://marketplace.visualstudio.com/items?itemName=dioniipereyraa.exportal) (recomendado):
+- `Ctrl+Shift+X` → buscá **"Exportal"** → Install.
+
+O build local para desarrollar/trabajar con cambios:
 ```bash
 npm install
 npm run package:vsix

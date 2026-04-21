@@ -1181,3 +1181,84 @@ en `push` de tags `v*`:
 - Pegado automático (via `SendKeys`, Puppeteer, extensión de Chrome
   escuchando clipboard). Todo eso es frágil o invasivo; el paso manual
   de Ctrl+V es aceptable.
+
+---
+
+## 2026-04-21 — Hito 12 · Publicación al VS Code Marketplace
+
+### Qué hicimos
+- Repo ClaudeTool pasó a visibilidad pública en GitHub. Habilitó
+  imágenes absolutas y el link "Repository" del Marketplace.
+- Publisher `dioniipereyraa` creado en
+  `marketplace.visualstudio.com/manage` con nombre "Dionisio
+  Pereyra", logo de Exportal (icon-128) y Support email
+  dionipereyrab@gmail.com.
+- Upload manual del `exportal-0.3.0.vsix` via la UI del Marketplace
+  (sin PAT). Pasó el "Verifying" en minutos y quedó en
+  `marketplace.visualstudio.com/items?itemName=dioniipereyraa.exportal`.
+- README (los dos: repo + vsix) actualizado para poner la instalación
+  desde Marketplace como opción primaria.
+
+### Decisiones clave y por qué
+- **Upload manual via web, no `vsce publish` + PAT**: la primera
+  publicación tolera mejor la fricción de UI que la de CLI (el PAT
+  exige pasar por Azure DevOps, que tiene un flujo separado). Una vez
+  validado que todo funciona, la siguiente versión puede automatizarse
+  via PAT + GitHub Action si la frecuencia de release lo amerita.
+- **Sin verified domain**: el tilde azul del Marketplace requiere
+  verificar un dominio propio. No tenemos dominio personal ni vale la
+  pena sacarlo solo por esto. Se puede agregar después.
+- **Repo público**: decisión aplazada desde sesiones anteriores. El
+  driver real fue el Marketplace — un proyecto published con código
+  cerrado pierde credibilidad. Además el README del Marketplace queda
+  mejor con imágenes de `raw.githubusercontent.com`, que ahora sí
+  funcionan.
+
+### Verificación
+- URL pública del Marketplace carga correctamente.
+- `Ctrl+Shift+X` dentro de VS Code encuentra "Exportal" por búsqueda.
+- Instalación desde Marketplace ejecuta el activation event y muestra
+  el onboarding modal en primera corrida.
+
+### Lo que NO entra
+- Firma de los vsix (code-signing del publisher). Opcional, no es
+  bloqueante.
+- Automatización del publish en el workflow de release. Si la
+  frecuencia de releases crece se agrega; hoy el release cada par de
+  versiones se hace a mano.
+
+---
+
+## 2026-04-21 — Hito 13 · Preparación para Chrome Web Store (en curso)
+
+### Qué hicimos
+- Preparamos toda la documentación que Google exige para review de
+  una extensión:
+  - `docs/PRIVACY.md` — política de privacidad con detalle de cada
+    permiso, explícito que no hay analytics, no servidores remotos,
+    loopback-only.
+  - `docs/CHROME_WEB_STORE_LISTING.md` — borrador listo-para-pegar
+    con todos los campos del dashboard: single purpose, justificación
+    por permiso, data usage disclosure, privacy policy URL.
+
+### Decisiones clave y por qué
+- **Privacy policy en el repo, no en un sitio externo**: cero
+  infraestructura a mantener, URL estable, y al ser parte del repo
+  público queda versionada con el código. Google acepta links de
+  GitHub Pages o blob URLs.
+- **Single purpose estrecho y claro**: "Export claude.ai
+  conversations to a local VS Code extension". No promovemos
+  features secundarios (atajos de teclado, badge) como propósito
+  primario — eso complica el review.
+- **Justificación de `host_permissions: 127.0.0.1`**: éste es el
+  permiso que más suele disparar review manual. Lo justificamos
+  explícito: "loopback only, bearer-token auth, traffic never leaves
+  the device". Si el review rechaza, iteramos sobre la redacción.
+
+### Pendiente
+- Pago de US$5 de cuenta developer en Chrome Web Store.
+- Upload del `exportal-companion-0.3.0.zip` via el dashboard.
+- Copiar los textos de `CHROME_WEB_STORE_LISTING.md` al formulario.
+- Screenshots: reutilizar `docs/screenshots/*` (3 archivos ya
+  versionados).
+- Enviar a review y esperar 1-3 días hábiles.
