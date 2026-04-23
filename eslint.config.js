@@ -5,7 +5,7 @@ import prettier from 'eslint-config-prettier';
 
 export default tseslint.config(
   {
-    ignores: ['dist/**', 'coverage/**', 'node_modules/**'],
+    ignores: ['dist/**', 'coverage/**', 'node_modules/**', 'design-cds/**'],
   },
   js.configs.recommended,
   {
@@ -28,12 +28,16 @@ export default tseslint.config(
         document: 'readonly',
         ExportalPure: 'readonly',
         fetch: 'readonly',
+        history: 'readonly',
         importScripts: 'readonly',
         module: 'readonly',
+        performance: 'readonly',
         self: 'readonly',
         requestAnimationFrame: 'readonly',
         setInterval: 'readonly',
         setTimeout: 'readonly',
+        URL: 'readonly',
+        URLSearchParams: 'readonly',
         window: 'readonly',
         HTMLInputElement: 'readonly',
       },

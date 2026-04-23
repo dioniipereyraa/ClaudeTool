@@ -6,6 +6,66 @@ Companion (Chrome extension) are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 and versions follow [Semantic Versioning](https://semver.org/).
 
+## [0.5.0] — 2026-04-23
+
+### Added
+
+- **One-click pairing (hito 25).** The "Show bridge pairing token"
+  command now opens a webview (previously a blocking modal dialog).
+  "Copy and open Chrome" puts the token on the clipboard *and*
+  launches claude.ai with `#exportal-pair=<token>` in the URL. The
+  Chrome Companion's content script consumes the fragment, asks the
+  service worker to save the token, and strips the fragment via
+  `history.replaceState` so a reload can't re-pair. Token never
+  hits a server.
+- **Pair confirmation loop.** After Chrome stores the token it hits
+  `POST /ping` on the local bridge with the fresh Bearer. VS Code
+  shows a notification ("pairing complete") and, if the pairing
+  webview is still open, swaps to a lime check overlay and
+  auto-dismisses after 2.5s.
+- **First-run onboarding shows the new webview.** The persistent
+  "already shown" flag was bumped to v2 so existing users see the
+  redesigned flow once on upgrade without having to invoke the
+  command manually.
+- **Graphite Citrus redesign (hito 26).** Both extensions adopt the
+  new design system from `design-cds/`:
+  - Chrome: FAB is an ambient orb (surface + ExportalMark + pulse
+    dot); popover matches `FabExpanded` (brand header, lime primary,
+    ghost secondary, JetBrains-Mono kbd chips). SuccessPulse overlay
+    replaces the button-flash on successful export, showing real
+    metrics (`{ms}ms · {messages} mensajes`).
+  - Chrome options page adopts `OnboardingChrome` — titlebar +
+    status chip + numbered steps + monospace token field + local-
+    first reassurance block.
+  - VS Code pairing webview adopts `OnboardingVsCode` — faux
+    titlebar, brand mark, stepper, dashed-border token card.
+  - `assets/icon.svg` refined to the ExportalMark: dark surface,
+    white E strokes, lime accent bar extending right with an
+    arrow-cap.
+  - Status bar glyph switched from `$(cloud-download)` to `$(export)`.
+
+### Changed
+
+- Kbd chips in the Chrome popover now display `Alt+Shift+E` /
+  `Alt+Shift+O` instead of the Mac-style `⌥⇧` glyphs. The chips
+  weren't lying on Mac, but they were on every other platform.
+- `bannerPaired`/`bannerNotPaired` i18n strings shortened to fit
+  the new header chip in the options page.
+
+### Fixed
+
+- Pairing webview no longer auto-closes when the user clicks "Copy
+  and open Chrome". Only the explicit "Later" button (or the tab X)
+  dismisses it now — avoids having to re-run the command when Chrome
+  doesn't auto-detect the token on first try.
+- Fragment URL construction uses `vscode.Uri.from` instead of
+  `Uri.parse`; some VS Code builds re-encoded `=` as `%3D` during
+  serialization which broke the content-script's fragment parser.
+- Pairing panel reference stored at module scope instead of on the
+  `ExtensionContext` object (which VS Code freezes and rejects new
+  property assignments on) — `showPairingInfo` no longer throws
+  "object is not extensible" on a second invocation.
+
 ## [0.4.0] — 2026-04-21
 
 ### Added

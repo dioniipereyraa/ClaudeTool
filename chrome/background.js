@@ -115,6 +115,33 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
+  if (message?.type === 'exportal:setPairingToken') {
+    // Auto-pair from a VS Code → claude.ai URL fragment. The content
+    // script pre-validated the 64-hex shape; we re-validate here as
+    // defense-in-depth against a tampered page context. On success,
+    // refreshPairingBadge fires automatically via the storage.onChanged
+    // listener already wired at the top of this file.
+    const token = message.token;
+    if (typeof token !== 'string' || !/^[0-9a-f]{64}$/.test(token)) {
+      sendResponse({ ok: false, error: 'bad_token' });
+      return false;
+    }
+    chrome.storage.local
+      .set({ [TOKEN_KEY]: token })
+      .then(() => {
+        // Fire-and-forget confirmation ping to the VS Code bridge.
+        // We probe the same port range used by /import; the first
+        // port that answers 200 is our match. Failure is silent —
+        // the user still sees the toast on claude.ai, and their
+        // first real export will surface any actual connectivity
+        // problem with its own error path.
+        void pingBridge(token);
+        sendResponse({ ok: true });
+      })
+      .catch((err) => sendResponse({ ok: false, error: String(err) }));
+    return true;
+  }
+
   return false;
 });
 
@@ -281,6 +308,32 @@ async function buildPortOrder() {
   const stored = await chrome.storage.session.get(LAST_PORT_KEY);
   const lastPort = stored[LAST_PORT_KEY];
   return ExportalPure.buildPortOrder(typeof lastPort === 'number' ? lastPort : undefined);
+}
+
+// Fire-and-forget probe to close the pairing loop from Chrome's side.
+// On success we remember the port so future /import requests hit the
+// right one first (same cache the forward-flow already uses). All
+// failures are silent — if VS Code isn't listening, the user will
+// find out when their first actual export fails with a specific
+// error. No need to surface a generic "couldn't confirm" here.
+async function pingBridge(token) {
+  const ports = await buildPortOrder();
+  for (const port of ports) {
+    try {
+      const res = await fetch(`http://127.0.0.1:${port}/ping`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.status === 200) {
+        await chrome.storage.session.set({ [LAST_PORT_KEY]: port });
+        return;
+      }
+      // 401 means a different VS Code window is listening on this port
+      // with a different token; keep probing.
+    } catch {
+      // network error — keep probing
+    }
+  }
 }
 
 async function setBadge(text, color) {

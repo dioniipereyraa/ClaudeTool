@@ -28,12 +28,12 @@
     "description": "Short explanation under the options page heading."
   },
   "bannerNotPaired": {
-    "message": "Not paired — paste your token below.",
-    "description": "Status banner shown when no token is saved."
+    "message": "Not paired",
+    "description": "Short status chip shown in the header when no token is saved."
   },
   "bannerPaired": {
-    "message": "Paired — ready to export from claude.ai.",
-    "description": "Status banner shown after a valid token is saved."
+    "message": "Paired",
+    "description": "Short status chip shown in the header after a valid token is saved."
   },
   "howToGetToken": {
     "message": "How do I get the token?",
@@ -81,6 +81,14 @@
     "message": "Token must be 64 hexadecimal characters.",
     "description": "Error shown when pasted token fails the regex check."
   },
+  "localFirstLead": {
+    "message": "Local-first.",
+    "description": "Lead strong-text of the reassurance block at the bottom of the options page."
+  },
+  "localFirstBody": {
+    "message": "The bridge runs on <code>127.0.0.1</code>. Nothing leaves your machine.",
+    "description": "Body of the reassurance block — contains a <code> span rendered via innerHTML."
+  },
   "fabAriaLabel": {
     "message": "Exportal — open actions",
     "description": "Accessible label for the floating action button on claude.ai."
@@ -120,6 +128,18 @@
   "toastExporting": {
     "message": "Exporting…",
     "description": "Toast shown when the export was triggered via keyboard shortcut."
+  },
+  "toastPairedWithVsCode": {
+    "message": "Paired with VS Code",
+    "description": "Toast shown on claude.ai after the auto-pair URL fragment is consumed successfully."
+  },
+  "pulseHeadline": {
+    "message": "Sent to VS Code",
+    "description": "Headline in the success pulse overlay shown after a successful inline export."
+  },
+  "pulseMessagesSuffix": {
+    "message": "messages",
+    "description": "Noun following the message count in the success pulse. English uses no pluralization for the mono-style metric line."
   },
   "errNoOrg": {
     "message": "No organization — see console"

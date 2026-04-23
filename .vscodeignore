@@ -34,6 +34,7 @@ README.vsix.md
 exports/**
 chrome/**
 docs/**
+design-cds/**
 
 # Everything under dist/ except the extension bundle itself
 dist/index.*

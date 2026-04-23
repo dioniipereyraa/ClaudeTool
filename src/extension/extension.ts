@@ -30,7 +30,10 @@ import {
 } from './zip-finder.js';
 
 const PAIRING_TOKEN_KEY = 'exportal.pairingToken';
-const ONBOARDING_SHOWN_KEY = 'exportal.onboardingShown';
+// Bump the key whenever we redesign the onboarding flow so existing
+// users see the new experience once. v2 landed with the webview /
+// auto-pair rewrite (previous version was the blocking modal dialog).
+const ONBOARDING_SHOWN_KEY = 'exportal.onboardingShownV2';
 
 /**
  * Exportal — VS Code extension entry point.
@@ -62,7 +65,9 @@ export function activate(context: vscode.ExtensionContext): void {
     vscode.StatusBarAlignment.Left,
     100,
   );
-  statusBar.text = '$(cloud-download) Exportal';
+  // `$(export)` echoes the arrowhead/portal-bar motif of the Exportal
+  // mark better than the generic cloud-download we shipped originally.
+  statusBar.text = '$(export) Exportal';
   statusBar.tooltip = vscode.l10n.t('Import claude.ai conversation');
   statusBar.command = 'exportal.importFromZip';
   statusBar.show();
@@ -111,6 +116,7 @@ async function startBridgeServer(
     return await startServer(token, {
       onImport: (payload) => handleBridgeImport(payload),
       onImportInline: (payload) => handleBridgeImportInline(payload),
+      onPing: () => handlePairConfirmed(),
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
@@ -118,6 +124,32 @@ async function startBridgeServer(
       vscode.l10n.t('Exportal: could not start the local bridge. {0}', message),
     );
     return undefined;
+  }
+}
+
+// Fires when Chrome confirms pairing. Debounced via a short cool-down:
+// Chrome may hit /ping twice in quick succession (e.g. on reload of
+// a tab whose fragment was already consumed) and we don't want two
+// notifications on top of each other.
+let lastPairConfirmedAt = 0;
+const PAIR_CONFIRM_COOLDOWN_MS = 3000;
+
+function handlePairConfirmed(): void {
+  const now = Date.now();
+  if (now - lastPairConfirmedAt < PAIR_CONFIRM_COOLDOWN_MS) return;
+  lastPairConfirmedAt = now;
+  void vscode.window.showInformationMessage(
+    vscode.l10n.t('Exportal: pairing complete. Chrome is ready to export chats.'),
+  );
+  // If the pairing panel is still open, swap it to the success state
+  // and auto-dispose after a short beat so the user sees the confirmation
+  // without having to click anything. If it's already closed (user went
+  // with "Later" or the primary button + closed the tab), the notification
+  // above is the only feedback, which is fine.
+  if (pairingPanel !== undefined) {
+    const panel = pairingPanel;
+    void panel.webview.postMessage({ type: 'paired' });
+    setTimeout(() => { panel.dispose(); }, 2500);
   }
 }
 
@@ -168,67 +200,302 @@ function announceImport(conversation: ClaudeAiConversation): void {
   );
 }
 
-async function showPairingInfoCommand(
-  context: vscode.ExtensionContext,
-): Promise<void> {
+function showPairingInfoCommand(context: vscode.ExtensionContext): void {
   const token = getOrCreatePairingToken(context);
-  await showPairingModal(token, { firstRun: false });
-  // After the user manually invokes this command, consider onboarding
-  // done — they obviously know how to find the token now.
+  showPairingPanel(context, token);
+  // Showing the panel counts as "onboarding seen" — the user now knows
+  // where the token lives and how to reopen it from the command palette.
   void context.globalState.update(ONBOARDING_SHOWN_KEY, true);
 }
 
-async function showOnboardingIfNeeded(
-  context: vscode.ExtensionContext,
-): Promise<void> {
+function showOnboardingIfNeeded(context: vscode.ExtensionContext): void {
   const shown = context.globalState.get<boolean>(ONBOARDING_SHOWN_KEY);
   if (shown === true) return;
   const token = getOrCreatePairingToken(context);
-  await showPairingModal(token, { firstRun: true });
+  showPairingPanel(context, token);
   void context.globalState.update(ONBOARDING_SHOWN_KEY, true);
 }
 
-async function showPairingModal(
-  token: string,
-  { firstRun }: { firstRun: boolean },
-): Promise<void> {
-  // Modal dialogs in VS Code block the editor workspace until dismissed,
-  // which is exactly what onboarding needs — the user cannot miss this
-  // even if they tabbed away during install. The `detail` field renders
-  // as multi-line prose, perfect for the step list + the token itself.
-  const headline = firstRun
-    ? vscode.l10n.t(
-        'Exportal is active. To export claude.ai chats with one click, pair the Chrome extension with this token.',
-      )
-    : vscode.l10n.t('Exportal — pairing token for the Chrome extension.');
-  const detail = [
-    vscode.l10n.t('TOKEN:'),
-    token,
-    '',
-    vscode.l10n.t('STEPS:'),
-    vscode.l10n.t('1. Install the "Exportal Companion" extension in Chrome.'),
-    vscode.l10n.t(
-      '2. Open chrome://extensions → "Details" of Exportal Companion → "Extension options".',
-    ),
-    vscode.l10n.t('3. Paste the token and save.'),
-    '',
-    vscode.l10n.t(
-      'Reopen this dialog with Ctrl+Shift+P → "Exportal: Show bridge pairing token".',
-    ),
-  ].join('\n');
+// Single shared webview used by both the first-run onboarding and the
+// "Exportal: Show bridge pairing token" command. We keep a reference in
+// a module-level variable (NOT on the ExtensionContext, which VS Code
+// freezes and rejects new property assignments on). Re-invoking the
+// command reveals the existing panel instead of stacking a second one.
+let pairingPanel: vscode.WebviewPanel | undefined = undefined;
 
-  const copyTokenLabel = vscode.l10n.t('Copy token');
-  const action = await vscode.window.showInformationMessage(
-    headline,
-    { modal: true, detail },
-    copyTokenLabel,
-  );
-  if (action === copyTokenLabel) {
-    await vscode.env.clipboard.writeText(token);
-    void vscode.window.showInformationMessage(
-      vscode.l10n.t('Exportal: token copied to clipboard.'),
-    );
+function showPairingPanel(context: vscode.ExtensionContext, token: string): void {
+  if (pairingPanel !== undefined) {
+    pairingPanel.reveal(vscode.ViewColumn.Active);
+    return;
   }
+  const panel = vscode.window.createWebviewPanel(
+    'exportal.pairing',
+    vscode.l10n.t('Exportal — pairing'),
+    vscode.ViewColumn.Active,
+    { enableScripts: true, retainContextWhenHidden: false },
+  );
+  panel.iconPath = vscode.Uri.joinPath(context.extensionUri, 'assets', 'icon.png');
+  panel.webview.html = renderPairingHtml(panel.webview, token);
+  panel.onDidDispose(() => { pairingPanel = undefined; });
+  panel.webview.onDidReceiveMessage(async (msg: unknown) => {
+    if (msg === null || typeof msg !== 'object') return;
+    const type = (msg as { type?: unknown }).type;
+    if (type === 'copy') {
+      await vscode.env.clipboard.writeText(token);
+      void vscode.window.showInformationMessage(
+        vscode.l10n.t('Exportal: token copied to clipboard.'),
+      );
+    } else if (type === 'pair-and-open') {
+      // Auto-pair flow. Put the token on the clipboard as a fallback
+      // (for users whose default browser is not Chrome, or who aren't
+      // running the Companion) and then launch claude.ai with the
+      // token attached as a URL fragment. The Companion's content
+      // script reads `#exportal-pair=<hex>`, asks the service worker
+      // to save it, and strips the fragment via history.replaceState
+      // so a reload can't re-pair. Fragments never hit the server —
+      // claude.ai itself never sees the token.
+      //
+      // Threat: a malicious link carrying someone else's token could
+      // overwrite the user's pairing. The worst outcome is the next
+      // export failing with "Invalid token" (our VS Code bridge has
+      // a different token stored); no data leaks, no RCE. Users
+      // re-pair from this panel.
+      //
+      // URL construction uses Uri.from with explicit components, NOT
+      // Uri.parse. Parsing "https://claude.ai/#x=y" works, but some
+      // VS Code builds re-encode the "=" inside the fragment during
+      // .toString() — Chrome then treats the whole fragment as a
+      // single literal, not a key/value pair, and our content-script
+      // regex misses it. Uri.from preserves the fragment verbatim.
+      await vscode.env.clipboard.writeText(token);
+      const pairingUri = vscode.Uri.from({
+        scheme: 'https',
+        authority: 'claude.ai',
+        path: '/',
+        fragment: `exportal-pair=${token}`,
+      });
+      await vscode.env.openExternal(pairingUri);
+      void vscode.window.showInformationMessage(
+        vscode.l10n.t(
+          'Exportal: opened claude.ai in your browser — pairing completes automatically if the Companion is installed.',
+        ),
+      );
+      // Deliberately NOT disposing the panel here. The user asked that
+      // the pairing view stay open so they can retry if Chrome didn't
+      // pick up the fragment, or copy the token manually. The only
+      // explicit dismiss paths are the "Later" button and the tab X.
+    } else if (type === 'dismiss') {
+      panel.dispose();
+    }
+  });
+  pairingPanel = panel;
+}
+
+function renderPairingHtml(webview: vscode.Webview, token: string): string {
+  // Everything inline — no external fonts or scripts — so the webview
+  // works offline and doesn't need a separate asset pipeline. CSP
+  // follows the VS Code webview recipe: nonce-gated inline <script>
+  // and locked-down resource origins.
+  const nonce = randomNonce();
+  const cspSource = webview.cspSource;
+  const t = (key: string): string => escapeHtml(vscode.l10n.t(key));
+  return `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src ${cspSource} data:; style-src 'unsafe-inline'; script-src 'nonce-${nonce}';">
+<title>${t('Exportal — pairing')}</title>
+<style>
+  :root {
+    color-scheme: dark;
+    --exp-bg: #0a0b0d;
+    --exp-surface: #111315;
+    --exp-surface2: #181a1d;
+    --exp-line: rgba(255,255,255,0.07);
+    --exp-line-strong: rgba(255,255,255,0.13);
+    --exp-text: #f2f3f0;
+    --exp-text-dim: rgba(242,243,240,0.60);
+    --exp-text-mute: rgba(242,243,240,0.36);
+    --exp-accent: #d4ff3a;
+    --exp-accent-hover: #e4ff5c;
+    --exp-accent-ink: #0a0b0d;
+    --exp-ok: #86efac;
+    --exp-radius: 10px;
+    --exp-radius-lg: 14px;
+  }
+  html, body { height: 100%; margin: 0; padding: 0; background: var(--exp-bg); color: var(--exp-text); font-family: 'Inter Tight', Inter, system-ui, -apple-system, 'Segoe UI', sans-serif; -webkit-font-smoothing: antialiased; }
+  .wrap { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 40px 20px; box-sizing: border-box; }
+  .card { position: relative; width: 100%; max-width: 520px; border-radius: var(--exp-radius-lg); overflow: hidden; background: var(--exp-surface); border: 1px solid var(--exp-line); box-shadow: 0 20px 60px rgba(0,0,0,0.4); }
+  .titlebar { display: flex; align-items: center; gap: 8px; padding: 10px 14px; background: var(--exp-surface2); border-bottom: 1px solid var(--exp-line); }
+  .dots { display: flex; gap: 6px; }
+  .dots span { width: 10px; height: 10px; border-radius: 5px; }
+  .dots .r { background: #ed6a5e; } .dots .y { background: #f5bf4f; } .dots .g { background: #61c554; }
+  .titlebar-text { margin-left: 8px; font-size: 11px; color: var(--exp-text-mute); }
+
+  main { padding: 22px 24px; }
+  .head { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+  .mark { width: 32px; height: 32px; display: inline-flex; flex-shrink: 0; }
+  .headline { font-size: 18px; font-weight: 700; letter-spacing: -0.02em; margin: 0; }
+  .subtitle { font-size: 11px; color: var(--exp-text-dim); margin: 2px 0 0; }
+
+  .stepper { display: flex; align-items: center; gap: 6px; margin-bottom: 18px; font-size: 11px; color: var(--exp-text-dim); font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  .stepper .line { flex: 1; height: 1px; background: var(--exp-line); margin: 0 4px; }
+  .dot { width: 8px; height: 8px; border-radius: 4px; background: var(--exp-line-strong); display: inline-block; margin-right: 4px; }
+  .dot.active { background: var(--exp-accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--exp-accent) 20%, transparent); }
+
+  .token-card { padding: 16px; border-radius: var(--exp-radius); background: var(--exp-surface2); border: 1px dashed var(--exp-line-strong); }
+  .token-label { font-size: 11px; color: var(--exp-text-dim); margin-bottom: 8px; letter-spacing: 0.08em; text-transform: uppercase; }
+  .token-row { display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: var(--exp-surface); border-radius: 8px; border: 1px solid var(--exp-line); font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; color: var(--exp-text); letter-spacing: 0.02em; }
+  .token-row .value { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .copy-btn { padding: 6px 12px; border-radius: 6px; border: none; cursor: pointer; background: var(--exp-accent); color: var(--exp-accent-ink); font-size: 10px; font-weight: 700; letter-spacing: 0.06em; font-family: inherit; text-transform: uppercase; transition: background 120ms ease; }
+  .copy-btn:hover { background: var(--exp-accent-hover); }
+  .copy-btn.copied { background: var(--exp-ok); color: var(--exp-accent-ink); }
+  .token-hint { font-size: 11px; color: var(--exp-text-mute); margin-top: 10px; line-height: 1.5; }
+
+  .actions { display: flex; gap: 8px; margin-top: 18px; justify-content: flex-end; }
+  .actions button { padding: 9px 16px; border-radius: var(--exp-radius); font-size: 13px; font-weight: 600; cursor: pointer; letter-spacing: -0.01em; font-family: inherit; transition: background 120ms ease, color 120ms ease; }
+  .actions .ghost { background: transparent; color: var(--exp-text-dim); border: 1px solid var(--exp-line); }
+  .actions .ghost:hover { background: var(--exp-surface2); color: var(--exp-text); }
+  .actions .primary { background: var(--exp-accent); color: var(--exp-accent-ink); border: none; display: inline-flex; align-items: center; gap: 8px; }
+  .actions .primary:hover { background: var(--exp-accent-hover); }
+  .actions .primary.flashed { background: var(--exp-ok); }
+  .actions .primary:disabled { cursor: default; opacity: 0.85; }
+  /* Success overlay — shown when the bridge receives Chrome's /ping.
+   * Covers the token card + actions so the user sees the state change
+   * even if they scrolled away from the buttons. */
+  .success-overlay { position: absolute; inset: 0; display: none; align-items: center; justify-content: center; flex-direction: column; gap: 12px; background: var(--exp-surface); border-radius: var(--exp-radius-lg); animation: expPop 320ms cubic-bezier(.2,1.2,.4,1) both; }
+  .success-overlay.shown { display: flex; }
+  .success-check { width: 52px; height: 52px; border-radius: 26px; background: var(--exp-accent); color: var(--exp-accent-ink); display: flex; align-items: center; justify-content: center; animation: expCheckIn 360ms cubic-bezier(.2,1.5,.3,1) both; }
+  .success-headline { font-size: 18px; font-weight: 700; letter-spacing: -0.02em; color: var(--exp-text); }
+  .success-subtitle { font-size: 12px; color: var(--exp-text-dim); }
+  @keyframes expPop { 0% { transform: scale(.96); opacity: 0 } 100% { transform: scale(1); opacity: 1 } }
+  @keyframes expCheckIn { 0% { transform: scale(.4); opacity: 0 } 100% { transform: scale(1); opacity: 1 } }
+  @keyframes expDraw { to { stroke-dashoffset: 0 } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="card">
+    <div class="titlebar">
+      <div class="dots"><span class="r"></span><span class="y"></span><span class="g"></span></div>
+      <div class="titlebar-text">Visual Studio Code</div>
+    </div>
+    <main>
+      <div class="head">
+        <span class="mark" aria-hidden="true">
+          <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+            <rect x="0" y="0" width="100" height="100" rx="28" fill="var(--exp-surface2)"/>
+            <rect x="22" y="20" width="56" height="14" rx="2" fill="var(--exp-text)"/>
+            <rect x="22" y="20" width="14" height="60" rx="2" fill="var(--exp-text)"/>
+            <rect x="22" y="66" width="56" height="14" rx="2" fill="var(--exp-text)"/>
+            <rect x="36" y="43" width="36" height="14" rx="2" fill="var(--exp-accent)"/>
+            <path d="M 72 50 L 82 50" stroke="var(--exp-accent)" stroke-width="14" stroke-linecap="round"/>
+          </svg>
+        </span>
+        <div>
+          <h1 class="headline">${t('Connect your browser')}</h1>
+          <div class="subtitle">${t('One step and you are exporting chats with a single click.')}</div>
+        </div>
+      </div>
+
+      <div class="stepper">
+        <span class="dot active"></span> VS Code
+        <span class="line"></span>
+        <span class="dot"></span> Chrome
+        <span class="line"></span>
+        <span class="dot"></span> ${t('Done')}
+      </div>
+
+      <div class="token-card">
+        <div class="token-label">${t('Pairing token')}</div>
+        <div class="token-row">
+          <span class="value" id="token">${escapeHtml(token)}</span>
+          <button class="copy-btn" id="copy">${t('COPY')}</button>
+        </div>
+        <div class="token-hint">${t('Copy it and paste it into the Exportal Companion options in Chrome. It stays on your machine — nothing is sent over the network.')}</div>
+      </div>
+
+      <div class="actions">
+        <button class="ghost" id="dismiss">${t('Later')}</button>
+        <button class="primary" id="pair-open"><span id="pair-open-label">${t('Copy and open Chrome')}</span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12h14M13 6l6 6-6 6"/></svg></button>
+      </div>
+    </main>
+    <div class="success-overlay" id="success-overlay" aria-hidden="true">
+      <div class="success-check">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M20 6 9 17l-5-5" style="stroke-dasharray:24;stroke-dashoffset:24;animation:expDraw 280ms 120ms cubic-bezier(.2,1,.4,1) forwards"/>
+        </svg>
+      </div>
+      <div class="success-headline">${t('Paired with Chrome')}</div>
+      <div class="success-subtitle">${t('You can export chats with a single click now.')}</div>
+    </div>
+  </div>
+</div>
+<script nonce="${nonce}">
+  const vscode = acquireVsCodeApi();
+  function flashCopied(btn, label) {
+    const original = btn.textContent;
+    btn.textContent = label;
+    btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = original; btn.classList.remove('copied'); }, 1400);
+  }
+  const copiedLabel = ${JSON.stringify(vscode.l10n.t('COPIED'))};
+  const openedLabel = ${JSON.stringify(vscode.l10n.t('Opening Chrome…'))};
+  document.getElementById('copy').addEventListener('click', (e) => {
+    vscode.postMessage({ type: 'copy' });
+    flashCopied(e.currentTarget, copiedLabel);
+  });
+  document.getElementById('pair-open').addEventListener('click', (e) => {
+    // Host copies + opens claude.ai with the pairing fragment. It
+    // does NOT dispose the panel — if Chrome doesn't pick up the
+    // fragment (e.g. default browser isn't Chrome, or the Companion
+    // is out of date), the user can retry without reopening this view.
+    const btn = e.currentTarget;
+    if (btn.disabled) return;
+    const label = document.getElementById('pair-open-label');
+    const original = label.textContent;
+    vscode.postMessage({ type: 'pair-and-open' });
+    label.textContent = openedLabel;
+    btn.classList.add('flashed');
+    btn.disabled = true;
+    setTimeout(() => {
+      label.textContent = original;
+      btn.classList.remove('flashed');
+      btn.disabled = false;
+    }, 1800);
+  });
+  document.getElementById('dismiss').addEventListener('click', () => {
+    vscode.postMessage({ type: 'dismiss' });
+  });
+  // Host posts { type: 'paired' } when Chrome's /ping hits the bridge.
+  // We swap to the success overlay; the host will dispose the panel
+  // shortly after, so no extra click is required from the user.
+  window.addEventListener('message', (ev) => {
+    if (ev.data?.type !== 'paired') return;
+    const overlay = document.getElementById('success-overlay');
+    if (overlay !== null) overlay.classList.add('shown');
+  });
+</script>
+</body>
+</html>`;
+}
+
+function randomNonce(): string {
+  // 128 bits of entropy is plenty for a CSP nonce.
+  const bytes = new Uint8Array(16);
+  crypto.getRandomValues(bytes);
+  let s = '';
+  for (const b of bytes) s += b.toString(16).padStart(2, '0');
+  return s;
+}
+
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }
 
 async function importFromZipCommand(): Promise<void> {

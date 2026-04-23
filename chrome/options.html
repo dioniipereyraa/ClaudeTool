@@ -4,182 +4,346 @@
     <meta charset="utf-8" />
     <title data-i18n="optionsPageTitle"></title>
     <style>
+      /* Design tokens — Graphite Citrus / dark / cozy.
+       * Mirrors TOKENS in content-script.js. Kept under --exp-* so both
+       * surfaces feel like the same app. */
       :root {
-        color-scheme: light dark;
-        --brand-navy: #1e1b4b;
-        --accent: #fb923c;
-        --accent-hover: #f97316;
-        --ok: #16a34a;
-        --err: #dc2626;
+        color-scheme: dark;
+        --exp-bg: #0a0b0d;
+        --exp-surface: #111315;
+        --exp-surface2: #181a1d;
+        --exp-line: rgba(255, 255, 255, 0.07);
+        --exp-line-strong: rgba(255, 255, 255, 0.13);
+        --exp-text: #f2f3f0;
+        --exp-text-dim: rgba(242, 243, 240, 0.6);
+        --exp-text-mute: rgba(242, 243, 240, 0.36);
+        --exp-accent: #d4ff3a;
+        --exp-accent-hover: #e4ff5c;
+        --exp-accent-ink: #0a0b0d;
+        --exp-ok: #86efac;
+        --exp-err: #fca5a5;
+        --exp-radius: 10px;
+        --exp-radius-lg: 14px;
+        --exp-pad: 16px;
+        --exp-pad-sm: 10px;
         font-family:
+          'Inter Tight',
+          Inter,
           system-ui,
           -apple-system,
           Segoe UI,
           sans-serif;
+        -webkit-font-smoothing: antialiased;
       }
       body {
-        max-width: 560px;
+        width: 420px;
         margin: 0;
-        padding: 24px;
+        padding: 0;
+        background: var(--exp-bg);
+        color: var(--exp-text);
         line-height: 1.5;
       }
-      h1 {
-        font-size: 20px;
-        margin: 0 0 4px;
+      .card {
+        border-radius: var(--exp-radius-lg);
+        overflow: hidden;
+        background: var(--exp-surface);
+        border: 1px solid var(--exp-line);
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.32);
       }
-      .subtitle {
-        margin: 0 0 20px;
-        color: color-mix(in srgb, currentColor 60%, transparent);
-        font-size: 13px;
-      }
-      .status-banner {
+      /* Chrome-like header: brand mark + name on the left, status chip
+       * on the right. The chip color tracks the paired state via the
+       * [data-state] attribute on #banner. */
+      header {
         display: flex;
         align-items: center;
         gap: 10px;
-        padding: 10px 12px;
-        border-radius: 8px;
-        margin-bottom: 20px;
+        padding: 12px 14px;
+        background: var(--exp-surface2);
+        border-bottom: 1px solid var(--exp-line);
+      }
+      header .mark {
+        display: inline-flex;
+        width: 22px;
+        height: 22px;
+      }
+      header h1 {
         font-size: 13px;
-        font-weight: 500;
+        font-weight: 600;
+        margin: 0;
+        letter-spacing: -0.01em;
+        color: var(--exp-text);
       }
-      .status-banner[data-state='missing'] {
-        background: color-mix(in srgb, var(--err) 12%, transparent);
-        color: var(--err);
+      .chip {
+        margin-left: auto;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 2px 8px;
+        border-radius: 999px;
+        font-size: 11px;
+        font-weight: 600;
       }
-      .status-banner[data-state='ok'] {
-        background: color-mix(in srgb, var(--ok) 12%, transparent);
-        color: var(--ok);
-      }
-      .status-banner .dot {
-        width: 8px;
-        height: 8px;
-        border-radius: 50%;
+      .chip::before {
+        content: '';
+        width: 6px;
+        height: 6px;
+        border-radius: 3px;
         background: currentColor;
       }
-      h2 {
-        font-size: 14px;
-        margin: 24px 0 10px;
+      #banner[data-state='ok'] .chip {
+        background: color-mix(in srgb, var(--exp-ok) 14%, transparent);
+        color: var(--exp-ok);
+      }
+      #banner[data-state='missing'] .chip {
+        background: color-mix(in srgb, var(--exp-accent) 14%, transparent);
+        color: var(--exp-accent);
+      }
+
+      main {
+        padding: 20px;
+      }
+      .headline {
+        font-size: 18px;
+        font-weight: 700;
+        letter-spacing: -0.02em;
+        margin: 0 0 4px;
+      }
+      .subtitle {
+        font-size: 11px;
+        color: var(--exp-text-dim);
+        margin: 0 0 14px;
+      }
+
+      /* Instructions — compressed from the old ordered list into a
+       * tight 3-row block that aligns with the rest of the card. */
+      .steps-heading {
+        font-size: 11px;
+        color: var(--exp-text-mute);
+        letter-spacing: 0.08em;
         text-transform: uppercase;
-        letter-spacing: 0.05em;
-        color: color-mix(in srgb, currentColor 70%, transparent);
+        margin: 0 0 8px;
       }
       ol.steps {
-        padding-left: 22px;
+        padding: 0;
         margin: 0 0 16px;
+        list-style: none;
+        counter-reset: step;
+        display: grid;
+        gap: 6px;
       }
       ol.steps li {
-        margin-bottom: 10px;
+        counter-increment: step;
+        font-size: 12px;
+        color: var(--exp-text-dim);
+        line-height: 1.55;
+        padding-left: 26px;
+        position: relative;
       }
-      code,
-      kbd {
-        font-family: ui-monospace, Menlo, Consolas, monospace;
-        font-size: 12.5px;
-        padding: 1px 6px;
-        border-radius: 4px;
-        background: color-mix(in srgb, currentColor 10%, transparent);
+      ol.steps li::before {
+        content: counter(step);
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 18px;
+        height: 18px;
+        border-radius: 9px;
+        background: var(--exp-surface2);
+        border: 1px solid var(--exp-line);
+        color: var(--exp-text);
+        font-family: 'JetBrains Mono', ui-monospace, Menlo, Consolas, monospace;
+        font-size: 10px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        line-height: 1;
       }
-      kbd {
-        border: 1px solid color-mix(in srgb, currentColor 20%, transparent);
-        font-weight: 600;
+      ol.steps code,
+      ol.steps kbd {
+        font-family: 'JetBrains Mono', ui-monospace, Menlo, Consolas, monospace;
+        font-size: 11px;
+        padding: 1px 5px;
+        border-radius: 3px;
+        background: var(--exp-surface2);
+        border: 1px solid var(--exp-line);
+        color: var(--exp-text);
       }
+      ol.steps strong {
+        color: var(--exp-text);
+      }
+
+      /* Token field — monospace, editable in-place. The input keeps
+       * the old #token id so options.js doesn't need to change. */
       label {
         display: block;
-        font-size: 12px;
-        font-weight: 600;
+        font-size: 11px;
+        color: var(--exp-text-mute);
+        letter-spacing: 0.08em;
         text-transform: uppercase;
-        letter-spacing: 0.04em;
         margin-bottom: 6px;
       }
-      input {
+      input#token {
         width: 100%;
         box-sizing: border-box;
-        padding: 10px 12px;
-        font-family: ui-monospace, Menlo, Consolas, monospace;
+        padding: 12px var(--exp-pad);
+        font-family: 'JetBrains Mono', ui-monospace, Menlo, Consolas, monospace;
         font-size: 13px;
-        border: 1px solid color-mix(in srgb, currentColor 20%, transparent);
-        border-radius: 6px;
-        background: transparent;
-        color: inherit;
-      }
-      input:focus {
+        letter-spacing: 0.02em;
+        background: var(--exp-surface2);
+        color: var(--exp-text);
+        border: 1px solid var(--exp-line);
+        border-radius: var(--exp-radius);
         outline: none;
-        border-color: var(--accent);
+        transition: border-color 120ms ease;
       }
+      input#token:focus {
+        border-color: var(--exp-accent);
+      }
+      .hint {
+        font-size: 11px;
+        color: var(--exp-text-mute);
+        margin-top: 8px;
+        line-height: 1.5;
+      }
+      .hint code {
+        font-family: 'JetBrains Mono', ui-monospace, Menlo, Consolas, monospace;
+        font-size: 11px;
+        padding: 1px 5px;
+        border-radius: 3px;
+        background: var(--exp-surface2);
+        border: 1px solid var(--exp-line);
+        color: var(--exp-text);
+      }
+
       .row {
         display: flex;
         gap: 8px;
-        margin-top: 12px;
+        margin-top: 14px;
       }
       button {
-        padding: 9px 16px;
+        flex: 1;
+        padding: 11px 16px;
         font-size: 13px;
-        font-weight: 500;
-        border: 1px solid color-mix(in srgb, currentColor 20%, transparent);
-        border-radius: 6px;
-        background: color-mix(in srgb, currentColor 8%, transparent);
-        color: inherit;
+        font-weight: 600;
+        letter-spacing: -0.01em;
+        border-radius: var(--exp-radius);
         cursor: pointer;
-      }
-      button:hover {
-        background: color-mix(in srgb, currentColor 14%, transparent);
+        font-family: inherit;
+        transition: background 120ms ease, color 120ms ease;
       }
       button.primary {
-        background: var(--accent);
-        color: var(--brand-navy);
-        border-color: var(--accent);
-        font-weight: 700;
+        background: var(--exp-accent);
+        color: var(--exp-accent-ink);
+        border: none;
       }
       button.primary:hover {
-        background: var(--accent-hover);
+        background: var(--exp-accent-hover);
       }
+      button.ghost {
+        background: transparent;
+        color: var(--exp-text-dim);
+        border: 1px solid var(--exp-line);
+      }
+      button.ghost:hover {
+        background: var(--exp-surface2);
+        color: var(--exp-text);
+      }
+
       #status {
         margin-top: 12px;
-        font-size: 12px;
+        font-size: 11px;
         min-height: 1em;
+        font-family: 'JetBrains Mono', ui-monospace, Menlo, Consolas, monospace;
       }
       #status[data-kind='ok'] {
-        color: var(--ok);
+        color: var(--exp-ok);
       }
       #status[data-kind='err'] {
-        color: var(--err);
+        color: var(--exp-err);
       }
-      .hint {
-        margin-top: 6px;
-        font-size: 12px;
-        color: color-mix(in srgb, currentColor 60%, transparent);
+
+      /* Local-first reassurance block — matches the lock-icon card in
+       * design-cds/components/onboarding.jsx's OnboardingChrome. */
+      .local-first {
+        margin-top: 16px;
+        padding: 12px;
+        border-radius: var(--exp-radius);
+        background: var(--exp-surface2);
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+        font-size: 11px;
+        color: var(--exp-text-dim);
+        line-height: 1.5;
+      }
+      .local-first svg {
+        flex-shrink: 0;
+        margin-top: 2px;
+        color: var(--exp-text-dim);
+      }
+      .local-first strong {
+        color: var(--exp-text);
+      }
+      .local-first code {
+        font-family: 'JetBrains Mono', ui-monospace, Menlo, Consolas, monospace;
+        color: var(--exp-text);
       }
     </style>
   </head>
   <body>
-    <h1 data-i18n="optionsH1"></h1>
-    <p class="subtitle" data-i18n="optionsSubtitle"></p>
+    <div class="card">
+      <header id="banner" data-state="missing">
+        <span class="mark" aria-hidden="true">
+          <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+            <rect x="0" y="0" width="100" height="100" rx="28" fill="var(--exp-bg)" />
+            <rect x="22" y="20" width="56" height="14" rx="2" fill="var(--exp-text)" />
+            <rect x="22" y="20" width="14" height="60" rx="2" fill="var(--exp-text)" />
+            <rect x="22" y="66" width="56" height="14" rx="2" fill="var(--exp-text)" />
+            <rect x="36" y="43" width="36" height="14" rx="2" fill="var(--exp-accent)" />
+            <path d="M 72 50 L 82 50" stroke="var(--exp-accent)" stroke-width="14" stroke-linecap="round" />
+          </svg>
+        </span>
+        <h1 data-i18n="optionsH1"></h1>
+        <span class="chip"><span id="banner-text"></span></span>
+      </header>
 
-    <div id="banner" class="status-banner" data-state="missing">
-      <span class="dot"></span>
-      <span id="banner-text"></span>
+      <main>
+        <h2 class="headline" data-i18n="optionsSubtitle"></h2>
+
+        <div class="steps-heading" data-i18n="howToGetToken"></div>
+        <ol class="steps">
+          <li data-i18n="stepInstall"></li>
+          <li data-i18n="stepOpenPalette"></li>
+          <li data-i18n="stepCopyToken"></li>
+        </ol>
+
+        <label for="token" data-i18n="tokenLabel"></label>
+        <input
+          id="token"
+          type="text"
+          spellcheck="false"
+          autocomplete="off"
+          data-i18n-placeholder="tokenPlaceholder"
+        />
+        <div class="hint" data-i18n="tokenHint"></div>
+
+        <div class="row">
+          <button id="save" type="button" class="primary" data-i18n="saveButton"></button>
+          <button id="clear" type="button" class="ghost" data-i18n="clearButton"></button>
+        </div>
+        <div id="status" aria-live="polite"></div>
+
+        <div class="local-first">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <rect x="3" y="11" width="18" height="11" rx="2" />
+            <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+          </svg>
+          <div>
+            <strong data-i18n="localFirstLead"></strong>
+            <span data-i18n="localFirstBody"></span>
+          </div>
+        </div>
+      </main>
     </div>
-
-    <h2 data-i18n="howToGetToken"></h2>
-    <ol class="steps">
-      <li data-i18n="stepInstall"></li>
-      <li data-i18n="stepOpenPalette"></li>
-      <li data-i18n="stepCopyToken"></li>
-    </ol>
-
-    <label for="token" data-i18n="tokenLabel"></label>
-    <input
-      id="token"
-      type="text"
-      spellcheck="false"
-      autocomplete="off"
-      data-i18n-placeholder="tokenPlaceholder"
-    />
-    <div class="hint" data-i18n="tokenHint"></div>
-    <div class="row">
-      <button id="save" type="button" class="primary" data-i18n="saveButton"></button>
-      <button id="clear" type="button" data-i18n="clearButton"></button>
-    </div>
-    <div id="status" aria-live="polite"></div>
 
     <script src="options.js" type="module"></script>
   </body>

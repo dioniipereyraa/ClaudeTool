@@ -64,6 +64,13 @@ export type ImportInlinePayload = z.infer<typeof ImportInlinePayload>;
 
 export type ImportHandler = (payload: ImportPayload) => Promise<void>;
 export type ImportInlineHandler = (payload: ImportInlinePayload) => Promise<void>;
+// Fired when the Chrome companion hits /ping with a valid token.
+// The companion sends this right after it stores a pairing token
+// from the claude.ai URL fragment, so VS Code can close the loop
+// ("pair confirmed") instead of the user wondering whether the
+// automatic flow worked. No payload: the bearer check is the only
+// signal — Chrome has our token, therefore the pairing succeeded.
+export type PingHandler = () => void;
 
 /**
  * Thrown by handlers to propagate a specific error code back to the
@@ -91,6 +98,7 @@ function statusForBridgeError(code: BridgeError['code']): number {
 export interface BridgeHandlers {
   readonly onImport: ImportHandler;
   readonly onImportInline: ImportInlineHandler;
+  readonly onPing?: PingHandler;
 }
 
 export interface ServerHandle {
@@ -158,6 +166,30 @@ async function handleRequest(
 ): Promise<void> {
   if (req.method !== 'POST') {
     sendJson(res, 405, { error: 'method_not_allowed' });
+    return;
+  }
+
+  // /ping is the pair-confirmation probe: Chrome sends it after saving
+  // the token from a claude.ai URL fragment. It carries no body — a
+  // valid Bearer is the whole signal. We process it before the body
+  // pipeline so an empty POST doesn't trip body-parse paths.
+  if (req.url === '/ping') {
+    const auth = req.headers.authorization ?? '';
+    const provided = /^Bearer (.+)$/.exec(auth)?.[1];
+    if (provided === undefined || !tokensMatch(provided, expectedToken)) {
+      sendJson(res, 401, { error: 'unauthorized' });
+      return;
+    }
+    try {
+      handlers.onPing?.();
+    } catch {
+      // A handler exception shouldn't leak back to Chrome — it already
+      // has the token and the user still sees the (separate) toast on
+      // claude.ai. Log once and move on.
+      // eslint-disable-next-line no-console
+      console.warn('Exportal: onPing handler threw');
+    }
+    sendJson(res, 200, { ok: true });
     return;
   }
 

@@ -21,10 +21,10 @@
     "message": "Emparejá esta extensión con la de VS Code para exportar chats de claude.ai con un click."
   },
   "bannerNotPaired": {
-    "message": "Sin emparejar — pegá tu token abajo."
+    "message": "Sin emparejar"
   },
   "bannerPaired": {
-    "message": "Emparejado — listo para exportar desde claude.ai."
+    "message": "Emparejado"
   },
   "howToGetToken": {
     "message": "¿Cómo obtengo el token?"
@@ -62,6 +62,12 @@
   "tokenInvalid": {
     "message": "El token debe tener 64 caracteres hexadecimales."
   },
+  "localFirstLead": {
+    "message": "Local-first."
+  },
+  "localFirstBody": {
+    "message": "El puente corre en <code>127.0.0.1</code>. Nada sale de tu máquina."
+  },
   "fabAriaLabel": {
     "message": "Exportal — abrir acciones"
   },
@@ -91,6 +97,15 @@
   },
   "toastExporting": {
     "message": "Exportando…"
+  },
+  "toastPairedWithVsCode": {
+    "message": "Emparejado con VS Code"
+  },
+  "pulseHeadline": {
+    "message": "Enviado a VS Code"
+  },
+  "pulseMessagesSuffix": {
+    "message": "mensajes"
   },
   "errNoOrg": {
     "message": "Sin organización — ver consola"
