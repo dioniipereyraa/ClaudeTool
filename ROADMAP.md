@@ -47,14 +47,20 @@ conversación que quiera llevar a VS Code. El one-click que tenemos en
   - `POST /design/anthropic.omelette.api.v1alpha.OmeletteService/GetProjectData`
   - también `ListFiles`, `ListComments`, `ListOrgProjects`,
     `UpdateProjectData`, todos bajo el mismo prefijo de servicio.
-  Transport: **Connect-RPC**. Content-Type response es `application/proto`
-  pero la inspección hex de la respuesta muestra que el body es un
-  protobuf trivial (`0A` + 3-byte varint length + JSON puro desde el
-  byte 4). Probable que el server soporte negociación JSON nativa
-  via `Content-Type: application/json` + `Connect-Protocol-Version: 1`
-  — pendiente de confirmar con un fetch de prueba en consola.
-  Si la negociación falla, plan B es strippear los 4 bytes de
-  framing antes del `JSON.parse` (trivial, ya vimos la estructura).
+  Transport: **Connect-RPC** sobre JSON (negociación confirmada).
+  Headers requeridos:
+  ```
+  Content-Type: application/json
+  Accept: application/json
+  Connect-Protocol-Version: 1
+  ```
+  Body: `{"project_id": "<UUID>"}` (snake_case, no `id` ni
+  `projectId`). Cookies de sesión via `credentials: 'same-origin'`.
+  Errores también vienen en JSON con shape Connect estándar:
+  `{code, message, details: [{type: 'buf.validate.Violations', value, debug}]}`.
+  El server-side usa `buf.validate` para validación de schema, lo
+  que implica que la API es protobuf-first con la JSON como
+  fachada. La shape del response 200 — pendiente de capturar.
 - Tab de Claude Design = mismo storage / sesión que claude.ai/chat,
   no requiere login separado.
 
