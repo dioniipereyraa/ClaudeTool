@@ -8,10 +8,13 @@ Items concretos y cerrados se mueven al `DEVLOG.md`. Releases formales al
 
 - [ ] Verificar el flujo de instalación en una máquina limpia (vsix +
   zip del companion desde releases, emparejar, probar ambos sentidos).
-- [ ] Recapturar `docs/screenshots/fab.png`, `onboarding.jpeg`,
-  `options.png` con el branding citrus (hoy siguen siendo capturas del
-  navy+orange viejo, desaliniadas con la UI real). Después subir las
-  nuevas al listing del Chrome Web Store y al del VS Code Marketplace.
+- [ ] Subir los screenshots nuevos al listing del Chrome Web Store
+  y al del VS Code Marketplace. Las capturas ya están hechas en
+  Claude Design (incluida una nueva del bundling de assets que
+  agregamos en hito 28). Pendiente también: pisar
+  `docs/screenshots/fab.png`, `onboarding.jpeg`, `options.png` con
+  los nuevos para que el README y el detail page del Marketplace
+  dejen de mostrar las capturas del navy+orange viejo.
 - [ ] Investigar el flake de `npm run ci` en Windows: la primera
   corrida de vitest falla con `TypeError: Cannot read properties of
   undefined (reading 'config')` en los 18 test files y la segunda
