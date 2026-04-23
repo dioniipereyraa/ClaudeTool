@@ -5,18 +5,29 @@ import { type AddressInfo } from 'node:net';
 import { z } from 'zod';
 
 /**
- * Local HTTP server that accepts POST /import from a Chrome companion
- * extension. The Chrome extension observes when claude.ai finishes an
- * official ZIP export (via `chrome.downloads` API) and forwards the
- * download path here — zero scraping, just automation of a legitimate
- * user-initiated export.
+ * Local HTTP server talking to the Chrome companion. Three endpoints,
+ * all bearer-authenticated and bound to 127.0.0.1:
+ *
+ *   POST /import         — filesystem path to an official claude.ai
+ *                          export ZIP that just finished downloading.
+ *                          Companion watches chrome.downloads and
+ *                          forwards the path; we open the chosen
+ *                          conversation as Markdown.
+ *   POST /import-inline  — full conversation JSON scraped by the
+ *                          companion via claude.ai's internal API.
+ *                          No ZIP in the loop; instant export.
+ *   POST /ping           — pairing confirmation. Companion hits this
+ *                          after saving the pairing token so VS Code
+ *                          can close the loop (notification + webview
+ *                          success state).
  *
  * Pure in terms of VS Code APIs so it can be unit-tested with `fetch`.
  *
  * ## Security
  * - Bound to 127.0.0.1 only — never accessible from other hosts.
  * - Bearer token required on every request. Constant-time compared.
- * - Request body capped at 64 KB (we only accept a small JSON payload).
+ * - Request body capped (64 KB for /import, 10 MB for /import-inline,
+ *   /ping has no body).
  * - Port is picked from a fixed range so the Chrome extension can find
  *   us with a short probe sequence without any filesystem handshake.
  */
@@ -58,7 +69,6 @@ const ImportInlinePayload = z.object({
       (v): v is Record<string, unknown> => v !== null && typeof v === 'object' && !Array.isArray(v),
       { message: 'conversation must be an object' },
     ),
-  userFullName: z.string().optional(),
 });
 export type ImportInlinePayload = z.infer<typeof ImportInlinePayload>;
 

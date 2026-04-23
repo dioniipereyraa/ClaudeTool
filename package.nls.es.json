@@ -1,5 +1,5 @@
 {
-  "extension.description": "Puente entre claude.ai y VS Code. Import de conversaciones con un click vía la extensión de Chrome Exportal Companion — ejecutá \"Exportal: Mostrar token de emparejamiento\" para conectar.",
+  "extension.description": "Puente entre claude.ai y Claude Code. Exportá cualquier chat a Markdown limpio en un click — adjuntado automáticamente como contexto. Requiere la extensión Exportal Companion en Chrome.",
   "command.importFromZip.title": "Exportal: Importar ZIP de claude.ai",
   "command.showPairingInfo.title": "Exportal: Mostrar token de emparejamiento",
   "command.sendSessionToClaudeAi.title": "Exportal: Enviar sesión de Claude Code a claude.ai",

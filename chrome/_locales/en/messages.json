@@ -23,18 +23,6 @@
     "message": "Exportal Companion",
     "description": "Options page heading."
   },
-  "optionsSubtitle": {
-    "message": "Pair this extension with the one in VS Code to export claude.ai chats with one click.",
-    "description": "Short explanation under the options page heading."
-  },
-  "bannerNotPaired": {
-    "message": "Not paired",
-    "description": "Short status chip shown in the header when no token is saved. Still referenced from background.js for the toolbar tooltip — options page uses chipWaiting/chipDetected/chipPaired instead."
-  },
-  "bannerPaired": {
-    "message": "Paired",
-    "description": "Short status chip shown in the header after a valid token is saved. Still referenced from background.js for the toolbar tooltip — options page uses chipPaired instead."
-  },
   "chipWaiting": {
     "message": "Waiting…",
     "description": "Options page header chip — shown when no token is saved and the input is empty."
@@ -83,22 +71,6 @@
     "message": "Unpair",
     "description": "Low-contrast text button shown only in paired state to clear the stored token."
   },
-  "howToGetToken": {
-    "message": "How do I get the token?",
-    "description": "Heading over the pairing instructions."
-  },
-  "stepInstall": {
-    "message": "Install the <strong>Exportal</strong> extension in VS Code (search for \"Exportal\" in the Marketplace or install the <code>.vsix</code>).",
-    "description": "Pairing step 1 — contains markup rendered via innerHTML."
-  },
-  "stepOpenPalette": {
-    "message": "In VS Code open the command palette (<kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>P</kbd>) and run <code>Exportal: Show bridge pairing token</code>.",
-    "description": "Pairing step 2 — contains markup rendered via innerHTML."
-  },
-  "stepCopyToken": {
-    "message": "Click <strong>Copy token</strong>. Come back here and paste it into the field below.",
-    "description": "Pairing step 3 — contains markup rendered via innerHTML."
-  },
   "tokenLabel": {
     "message": "Local bridge token",
     "description": "Label for the token input field."
@@ -110,24 +82,6 @@
   "tokenHint": {
     "message": "Must match exactly the one shown by VS Code. 64 characters in <code>0-9</code> and <code>a-f</code>.",
     "description": "Hint below the token input — contains markup."
-  },
-  "saveButton": {
-    "message": "Save"
-  },
-  "clearButton": {
-    "message": "Clear"
-  },
-  "tokenSaved": {
-    "message": "Token saved.",
-    "description": "Status message after the token is persisted."
-  },
-  "tokenCleared": {
-    "message": "Token cleared.",
-    "description": "Status message after the token is removed."
-  },
-  "tokenInvalid": {
-    "message": "Token must be 64 hexadecimal characters.",
-    "description": "Error shown when pasted token fails the regex check."
   },
   "localFirstLead": {
     "message": "Local-first.",

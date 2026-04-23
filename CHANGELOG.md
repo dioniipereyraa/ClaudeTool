@@ -6,6 +6,47 @@ Companion (Chrome extension) are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 and versions follow [Semantic Versioning](https://semver.org/).
 
+## [0.5.6] — 2026-04-23
+
+### Changed
+
+- Marketplace/CWS description (`package.nls.json` / `package.nls.es.json`)
+  refreshed to describe the current one-click flow + the Claude Code
+  auto-attach, instead of the obsolete "run 'Show bridge pairing
+  token' to connect" phrasing.
+
+### Removed
+
+Dead-code sweep after the 0.5.x redesign. No runtime behaviour change
+— these were all unused declarations that survived the options-page
+rewrite and the webview pairing panel:
+
+- Chrome `_locales/{en,es}/messages.json`: 12 dead i18n keys
+  (`bannerNotPaired`, `bannerPaired`, `clearButton`, `howToGetToken`,
+  `optionsSubtitle`, `saveButton`, `stepCopyToken`, `stepInstall`,
+  `stepOpenPalette`, `tokenCleared`, `tokenInvalid`, `tokenSaved`).
+  None were referenced from code after the OnboardingChrome
+  three-state rewrite.
+- VS Code `l10n/bundle.l10n.es.json`: 9 dead translations from the
+  old blocking-modal onboarding (`TOKEN:`, `STEPS:`, the three
+  numbered step lines, the re-open hint, the two headline variants,
+  and `Copy token`). The webview replaced them in v0.5.0.
+- `src/extension/http-server.ts`: the `userFullName` field on
+  `ImportInlinePayload` that was declared but never populated or
+  read.
+
+### Fixed
+
+- Stale comment at `extension.ts:99` still described "show a modal"
+  as the onboarding mechanism; replaced with the webview description.
+- Header doc of `http-server.ts` only mentioned `POST /import`;
+  expanded to cover all three endpoints (`/import`, `/import-inline`,
+  `/ping`).
+- `docs/screenshots/README.md`: "modal" → "panel" and "banner verde
+  de Emparejado" → "chip de Emparejado" to match the shipped UI.
+- `docs/CHROME_WEB_STORE_LISTING.md`: the package filename example
+  no longer hardcodes `0.3.0`.
+
 ## [0.5.5] — 2026-04-23
 
 ### Changed

@@ -96,11 +96,12 @@ export function activate(context: vscode.ExtensionContext): void {
     else activeHandle = handle;
   });
 
-  // First-run onboarding: show a modal with the pairing token and
-  // step-by-step instructions. Modal dialogs in VS Code stay on screen
-  // until the user interacts with them — deliberate, so if the user is
-  // distracted during install they still see it when they come back.
-  void showOnboardingIfNeeded(context);
+  // First-run onboarding: open the pairing webview with the token and
+  // the "Copy and open Chrome" one-click flow. Showing the panel is
+  // non-blocking — the user can close the tab whenever — but the flag
+  // we set in showOnboardingIfNeeded ensures we only do this once per
+  // install, so repeat activations are silent.
+  showOnboardingIfNeeded(context);
 }
 
 export function deactivate(): void {

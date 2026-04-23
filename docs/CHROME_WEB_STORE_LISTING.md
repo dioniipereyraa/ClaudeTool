@@ -154,7 +154,7 @@ https://github.com/dioniipereyraa/ClaudeTool/blob/main/docs/PRIVACY.md
   - `docs/screenshots/onboarding.jpeg`
 - **Promotional tile** (440×280): opcional, podés skippearlo para la
   primera versión.
-- **ZIP del package**: `exportal-companion-0.3.0.zip`.
+- **ZIP del package**: `exportal-companion-<version>.zip` (generar con `npm run package:chrome`; la versión se toma de `chrome/manifest.json`).
 
 ---
 

@@ -17,15 +17,6 @@
   "optionsH1": {
     "message": "Exportal Companion"
   },
-  "optionsSubtitle": {
-    "message": "Emparejá esta extensión con la de VS Code para exportar chats de claude.ai con un click."
-  },
-  "bannerNotPaired": {
-    "message": "Sin emparejar"
-  },
-  "bannerPaired": {
-    "message": "Emparejado"
-  },
   "chipWaiting": {
     "message": "Esperando…"
   },
@@ -62,18 +53,6 @@
   "unpairButton": {
     "message": "Desemparejar"
   },
-  "howToGetToken": {
-    "message": "¿Cómo obtengo el token?"
-  },
-  "stepInstall": {
-    "message": "Instalá la extensión <strong>Exportal</strong> en VS Code (buscá \"Exportal\" en el Marketplace o instalá el <code>.vsix</code>)."
-  },
-  "stepOpenPalette": {
-    "message": "En VS Code abrí la paleta de comandos (<kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>P</kbd>) y ejecutá <code>Exportal: Mostrar token de emparejamiento</code>."
-  },
-  "stepCopyToken": {
-    "message": "Click en <strong>Copiar token</strong>. Volvé acá y pegalo en el campo de abajo."
-  },
   "tokenLabel": {
     "message": "Token del puente local"
   },
@@ -82,21 +61,6 @@
   },
   "tokenHint": {
     "message": "Debe coincidir exactamente con el que muestra VS Code. 64 caracteres en <code>0-9</code> y <code>a-f</code>."
-  },
-  "saveButton": {
-    "message": "Guardar"
-  },
-  "clearButton": {
-    "message": "Borrar"
-  },
-  "tokenSaved": {
-    "message": "Token guardado."
-  },
-  "tokenCleared": {
-    "message": "Token eliminado."
-  },
-  "tokenInvalid": {
-    "message": "El token debe tener 64 caracteres hexadecimales."
   },
   "localFirstLead": {
     "message": "Local-first."
