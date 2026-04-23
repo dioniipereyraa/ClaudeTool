@@ -26,68 +26,68 @@ abajo. Cambios al orden se discuten explícitamente.
 
 ### Hito 27 — Soporte para Claude Design (próximo)
 
-**Problema**: Claude Design ganó tracción recientemente pero hoy no
-hay camino de exportación directa — el usuario tiene que descargar
-el ZIP oficial de claude.ai y correr `Exportal: Import claude.ai ZIP`
-para cada proyecto que quiera llevar a VS Code. El one-click que
-tenemos en `claude.ai/chat/<uuid>` no aplica porque la URL de Design
-es distinta.
+**Problema**: Claude Design está ganando tracción y hoy no hay camino
+de exportación directa — el usuario tiene que descargar el ZIP oficial
+de claude.ai y correr `Exportal: Import claude.ai ZIP` para cada
+conversación que quiera llevar a VS Code. El one-click que tenemos en
+`claude.ai/chat/<uuid>` no aplica porque Claude Design usa otra ruta.
 
-**Recon hecho** (sesión 2026-04-23):
-- **Dominio**: `https://claude.ai/design` (same-origin que
-  `claude.ai/chat`). Cookies de sesión compartidas. Esto significa
-  que `content_scripts.matches: ["https://claude.ai/*"]` del manifest
-  **ya cubre** Design — no hay cambios de permisos, no hay re-review
-  de CWS.
-- **URL patterns observados**:
-  - `/design` — landing sin proyecto.
-  - `/design/p/<UUID>` — proyecto individual abierto (el UUID es el
-    project id; parecido al modelo de Projects de claude.ai, no al de
-    `/chat/<uuid>`).
-  - `/design/p/<UUID>?file=<filename>` — un archivo/artefacto
-    específico dentro del proyecto (ej.
-    `?file=Exportal+Redise%C3%B1o.html`).
-- **API interna**: por confirmar. En DevTools → Network el usuario no
-  ve requests evidentes — puede que sea WebSocket (el chat en Design
-  parece streaming) o que la tab no estaba filtrada por "Fetch/XHR".
-  Candidatos a probar:
-  - `/api/organizations/<org>/projects/<UUID>` — shape Projects
-    estándar de claude.ai.
-  - `/api/organizations/<org>/projects/<UUID>/chat_conversations` —
-    turnos del chat dentro del proyecto.
-  - Algún endpoint de artifacts/files para el `?file=` slug.
+**Recon (cerrado 2026-04-23)**:
+- **Dominio**: same-origin con claude.ai (`https://claude.ai/design`).
+  Implicación: nuestro content script ya se inyecta acá (matchea
+  `https://claude.ai/*`), no toca `manifest.json`, no hay re-review
+  en CWS por permisos, cookies de sesión compartidas. El único
+  motivo por el que el FAB no aparece hoy es que
+  `extractConversationIdFromPath` filtra por `/chat/<uuid>`.
+- **URL pattern**: `claude.ai/design/p/<UUID>` con UUID en el mismo
+  formato RFC-4122 que ya matcheamos. Variante con archivo abierto:
+  `?file=<filename>` (no afecta la identidad de la conversación).
+- **API**: endpoints interesantes en el Network tab durante navegación
+  de un proyecto: `GetProject` y `GetProjectData` (~56 KB cada uno),
+  `ListFiles`, `ListComments`. Los dos primeros con alta probabilidad
+  contienen el chat history (el sidebar izquierdo del UI tiene el
+  diálogo completo). **Falta capturar el path exacto y la shape JSON
+  de uno de esos endpoints** para poder escribir el reader/parser.
+- Tab de Claude Design = mismo storage / sesión que claude.ai/chat,
+  no requiere login separado.
 
-**Plan** (aprovecha el same-origin):
+**Plan**:
 
-1. En `pure.js`, agregar `extractDesignProjectIdFromPath` para
-   matchear `/design/p/<UUID>` (y opcionalmente el query `?file=`
-   si terminamos soportando export por archivo individual).
-2. En `content-script.js`, `syncPanel()` ya corre en Design por el
-   matcher existente — solo falta agregar el branch de detección:
-   si `extractConversationIdFromPath` no matchea, probar el de
-   Design.
-3. Nuevo fetch hacia `/api/organizations/<org>/projects/<UUID>` (o
-   donde termine viviendo la API). Reusamos la infra de
-   `fetchOrganizationIds` + iteración multi-org para encontrar la
-   org correcta.
-4. Decidir formato de export: (a) chat history del proyecto como
-   Markdown estándar, (b) archivos generados como archivos sueltos
-   en el workspace, (c) ambos. Posible primera entrega: solo (a)
-   — reusa 90% del pipeline actual.
-5. FAB + popover: sin cambio visual. La copy de los botones puede
-   necesitar ajuste ("Exportar este proyecto" en vez de "Exportar
-   este chat") — decisión post-recon.
+1. **Pure helper**: agregar `extractDesignProjectIdFromPath(pathname)`
+   en `chrome/pure.js`, análogo al existing `extractConversationIdFromPath`,
+   matching `/^\/design\/p\/([0-9a-f-]{36})/`. Tests en
+   `tests/chrome/pure.test.ts`.
+2. **Routing del FAB**: `currentConversationId()` en
+   `chrome/content-script.js` ahora devuelve `{kind: 'chat'|'design', id}`
+   en vez de un string. `syncPanel`, `panelConversationId`, etc se
+   adaptan. El FAB renderiza igual (mismo design) — solo cambia la
+   ruta del fetch interno.
+3. **Fetch del Design**: nueva función `fetchDesignProject(projectId)`
+   que llama el endpoint correcto (a determinar tras la captura de
+   payload) y devuelve la conversación normalizada al mismo shape
+   que ya espera el bridge `/import-inline`. Si la shape de Design
+   difiere mucho de la de chat, normalizamos del lado del content
+   script para que el bridge no se entere.
+4. **Formatter**: si los messages de Design tienen el mismo shape
+   básico (role + content), el formatter actual sirve. Si tienen
+   estructura distinta (referencias a archivos generados, code
+   artifacts diferenciados), agregar un caso al formatter o un
+   formatter dedicado bajo `src/formatters/`.
+5. **Fallback ZIP**: el ZIP oficial de claude.ai ya incluye los
+   chats de Design — si el fetch inline falla, el path
+   `Exportal: Import claude.ai ZIP` sigue funcionando.
 
-**Bloqueado por**: confirmar la API interna de Design. Recon a
-hacer: con DevTools filtrado a "Fetch/XHR", abrir un proyecto, scroll
-del chat, click en algún file. Si no aparece nada HTTP, usar la tab
-"WS" de Network para ver si es WebSocket. Si es WebSocket, la ruta
-de fetch inline queda descartada — caemos al ZIP con un matcher
-nuevo en `pure.js` para `design-<uuid>.zip`.
+**Bloquea ahora**: capturar la response de `GetProject` o
+`GetProjectData` (URL completa + body JSON). Sin eso no podemos
+escribir el step (3).
 
-**Side benefit**: si el formatter de Design termina teniendo shape
-muy distinto al de claude.ai/chat, parte del work del Hito 20 (core
-abstracto) se adelanta acá.
+**Riesgo medio**: la API de Design puede ser más reciente / menos
+estable que la de chat. Vale dejar el feature flag `data-exportal-
+design-enabled` para poder esconder la entrada si Anthropic rompe
+el endpoint.
+
+**Side benefit**: si el formatter de Design termina siendo distinto,
+adelantamos parte de la abstracción que pide el Hito 20.
 
 ### Hito 19 — Import como "chat del historial" (reconstruir `.jsonl`)
 
