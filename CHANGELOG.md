@@ -6,6 +6,21 @@ Companion (Chrome extension) are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 and versions follow [Semantic Versioning](https://semver.org/).
 
+## [0.6.1] — 2026-04-23
+
+### Fixed
+
+- **Claude Design exports: UTF-8 mojibake in message text** (`extensión`
+  shipped as `extensiÃ³n`, `diseño` as `diseÃ±o`, `¡` as `Â¡`, etc).
+  `adaptDesignToConversation` was feeding `atob(outer.data)` straight
+  into `JSON.parse`. `atob` returns a binary string where each char
+  is a single byte, so multi-byte UTF-8 sequences (ñ = 0xC3 0xB1, ó
+  = 0xC3 0xB3) decoded as the Latin-1 pair `Ã±` / `Ã³`. JSON.parse
+  accepted them silently and the corruption rode through to the
+  `.exportal/<...>.md` file. Fix: walk the binary string into a
+  `Uint8Array` and decode it with `TextDecoder('utf-8')` before
+  parsing. Found via the first real end-to-end smoke test of v0.6.0.
+
 ## [0.6.0] — 2026-04-23
 
 ### Added

@@ -597,7 +597,13 @@ function adaptDesignToConversation(outer) {
   }
   let inner;
   try {
-    inner = JSON.parse(atob(outer.data));
+    // atob returns a "binary string" — each char is a byte (0-255).
+    // The Design payload is UTF-8 inside, so multibyte chars like
+    // ñ/ó get split into the Latin-1 pair (Ã±/Ã³) if we feed atob's
+    // output straight to JSON.parse. Re-decode as UTF-8 by walking
+    // the string into a Uint8Array and TextDecoder'ing it.
+    const bytes = Uint8Array.from(atob(outer.data), (c) => c.charCodeAt(0));
+    inner = JSON.parse(new TextDecoder('utf-8').decode(bytes));
   } catch {
     throw new Error('invalid_response');
   }

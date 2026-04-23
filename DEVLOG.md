@@ -1699,3 +1699,33 @@ por el ZIP oficial.
   de Claude Design (`↓ Descargar todos` etc).
 - **`todos` / `composer.text` (estado del UI)**: irrelevante para
   el contexto de Claude Code.
+
+### Addendum 2026-04-23 (v0.6.1) — bug encoding UTF-8
+
+Smoke test end-to-end del usuario sobre el proyecto Design pasó: el
+chat se exportó completo a `.exportal/<...>.md` con todos los
+mensajes, roles y timestamps correctos. Pero el texto vino corrupto:
+`extensión` aparecía como `extensiÃ³n`, `diseño` como `diseÃ±o`,
+`¡Hola!` como `Â¡Hola!`. Mojibake clásico de "UTF-8 leído como
+Latin-1".
+
+Causa: en `adaptDesignToConversation` hacíamos
+`JSON.parse(atob(outer.data))`. `atob()` devuelve un binary string
+donde cada char es un byte (0-255), así que las secuencias multibyte
+de UTF-8 (ñ = 0xC3 0xB1, ó = 0xC3 0xB3) llegaban a `JSON.parse` como
+pares de chars Latin-1. JSON.parse acepta cualquier char válido en
+strings sin chistar, así que la corrupción rodaba hasta el
+`.exportal/<...>.md` final.
+
+Fix en v0.6.1: walk del binary string a `Uint8Array` y decode con
+`TextDecoder('utf-8')` antes del `JSON.parse`:
+
+```js
+const bytes = Uint8Array.from(atob(outer.data), (c) => c.charCodeAt(0));
+inner = JSON.parse(new TextDecoder('utf-8').decode(bytes));
+```
+
+Encontrado a la primera corrida real. Lección: el path Design tiene
+el extra step de base64 que el path /chat no tiene (donde
+`res.json()` decodifica UTF-8 nativo por content-type). No replicar
+esto en futuros adapters de plataformas con base64 en el response.

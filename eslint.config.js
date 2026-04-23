@@ -37,6 +37,8 @@ export default tseslint.config(
         requestAnimationFrame: 'readonly',
         setInterval: 'readonly',
         setTimeout: 'readonly',
+        TextDecoder: 'readonly',
+        Uint8Array: 'readonly',
         URL: 'readonly',
         URLSearchParams: 'readonly',
         window: 'readonly',
