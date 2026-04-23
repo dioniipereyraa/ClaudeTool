@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Exportal — Promo C (440x280)</title>
+<style>
+  body {
+    margin: 0;
+    padding: 40px;
+    background: #2b2b2b;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    min-height: 100vh;
+  }
+
+  .promo {
+    width: 440px;
+    height: 280px;
+    background: #F3EEE6;
+    position: relative;
+    overflow: hidden;
+    color: #1E1E46;
+    box-sizing: border-box;
+    padding: 32px 28px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+    flex-shrink: 0;
+  }
+
+  /* Mini E logo in top-left corner */
+  .corner-logo {
+    position: absolute;
+    top: 14px;
+    left: 14px;
+    width: 28px;
+    height: 28px;
+    background: #1E1E46;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .headline {
+    font-size: 40px;
+    font-weight: 800;
+    letter-spacing: -1.5px;
+    line-height: 1.05;
+    color: #1E1E46;
+    margin: 0;
+  }
+
+  .headline .arrow {
+    color: #F58C3D;
+    font-weight: 700;
+    margin: 0 6px;
+  }
+
+  .subline {
+    margin-top: 14px;
+    font-size: 14px;
+    color: #1E1E46;
+    opacity: 0.65;
+    font-weight: 500;
+    line-height: 1.4;
+  }
+
+  .footer {
+    position: absolute;
+    bottom: 16px;
+    left: 28px;
+    font-size: 11px;
+    letter-spacing: 3px;
+    color: #F58C3D;
+    font-weight: 700;
+  }
+
+  .version {
+    position: absolute;
+    bottom: 16px;
+    right: 28px;
+    font-size: 11px;
+    letter-spacing: 0.5px;
+    color: #1E1E46;
+    opacity: 0.45;
+    font-weight: 500;
+  }
+</style>
+</head>
+<body>
+
+<!--
+  Para screenshot exacto 440x280:
+  1. Abrí este archivo en Chrome.
+  2. F12 → Elements → seleccioná el div .promo.
+  3. Ctrl+Shift+P dentro de DevTools → "Capture node screenshot".
+  4. Chrome te descarga un PNG a exactos 440x280.
+-->
+
+<div class="promo">
+  <div class="corner-logo">
+    <svg width="20" height="20" viewBox="0 0 40 40">
+      <rect x="10" y="9" width="22" height="4" fill="white"/>
+      <rect x="10" y="18" width="14" height="4" fill="#F58C3D"/>
+      <rect x="10" y="27" width="22" height="4" fill="white"/>
+    </svg>
+  </div>
+
+  <h1 class="headline">
+    claude.ai<br>
+    <span class="arrow">&rarr;</span> VS Code
+  </h1>
+
+  <p class="subline">
+    Exportá cualquier chat con un click.<br>
+    Local, sin red, sin cuentas.
+  </p>
+
+  <div class="footer">EXPORTAL</div>
+  <div class="version">v0.3.0</div>
+</div>
+
+</body>
+</html>

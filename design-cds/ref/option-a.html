@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Exportal — Promo A (440x280)</title>
+<style>
+  body {
+    margin: 0;
+    padding: 40px;
+    background: #e5e5e5;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+  }
+
+  .promo {
+    width: 440px;
+    height: 280px;
+    background: linear-gradient(135deg, #1E1E46 0%, #2A2A5A 100%);
+    position: relative;
+    overflow: hidden;
+    color: white;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    padding: 24px;
+  }
+
+  .title {
+    font-size: 22px;
+    font-weight: 700;
+    text-align: center;
+    line-height: 1.25;
+    letter-spacing: -0.3px;
+    margin-bottom: 28px;
+  }
+
+  .title .accent { color: #F58C3D; }
+
+  .flow {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+  }
+
+  .node {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    width: 72px;
+  }
+
+  .icon {
+    width: 56px;
+    height: 56px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .icon.claude { background: #F3EEE6; }
+  .icon.exportal {
+    background: #1E1E46;
+    box-shadow: 0 0 0 2px rgba(245, 140, 61, 0.5);
+  }
+  .icon.vscode { background: #0078D4; }
+
+  .label {
+    font-size: 11px;
+    opacity: 0.7;
+    font-weight: 500;
+    letter-spacing: 0.2px;
+  }
+
+  .arrow {
+    color: #F58C3D;
+    font-size: 24px;
+    line-height: 56px;
+    font-weight: 300;
+  }
+
+  .footer {
+    position: absolute;
+    bottom: 14px;
+    left: 0;
+    right: 0;
+    text-align: center;
+    font-size: 10px;
+    letter-spacing: 3px;
+    color: #F58C3D;
+    font-weight: 700;
+  }
+</style>
+</head>
+<body>
+
+<!--
+  Para screenshot exacto 440x280:
+  1. Abrí este archivo en Chrome.
+  2. F12 → Elements → seleccioná el div .promo.
+  3. Ctrl+Shift+P dentro de DevTools → "Capture node screenshot".
+  4. Chrome te descarga un PNG a exactos 440x280.
+-->
+
+<div class="promo">
+  <div class="title">
+    De <span class="accent">claude.ai</span> a <span class="accent">VS Code</span><br>
+    en 1 click
+  </div>
+
+  <div class="flow">
+    <div class="node">
+      <div class="icon claude">
+        <!-- Claude asterisk / starburst -->
+        <svg width="30" height="30" viewBox="0 0 32 32">
+          <g stroke="#D97757" stroke-width="3" stroke-linecap="round">
+            <line x1="16" y1="3" x2="16" y2="29"/>
+            <line x1="3" y1="16" x2="29" y2="16"/>
+            <line x1="6.8" y1="6.8" x2="25.2" y2="25.2"/>
+            <line x1="25.2" y1="6.8" x2="6.8" y2="25.2"/>
+          </g>
+        </svg>
+      </div>
+      <div class="label">claude.ai</div>
+    </div>
+
+    <div class="arrow">&rarr;</div>
+
+    <div class="node">
+      <div class="icon exportal">
+        <!-- Mini Exportal E -->
+        <svg width="38" height="38" viewBox="0 0 40 40">
+          <rect x="10" y="9" width="22" height="4" fill="white"/>
+          <rect x="10" y="18" width="14" height="4" fill="#F58C3D"/>
+          <rect x="10" y="27" width="22" height="4" fill="white"/>
+        </svg>
+      </div>
+      <div class="label">Exportal</div>
+    </div>
+
+    <div class="arrow">&rarr;</div>
+
+    <div class="node">
+      <div class="icon vscode">
+        <!-- VS Code style logo -->
+        <svg width="32" height="32" viewBox="0 0 32 32">
+          <path d="M23 4 L10.5 15 L6 11.5 L3.5 13 V19 L6 20.5 L10.5 17 L23 28 L27 26 V6 Z"
+                fill="white" opacity="0.95"/>
+          <path d="M23 4 V28 L27 26 V6 Z" fill="white" opacity="0.7"/>
+        </svg>
+      </div>
+      <div class="label">VS Code</div>
+    </div>
+  </div>
+
+  <div class="footer">EXPORTAL</div>
+</div>
+
+</body>
+</html>
