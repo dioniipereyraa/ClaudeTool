@@ -1844,10 +1844,22 @@ Claude Design eso es la mitad del valor.
 - Typecheck + lint limpios.
 - Build limpio. vsix = 879.2 KB (subió ~3 KB respecto a 0.6.1, todo
   por el handler nuevo + sanitización).
-- **Smoke test end-to-end pendiente**: el código compila pero hay
-  que probar el flujo en el browser real con el proyecto Design del
-  usuario. Plan: smoke test antes del tag v0.7.0 (lo hago el user
-  cuando reload el companion + reinstall el vsix).
+- **Smoke test end-to-end ✅ pasado** sobre el proyecto Design del
+  usuario (`claude.ai/design/p/ab145d0a-...`):
+  - Header `## Generated assets` aparece prependado en
+    `.exportal/2026-04-23-1331-exportal-exportal-chrome-extension.md`
+    listando los 5 archivos (`.design-canvas.state.json`,
+    `Exportal Rediseño.html`, `asset.html`, `design-canvas.jsx`,
+    `store-assets.html`) con MIMEs correctos (incluido `text/jsx`
+    que vino del server, sin hardcoding) y tamaños razonables.
+  - Carpeta hermana `.exportal/2026-04-23-1331-exportal-exportal-chrome-extension/`
+    se creó y contiene los 5 archivos con su contenido íntegro.
+  - Filenames con espacio + acento (`Exportal Rediseño.html`) y dot
+    inicial (`.design-canvas.state.json`) preservados verbatim — la
+    sanitización los aceptó sin slugificar.
+  - El chat sigue al final del .md con UTF-8 limpio (fix de v0.6.1).
+  - Conversación de 14 mensajes completa, alternancia user/assistant
+    correcta, contenido íntegro.
 
 ### Lo que NO entra
 - **Recursión en `components/`, `ref/`, `store/`**: el árbol top-level
