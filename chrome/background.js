@@ -115,6 +115,19 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
+  if (message?.type === 'exportal:openOptionsPage') {
+    // Content-script requests this right after a successful auto-pair
+    // so the user lands on the brand UI (the three-state
+    // OnboardingChrome panel) instead of just a transient toast. The
+    // origin guard above already restricts this to claude.ai — we
+    // re-assert intent by looking at the URL here would be redundant.
+    chrome.runtime
+      .openOptionsPage()
+      .then(() => sendResponse({ ok: true }))
+      .catch((err) => sendResponse({ ok: false, error: String(err) }));
+    return true;
+  }
+
   if (message?.type === 'exportal:setPairingToken') {
     // Auto-pair from a VS Code → claude.ai URL fragment. The content
     // script pre-validated the 64-hex shape; we re-validate here as

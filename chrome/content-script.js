@@ -769,6 +769,13 @@ function consumePairingFragment() {
       console.info('[Exportal] pair: success, stored in chrome.storage.local');
       stripPairingFragment();
       showToast(chrome.i18n.getMessage('toastPairedWithVsCode'), 'ok');
+      // Surface the "paired" state in the extension's own UI instead
+      // of only a transient claude.ai toast. openOptionsPage opens
+      // the page as a full tab (manifest has open_in_tab: true) so
+      // the OnboardingChrome card renders at the intended size.
+      // Fire-and-forget: if opening fails (rare), the toast above is
+      // still enough confirmation.
+      chrome.runtime.sendMessage({ type: 'exportal:openOptionsPage' });
     },
   );
 }
