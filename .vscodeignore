@@ -6,8 +6,11 @@ node_modules/**
 coverage/**
 .vitest-cache/**
 
-# Icon: ship PNG, not SVG
+# Marketplace icon: ship PNG, not SVG. The activity-bar icon
+# (sidebar-icon.svg) MUST ship — it's referenced from package.json
+# contributes.viewsContainers and VS Code resolves it at runtime.
 assets/*.svg
+!assets/sidebar-icon.svg
 
 # Build tooling
 tsconfig*.json

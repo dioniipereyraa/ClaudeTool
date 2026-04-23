@@ -1,8 +1,12 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" aria-label="Exportal">
-  <!-- Monochrome version of ExportalMark for the activity bar.
-       VS Code tints this to the active/inactive activity-bar color
-       via currentColor, so it must be a single solid shape. -->
-  <path d="M5 4h14v3H8v3.5h9v3H8V17h11v3H5z"/>
-  <!-- The "portal" arrow: short bar + arrowhead extending right. -->
-  <path d="M11 11l5 0 0-1.5 3 2-3 2 0-1.5-5 0z"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-label="Exportal">
+  <!-- Activity-bar icon: line-art "E" with a portal arrow.
+       VS Code tints this gray (active/inactive) via currentColor.
+       Stroke-based to match the codicon aesthetic of the rest of
+       the activity bar instead of looking like a filled blob. -->
+  <path d="M5 5v14"/>
+  <path d="M5 5h8"/>
+  <path d="M5 12h6"/>
+  <path d="M5 19h8"/>
+  <path d="M16 12h4"/>
+  <path d="M18 10l2 2-2 2"/>
 </svg>
