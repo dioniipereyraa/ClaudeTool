@@ -2,7 +2,7 @@
 
 Puente entre **claude.ai** y **Claude Code** (VS Code). Exportá cualquier chat de claude.ai a Markdown limpio con un click o un atajo de teclado — listo para pegar como contexto en Claude Code.
 
-> **Estado**: v0.3.0 — bidireccional (claude.ai ↔ Claude Code). Extensión de VS Code + companion de Chrome + CLI.
+> **Estado**: bidireccional (claude.ai ↔ Claude Code). Extensión de VS Code + companion de Chrome + CLI.
 > Changelog: [`CHANGELOG.md`](./CHANGELOG.md). Modelo de amenazas: [`SECURITY.md`](./SECURITY.md). Avance detallado: [`DEVLOG.md`](./DEVLOG.md). Qué viene: [`ROADMAP.md`](./ROADMAP.md).
 
 ## Qué resuelve
@@ -44,15 +44,14 @@ npm run package:vsix
 code --install-extension exportal-*.vsix
 ```
 
-Al abrir VS Code por primera vez aparece un modal con el **token de emparejamiento** y los pasos para configurar Chrome. Si te distraés, lo reabrís con `Ctrl+Shift+P` → **Exportal: Show bridge pairing token**.
+Al abrir VS Code por primera vez se abre un panel con el **token de emparejamiento** y un botón **"Copiar y abrir Chrome"**. Si te distraés, lo reabrís con `Ctrl+Shift+P` → **Exportal: Mostrar token de emparejamiento**.
 
 ![Modal de onboarding en VS Code](docs/screenshots/onboarding.jpeg)
 
 ### Companion de Chrome
 
-1. Descargá `exportal-companion-<version>.zip` desde [Releases](https://github.com/dioniipereyraa/ClaudeTool/releases) y extraelo — o corré `npm run package:chrome` para buildearlo.
-2. Chrome → `chrome://extensions` → activá **Modo desarrollador** → **Cargar sin empaquetar** → elegí la carpeta.
-3. Click en el ícono de Exportal Companion en la barra → pegá el token de VS Code → **Guardar**.
+1. Instalá **Exportal Companion** desde Chrome Web Store, o descargá `exportal-companion-<version>.zip` desde [Releases](https://github.com/dioniipereyraa/ClaudeTool/releases) y cargalo sin empaquetar en `chrome://extensions` (Modo desarrollador activado).
+2. En VS Code corré **Exportal: Mostrar token de emparejamiento** → click en **Copiar y abrir Chrome**. El companion detecta el token automáticamente, abre su página de opciones mostrando *"¡Listo! — Todo conectado"*, y VS Code te avisa con una notification de emparejamiento completo. Sin copiar ni pegar.
 
 El badge del ícono refleja el estado: `OK` verde (importó), `SET` amarillo (falta token), `OFF` rojo (VS Code no responde), `AUTH` rojo (token inválido), `OLD` rojo (VS Code desactualizado), `ERR` rojo (otros).
 

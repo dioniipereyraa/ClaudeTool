@@ -6,6 +6,18 @@ Companion (Chrome extension) are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 and versions follow [Semantic Versioning](https://semver.org/).
 
+## [0.5.5] — 2026-04-23
+
+### Changed
+
+- `README.md` and `README.vsix.md` refreshed: removed the hardcoded
+  "v0.3.0" from the status line (it was stale ever since the 0.4.0
+  release and kept showing up on the Marketplace landing), and
+  rewrote the Chrome companion install section to describe the
+  one-click pairing flow instead of the old "paste token manually"
+  steps. Also swapped "modal" → "panel" in the VS Code onboarding
+  description to match the webview we shipped in v0.5.0.
+
 ## [0.5.4] — 2026-04-23
 
 Version-number-only bump: v0.5.3 of the VS Code extension was
