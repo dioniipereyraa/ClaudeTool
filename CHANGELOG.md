@@ -6,6 +6,41 @@ Companion (Chrome extension) are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 and versions follow [Semantic Versioning](https://semver.org/).
 
+## [0.8.1] — 2026-04-23
+
+### Added
+
+- **Tab dedicada en la activity bar de VS Code.** Antes los toggles
+  de `exportal.autoAttachToClaudeCode` y `exportal.alsoWriteJsonl`
+  vivían escondidos en `Preferences UI → buscar "exportal"`. Ahora
+  aparece un ícono de Exportal en la activity bar con un panel
+  propio que reúne los dos toggles más los tres comandos más usados
+  (`Mostrar token de emparejamiento`, `Importar .zip de claude.ai`,
+  `Enviar sesión de Claude Code a claude.ai`). El panel reacciona en
+  vivo a cambios externos del setting (`onDidChangeConfiguration`).
+  - Nuevo `src/extension/control-panel.ts`
+    (`ExportalControlPanelProvider`, `WebviewViewProvider`).
+  - HTML estilizado con `var(--vscode-*)` para que se sienta nativo
+    en cualquier theme.
+  - CSP estricta: `default-src 'none'`, scripts gateados con nonce.
+  - SVG monochrome (`assets/sidebar-icon.svg`) que VS Code colorea
+    con `currentColor`.
+
+### Fixed
+
+- **Strip del placeholder de claude.ai antes de generar `.md` y
+  `.jsonl`.** El endpoint `chat_conversations?rendering_mode=messages`
+  devuelve el literal `This block is not supported on your current
+  device yet.` (con o sin fences de triple backtick) en lugar de los
+  tool blocks que el "device" llamante no puede renderizar. Esa
+  basura se filtraba al `.md` exportado y a las sesiones cargadas en
+  `/resume` de Claude Code. Nuevo helper
+  `src/importers/claudeai/cleanup.ts`
+  (`stripUnsupportedBlockPlaceholders`) que limpia la conversación
+  en la capa de datos para que todo formatter aguas abajo vea texto
+  limpio. 9 tests unitarios cubren las dos formas observadas
+  (fenced + bare line) más casos defensivos.
+
 ## [0.8.0] — 2026-04-23
 
 ### Added

@@ -49,5 +49,15 @@
   "Exportal: session size is {0} KB. Very long messages may be rejected or only partially rendered in claude.ai.": "Exportal: la sesión pesa {0} KB. Mensajes muy largos pueden ser rechazados o renderizados parcialmente en claude.ai.",
   "Copy anyway": "Copiar igual",
   "Exportal: could not read the session. {0}": "Exportal: no pude leer la sesión. {0}",
-  "Exportal: Markdown copied. Paste it with Ctrl+V into the new chat on claude.ai.": "Exportal: Markdown copiado. Pegalo con Ctrl+V en el chat nuevo de claude.ai."
+  "Exportal: Markdown copied. Paste it with Ctrl+V into the new chat on claude.ai.": "Exportal: Markdown copiado. Pegalo con Ctrl+V en el chat nuevo de claude.ai.",
+  "Settings": "Ajustes",
+  "Auto-attach to Claude Code": "Auto-adjuntar a Claude Code",
+  "After importing a chat, attach the .md as an @-mention in the Claude Code panel.": "Tras importar un chat, adjunto el .md como @-mención en el panel de Claude Code.",
+  "Also write .jsonl for /resume": "También escribir .jsonl para /resume",
+  "Write a Claude Code-compatible .jsonl alongside the .md so the chat appears in /resume. Experimental.": "Escribe un .jsonl compatible con Claude Code junto al .md para que el chat aparezca en /resume. Experimental.",
+  "Actions": "Acciones",
+  "Show pairing token": "Mostrar token de emparejamiento",
+  "Import claude.ai .zip": "Importar .zip de claude.ai",
+  "Send Claude Code session to claude.ai": "Enviar sesión de Claude Code a claude.ai",
+  "The local bridge starts automatically when this extension activates. To pair the Chrome companion, click \"Show pairing token\" above and follow the panel.": "El puente local arranca solo cuando se activa la extensión. Para emparejar el Companion de Chrome, hacé click en \"Mostrar token de emparejamiento\" y seguí el panel."
 }

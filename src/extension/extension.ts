@@ -7,12 +7,14 @@ import { type SessionMetadata } from '../core/types.js';
 import { formatAsClaudeCodeJsonl } from '../formatters/claude-code-jsonl.js';
 import { formatConversation } from '../formatters/claudeai-markdown.js';
 import { formatAsMarkdown } from '../formatters/markdown.js';
+import { stripUnsupportedBlockPlaceholders } from '../importers/claudeai/cleanup.js';
 import { readClaudeAiExport } from '../importers/claudeai/reader.js';
 import {
   parseSingleConversation,
   type ClaudeAiConversation,
 } from '../importers/claudeai/schema.js';
 
+import { ExportalControlPanelProvider } from './control-panel.js';
 import { buildExportTimestamp, slugify } from './export-paths.js';
 import {
   BridgeError,
@@ -60,6 +62,17 @@ export function activate(context: vscode.ExtensionContext): void {
     vscode.commands.registerCommand(
       'exportal.sendSessionToClaudeAi',
       sendSessionToClaudeAiCommand,
+    ),
+  );
+
+  // Activity-bar tab with the toggles + action buttons (hito 19
+  // follow-up). Replaces "Preferences UI → search exportal" as the
+  // discoverable place to flip settings.
+  const controlPanel = new ExportalControlPanelProvider(context);
+  context.subscriptions.push(
+    vscode.window.registerWebviewViewProvider(
+      'exportal.controlPanel',
+      controlPanel,
     ),
   );
 
@@ -180,10 +193,15 @@ async function handleBridgeImportInline(payload: ImportInlinePayload): Promise<v
   // lets the companion show "Shape de claude.ai cambió" instead of a
   // generic "import failed", which is the likely cause when Anthropic
   // tweaks the internal API.
-  const conversation = parseSingleConversation(payload.conversation);
-  if (conversation === null) {
+  const parsed = parseSingleConversation(payload.conversation);
+  if (parsed === null) {
     throw new BridgeError('invalid_shape', 'conversation JSON did not match expected schema');
   }
+  // Scrub claude.ai's "This block is not supported on your current
+  // device yet." placeholders before any formatter sees them — they
+  // come from the `?rendering_mode=messages` API path and would
+  // otherwise ride through to both the .md and the .jsonl outputs.
+  const conversation = stripUnsupportedBlockPlaceholders(parsed);
   const baseName = `${buildExportTimestamp()}-${slugify(conversation.name)}`;
   const assets = payload.assets ?? [];
   const { markdown: convMarkdown } = formatConversation(conversation, { redact: true });
@@ -602,8 +620,10 @@ async function openConversationFromZip(
       ? undefined
       : exported.conversations.find((c) => c.uuid === options.preferConversationId);
 
-  const conversation = preselected ?? (await pickConversation(exported.conversations));
-  if (conversation === undefined) return;
+  const picked = preselected ?? (await pickConversation(exported.conversations));
+  if (picked === undefined) return;
+  // Same scrub as the inline path — keeps both flows consistent.
+  const conversation = stripUnsupportedBlockPlaceholders(picked);
 
   const { markdown } = formatConversation(conversation, { redact: true });
 

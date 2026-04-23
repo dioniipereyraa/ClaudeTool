@@ -2108,3 +2108,78 @@ para que el usuario continúe el chat literal.
   el trabajo, no a uno ficticio.
 - **Multi-folder workspace**: si el user tiene varios workspace
   folders abiertos, agarramos el primero. Caso edge.
+
+---
+
+## 2026-04-23 — v0.8.1 · Tab dedicada + strip del placeholder
+
+### Qué hicimos
+- **Smoke test de v0.8.0 pasó end-to-end**. La conversación
+  importada apareció en `/resume` de Claude Code sin reload window,
+  cargó sin error, y el user pudo continuar el chat. El único ruido
+  visible fueron las líneas literales `This block is not supported
+  on your current device yet.` donde claude.ai había usado tools.
+- **Identificamos la causa real**: no son los thinking blocks
+  (hipótesis inicial errónea) sino que el endpoint
+  `chat_conversations?rendering_mode=messages` de claude.ai sustituye
+  los tool blocks que el "device" llamante no puede renderizar por
+  ese literal exacto, dentro de un text block normal (con o sin
+  fences de triple backtick). El ruido se veía idéntico en el `.md`
+  (11 ocurrencias en una conversación de prueba) y en el `.jsonl`.
+- **Fix en la capa de datos**: nuevo
+  `src/importers/claudeai/cleanup.ts` con
+  `stripUnsupportedBlockPlaceholders(conversation)` que limpia la
+  conversación antes de pasarla al formatter (markdown o jsonl).
+  9 tests unitarios cubren las dos formas (fenced + bare line),
+  collapse de blank lines extra, immutabilidad y near-misses.
+- **Tab dedicada en la activity bar** (feature pedida por el user
+  durante el smoke test, "que no sea tan complicado buscar
+  Preferences UI"). Nuevo
+  `src/extension/control-panel.ts`
+  (`ExportalControlPanelProvider implements WebviewViewProvider`)
+  con dos toggles (autoAttach + alsoWriteJsonl) y tres botones de
+  acción (showPairingInfo, importFromZip, sendSessionToClaudeAi).
+- Icono SVG monochrome (`assets/sidebar-icon.svg`) que VS Code
+  colorea con `currentColor`.
+- 10 strings i18n nuevas en `l10n/bundle.l10n.es.json`.
+- Bump 0.8.0 → 0.8.1 en `package.json` y `chrome/manifest.json`.
+
+### Decisiones clave y por qué
+- **Strip en la capa de datos, no en el formatter**: si limpiáramos
+  en el markdown formatter dejaría sucio al `.jsonl`, y viceversa.
+  Una sola pasada antes de cualquier formato garantiza que toda
+  superficie aguas abajo (md, jsonl, future formats) ve texto limpio
+  por construcción.
+- **Match exacto del literal, no regex amplio**: la familia de
+  mensajes de "no soportado" es chica y cualquier flexibilidad en
+  el match podría comerse texto legítimo del user. Si claude.ai
+  cambia el wording, el test `does NOT strip near-misses` se va a
+  romper y nos vamos a enterar.
+- **Tab full WebviewView en vez de Tree o Quick Pick**: los
+  toggles + botones leen mejor como un panel coherente que como un
+  árbol de nodos clickeables. El costo de mantener HTML es bajo
+  porque usamos `var(--vscode-*)` para todo y la UI es muy
+  estática (re-render solo cuando cambia un setting).
+- **El panel re-renderiza ante
+  `onDidChangeConfiguration('exportal')`**: si el user (o otra
+  ventana de VS Code) cambia el setting fuera del panel, queremos
+  que el switch refleje el estado real sin necesidad de polling
+  ni de cerrar/abrir el panel.
+- **CSP estricta con nonce-gated script**: estándar de VS Code para
+  webviews. El script inline está acotado y no carga nada externo.
+
+### Verificación
+- `npm run ci` (lint + typecheck + tests + build) → verde, 183/183
+  tests passan, build limpio.
+- 9 tests nuevos para `cleanup.ts`.
+- Strip wireado en ambos paths de import (`handleBridgeImportInline`
+  + `openConversationFromZip`).
+
+### Lo que NO entra en v0.8.1
+- **Status pill del bridge en el panel**: el header del panel
+  originalmente iba a tener un indicador verde/rojo del estado del
+  bridge local. Dejado para v0.8.2 — el footer note alcanza para
+  comunicar que el bridge arranca solo en el activate.
+- **Re-traducción del .md ya importado**: si alguien tiene `.md`
+  exportados con la versión 0.8.0 sucia, se quedan así. El strip
+  aplica en imports nuevos. Re-importar es trivial.
