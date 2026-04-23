@@ -6,6 +6,33 @@ Companion (Chrome extension) are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 and versions follow [Semantic Versioning](https://semver.org/).
 
+## [0.5.1] — 2026-04-23
+
+### Changed
+
+- **Chrome options page — three-state OnboardingChrome flow.** The
+  manual-paste fallback (used when the URL-fragment auto-pair doesn't
+  kick in) now adopts the `OnboardingChrome` states from design-cds/:
+  - `waiting` — empty input. Chip "Esperando…", headline "Pegá el
+    token de VS Code".
+  - `detected` — input holds a 64-hex string. Chip "Token detectado",
+    headline "Encontramos tu token", lime border + shimmer animation
+    on the token field, primary button actionable.
+  - `paired` — token saved. Chip green "Emparejado", headline
+    "¡Listo!", primary button becomes the informational "✓ Todo
+    conectado", and a small low-contrast "Desemparejar" text button
+    appears so users can clear the state.
+- Chrome options also listens to `chrome.storage.onChanged` so that
+  if the auto-pair URL-fragment flow completes in another tab, an
+  open options tab transitions to the paired state instantly.
+- Enter key on the input commits the pair when a valid token is
+  typed/pasted, matching the primary button behaviour.
+
+### Removed
+
+- Save / Clear button pair on the options page — replaced by the
+  single-primary + unpair-link combo that the new state flow drives.
+
 ## [0.5.0] — 2026-04-23
 
 ### Added

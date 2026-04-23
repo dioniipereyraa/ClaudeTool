@@ -26,6 +26,42 @@
   "bannerPaired": {
     "message": "Emparejado"
   },
+  "chipWaiting": {
+    "message": "Esperando…"
+  },
+  "chipDetected": {
+    "message": "Token detectado"
+  },
+  "chipPaired": {
+    "message": "Emparejado"
+  },
+  "headlineWaiting": {
+    "message": "Pegá el token de VS Code"
+  },
+  "headlineDetected": {
+    "message": "Encontramos tu token"
+  },
+  "headlinePaired": {
+    "message": "¡Listo!"
+  },
+  "subtitleWaiting": {
+    "message": "Copialo desde la paleta de comandos: Exportal: Mostrar token de emparejamiento."
+  },
+  "subtitleDetected": {
+    "message": "Lo pegaste desde VS Code. Confirmá y listo."
+  },
+  "subtitlePaired": {
+    "message": "Ya podés exportar cualquier chat de claude.ai a VS Code con un click."
+  },
+  "btnPair": {
+    "message": "Emparejar"
+  },
+  "btnAllConnected": {
+    "message": "Todo conectado"
+  },
+  "unpairButton": {
+    "message": "Desemparejar"
+  },
   "howToGetToken": {
     "message": "¿Cómo obtengo el token?"
   },

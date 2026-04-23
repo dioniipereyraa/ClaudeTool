@@ -29,11 +29,59 @@
   },
   "bannerNotPaired": {
     "message": "Not paired",
-    "description": "Short status chip shown in the header when no token is saved."
+    "description": "Short status chip shown in the header when no token is saved. Still referenced from background.js for the toolbar tooltip — options page uses chipWaiting/chipDetected/chipPaired instead."
   },
   "bannerPaired": {
     "message": "Paired",
-    "description": "Short status chip shown in the header after a valid token is saved."
+    "description": "Short status chip shown in the header after a valid token is saved. Still referenced from background.js for the toolbar tooltip — options page uses chipPaired instead."
+  },
+  "chipWaiting": {
+    "message": "Waiting…",
+    "description": "Options page header chip — shown when no token is saved and the input is empty."
+  },
+  "chipDetected": {
+    "message": "Token detected",
+    "description": "Options page header chip — shown when the input contains a valid 64-hex token but the user hasn't clicked Pair yet."
+  },
+  "chipPaired": {
+    "message": "Paired",
+    "description": "Options page header chip — shown after the token has been saved to chrome.storage.local."
+  },
+  "headlineWaiting": {
+    "message": "Paste the token from VS Code",
+    "description": "Options page headline in waiting state."
+  },
+  "headlineDetected": {
+    "message": "We found your token",
+    "description": "Options page headline in detected state."
+  },
+  "headlinePaired": {
+    "message": "Ready!",
+    "description": "Options page headline in paired state."
+  },
+  "subtitleWaiting": {
+    "message": "Copy it from the command palette: Exportal: Show bridge pairing token.",
+    "description": "Subtitle under the headline in waiting state."
+  },
+  "subtitleDetected": {
+    "message": "You pasted it from VS Code. Confirm and you are done.",
+    "description": "Subtitle under the headline in detected state."
+  },
+  "subtitlePaired": {
+    "message": "You can now export any claude.ai chat to VS Code with a single click.",
+    "description": "Subtitle under the headline in paired state."
+  },
+  "btnPair": {
+    "message": "Pair",
+    "description": "Primary button label in waiting and detected states."
+  },
+  "btnAllConnected": {
+    "message": "All connected",
+    "description": "Primary button label in paired state — informational, not clickable."
+  },
+  "unpairButton": {
+    "message": "Unpair",
+    "description": "Low-contrast text button shown only in paired state to clear the stored token."
   },
   "howToGetToken": {
     "message": "How do I get the token?",
