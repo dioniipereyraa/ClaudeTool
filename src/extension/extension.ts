@@ -19,6 +19,7 @@ import {
   startServer,
   type ImportInlinePayload,
   type ImportPayload,
+  type InlineAsset,
   type ServerHandle,
 } from './http-server.js';
 import {
@@ -182,10 +183,43 @@ async function handleBridgeImportInline(payload: ImportInlinePayload): Promise<v
   if (conversation === null) {
     throw new BridgeError('invalid_shape', 'conversation JSON did not match expected schema');
   }
-  const { markdown } = formatConversation(conversation, { redact: true });
-  const savedUri = await persistAndOpenMarkdown(conversation, markdown);
+  const baseName = `${buildExportTimestamp()}-${slugify(conversation.name)}`;
+  const assets = payload.assets ?? [];
+  const { markdown: convMarkdown } = formatConversation(conversation, { redact: true });
+  const markdown = assets.length > 0
+    ? buildAssetsHeader(assets, baseName) + convMarkdown
+    : convMarkdown;
+  const savedUri = await persistAndOpenMarkdown(conversation, markdown, baseName, assets);
   announceImport(conversation);
   await attachToClaudeCodeIfAvailable(savedUri);
+}
+
+// Pre-pended block when the inline payload carries Claude Design assets.
+// Lists each file with size + MIME so that downstream tools (and the
+// human reading the .md) know what's in the sibling folder. Kept
+// markdown-only so it composes with the formatter output.
+function buildAssetsHeader(assets: InlineAsset[], baseName: string): string {
+  const lines = [
+    '## Generated assets',
+    '',
+    `Saved next to this file under \`./${baseName}/\`:`,
+    '',
+  ];
+  for (const a of assets) {
+    const sizeKb = (decodedBase64ByteLength(a.content) / 1024).toFixed(1);
+    lines.push(`- \`${a.filename}\` — ${a.contentType} · ${sizeKb} KB`);
+  }
+  lines.push('', '---', '', '');
+  return lines.join('\n');
+}
+
+// Quick byte count from a base64 string without actually decoding —
+// avoids materializing the full buffer just to label sizes.
+function decodedBase64ByteLength(b64: string): number {
+  const trimmed = b64.replace(/\s/g, '');
+  if (trimmed.length === 0) return 0;
+  const padding = trimmed.endsWith('==') ? 2 : trimmed.endsWith('=') ? 1 : 0;
+  return Math.floor((trimmed.length * 3) / 4) - padding;
 }
 
 function announceImport(conversation: ClaudeAiConversation): void {
@@ -722,9 +756,15 @@ function compareByCreatedDesc(a: ClaudeAiConversation, b: ClaudeAiConversation):
 async function persistAndOpenMarkdown(
   conversation: ClaudeAiConversation,
   markdown: string,
+  baseName?: string,
+  assets: InlineAsset[] = [],
 ): Promise<vscode.Uri | undefined> {
   const folder = vscode.workspace.workspaceFolders?.[0];
   if (folder === undefined) {
+    // No workspace open: drop the .md to an untitled buffer and skip
+    // assets entirely (they would have nowhere to live without a
+    // workspace root). The header in the markdown still mentions
+    // them for visibility — the user just won't get the files.
     const doc = await vscode.workspace.openTextDocument({
       content: markdown,
       language: 'markdown',
@@ -734,15 +774,61 @@ async function persistAndOpenMarkdown(
   }
 
   const dir = vscode.Uri.joinPath(folder.uri, '.exportal');
-  const filename = `${buildExportTimestamp()}-${slugify(conversation.name)}.md`;
-  const fileUri = vscode.Uri.joinPath(dir, filename);
+  const finalBase = baseName ?? `${buildExportTimestamp()}-${slugify(conversation.name)}`;
+  const fileUri = vscode.Uri.joinPath(dir, `${finalBase}.md`);
 
   await vscode.workspace.fs.createDirectory(dir);
   await vscode.workspace.fs.writeFile(fileUri, new TextEncoder().encode(markdown));
 
+  if (assets.length > 0) {
+    const assetsDir = vscode.Uri.joinPath(dir, finalBase);
+    await vscode.workspace.fs.createDirectory(assetsDir);
+    for (const asset of assets) {
+      await writeInlineAsset(assetsDir, asset);
+    }
+  }
+
   const doc = await vscode.workspace.openTextDocument(fileUri);
   await vscode.window.showTextDocument(doc, { preview: false });
   return fileUri;
+}
+
+async function writeInlineAsset(dir: vscode.Uri, asset: InlineAsset): Promise<void> {
+  const safe = sanitizeAssetFilename(asset.filename);
+  if (safe === undefined) return; // defensive: drop instead of throwing
+  let bytes: Buffer;
+  try {
+    bytes = Buffer.from(asset.content, 'base64');
+  } catch {
+    return;
+  }
+  // Re-create intermediate directories if the filename includes them
+  // (e.g. "components/foo.jsx"). joinPath handles the encoding.
+  const parts = safe.split('/');
+  if (parts.length > 1) {
+    const parentDir = vscode.Uri.joinPath(dir, ...parts.slice(0, -1));
+    await vscode.workspace.fs.createDirectory(parentDir);
+  }
+  const fileUri = vscode.Uri.joinPath(dir, ...parts);
+  await vscode.workspace.fs.writeFile(fileUri, new Uint8Array(bytes));
+}
+
+// Defense-in-depth: assets come from a Chrome companion that we
+// authenticate via Bearer, but the bridge is still a trust boundary
+// and `vscode.workspace.fs` will happily write to any path the URI
+// resolves to. Reject any filename that could escape the sibling
+// directory.
+function sanitizeAssetFilename(filename: string): string | undefined {
+  if (filename.length === 0) return undefined;
+  if (filename.includes('\0')) return undefined;
+  if (filename.startsWith('/')) return undefined;
+  if (/^[a-zA-Z]:[\\/]/.test(filename)) return undefined; // Windows absolute
+  // Normalize to forward slashes; reject `..` and `.` segments.
+  const normalized = filename.replace(/\\/g, '/');
+  for (const segment of normalized.split('/')) {
+    if (segment === '..' || segment === '.' || segment.length === 0) return undefined;
+  }
+  return normalized;
 }
 
 /**

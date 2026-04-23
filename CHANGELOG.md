@@ -6,6 +6,37 @@ Companion (Chrome extension) are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 and versions follow [Semantic Versioning](https://semver.org/).
 
+## [0.7.0] — 2026-04-23
+
+### Added
+
+- **Claude Design exports now bundle the generated assets (hito 28).**
+  When you export a Claude Design conversation, the FAB also fetches
+  every top-level file in the project (HTML, JSX, JSON, etc.) and
+  ships them alongside the chat. The `.exportal/<ts>-<slug>.md` gets
+  a "Generated assets" header listing each file with its size + MIME
+  type, and the actual files land in `.exportal/<ts>-<slug>/` next
+  to the markdown — ready for Claude Code to read as workspace files.
+  - New `ListFiles` + `GetFile` Connect-RPC calls in
+    `chrome/content-script.js`, factored through a shared
+    `callDesignRpc` helper.
+  - Bridge `ImportInlinePayload` extended with optional
+    `assets: [{filename, content (base64), contentType}]`.
+  - Bridge body cap raised from 10 MB to 50 MB to leave room for
+    bundled assets.
+  - Filename sanitization in the bridge handler rejects path
+    traversal (`..`), absolute paths, null bytes, and Windows drive
+    prefixes before writing.
+
+### Changed
+
+- `sendInline` and `forwardInlineConversation` now accept an
+  optional second argument of assets; chat exports keep their
+  byte-identical payload (no assets field), only Design exports
+  populate it.
+- The bridge body limit was 10 MB; now 50 MB. Test updated
+  accordingly (`returns 413 for payloads larger than 50 MB`).
+
 ## [0.6.1] — 2026-04-23
 
 ### Fixed

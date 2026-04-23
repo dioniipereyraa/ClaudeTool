@@ -109,7 +109,21 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       sendResponse({ ok: false, error: 'bad_payload' });
       return false;
     }
-    forwardInlineConversation(conversation)
+    // Optional `assets` only fires for Claude Design exports — the
+    // bridge schema treats it as optional, so chats keep their old
+    // shape. Defensive shape check: must be an array of objects with
+    // string filename + string content + string contentType. Anything
+    // else gets dropped before forwarding.
+    const rawAssets = Array.isArray(message.assets) ? message.assets : [];
+    const assets = rawAssets
+      .filter((a) =>
+        a !== null && typeof a === 'object'
+        && typeof a.filename === 'string'
+        && typeof a.content === 'string'
+        && typeof a.contentType === 'string',
+      )
+      .map((a) => ({ filename: a.filename, content: a.content, contentType: a.contentType }));
+    forwardInlineConversation(conversation, assets)
       .then((result) => sendResponse(result))
       .catch((err) => sendResponse({ ok: false, error: String(err) }));
     return true;
@@ -229,13 +243,18 @@ async function tryPort(port, token, zipPath, conversationId) {
   }
 }
 
-async function forwardInlineConversation(conversation) {
+async function forwardInlineConversation(conversation, assets) {
   const token = await getToken();
   if (token === undefined) {
     await setBadge('SET', '#ca8a04');
     return { ok: false, error: 'no_token' };
   }
-  const body = JSON.stringify({ conversation });
+  // Bundle the assets into the JSON body only when present — keeps
+  // chat exports byte-identical to before this change.
+  const payload = Array.isArray(assets) && assets.length > 0
+    ? { conversation, assets }
+    : { conversation };
+  const body = JSON.stringify(payload);
   const ports = await buildPortOrder();
   let sawAuthError = false;
   // Captures the first response that unambiguously identifies our own

@@ -38,9 +38,11 @@ const PORT_RANGE_END = 9326;
 const MAX_BODY_BYTES_IMPORT = 64 * 1024;
 // The inline endpoint carries a full conversation JSON scraped from
 // claude.ai's internal API. Real conversations with long tool_use/tool_result
-// blocks can easily exceed 1 MB; 10 MB gives comfortable headroom without
-// becoming a memory-abuse vector (bearer-token auth is still required).
-const MAX_BODY_BYTES_IMPORT_INLINE = 10 * 1024 * 1024;
+// blocks can easily exceed 1 MB; 50 MB gives comfortable headroom even when
+// the payload also bundles design assets (HTML + base64-encoded PNGs from
+// Claude Design projects, hito 28). Bearer-token auth is still required so
+// the limit is a memory-bounding sanity check, not a security boundary.
+const MAX_BODY_BYTES_IMPORT_INLINE = 50 * 1024 * 1024;
 
 // Permissive UUID-ish shape: hex + hyphens, typical claude.ai conversation
 // UUIDs are RFC-4122 (36 chars) but we accept a wider range to stay robust
@@ -62,6 +64,18 @@ export type ImportPayload = z.infer<typeof ImportPayload>;
 // will reject malformed data with its own error message. `z.unknown()`
 // would accept `undefined` as a valid absent field, so we explicitly
 // refine to require a non-null object.
+// Files generated alongside a Claude Design conversation. Each carries
+// the file basename + the base64-encoded byte content + the original
+// MIME type so we can pick a sensible decode (text/* → UTF-8 string,
+// other → raw bytes). Optional — only the Claude Design path ever
+// populates this; chat exports leave it absent.
+const InlineAsset = z.object({
+  filename: z.string().min(1),
+  content: z.string(), // base64-encoded
+  contentType: z.string().min(1),
+});
+export type InlineAsset = z.infer<typeof InlineAsset>;
+
 const ImportInlinePayload = z.object({
   conversation: z
     .unknown()
@@ -69,6 +83,7 @@ const ImportInlinePayload = z.object({
       (v): v is Record<string, unknown> => v !== null && typeof v === 'object' && !Array.isArray(v),
       { message: 'conversation must be an object' },
     ),
+  assets: z.array(InlineAsset).optional(),
 });
 export type ImportInlinePayload = z.infer<typeof ImportInlinePayload>;
 

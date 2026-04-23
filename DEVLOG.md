@@ -1729,3 +1729,139 @@ Encontrado a la primera corrida real. Lección: el path Design tiene
 el extra step de base64 que el path /chat no tiene (donde
 `res.json()` decodifica UTF-8 nativo por content-type). No replicar
 esto en futuros adapters de plataformas con base64 en el response.
+
+---
+
+## 2026-04-23 — Hito 28 · Export de assets de Claude Design (v0.7.0)
+
+### Qué hicimos
+Extendimos el export de Claude Design para que también baje los
+**archivos generados** (HTML, JSX, JSON, etc.) además del chat. El
+gap se descubrió post-0.6.1: con la conversación sola, el usuario
+exportaba "qué hablamos" pero perdía "qué construyó Claude". Para
+Claude Design eso es la mitad del valor.
+
+- **Recon (4 rondas en una sesión)**: documentado en commits sucesivos
+  del ROADMAP. Hallazgos clave:
+  - `inner.assets[<name>].versions[i]` es metadata-only — `path`,
+    `createdAt`, `chatId`, `status`, `subtitle`. Sin contenido.
+  - `attachments` de los messages son skills del sistema, no archivos.
+  - `ListFiles { project_id }` devuelve árbol top-level: 5 archivos +
+    3 directorios en el proyecto del usuario.
+  - `GetFile { project_id, path }` devuelve `{content (base64),
+    contentType}` — el contenido real, en el mismo encoding que
+    `GetProject.data`.
+  - Las descargas que hace el UI ("↓ Descargar todos") son client-side
+    renders a PNG via blob URLs — no van por la red.
+- **`chrome/content-script.js`**:
+  - Factor común `callDesignRpc(method, body)` que abstrae los headers
+    Connect-RPC + el handling de errores. Las 3 llamadas (`GetProject`,
+    `ListFiles`, `GetFile`) lo usan.
+  - Nueva `fetchDesignFiles(projectId)`: `ListFiles` → filtra entries
+    `type !== 'directory'` → `Promise.allSettled` de `GetFile` por
+    cada uno. `allSettled` (no `Promise.all`) para que un archivo
+    roto no tire toda la operación: silently se filtra del bundle.
+  - `fetchDesignProject` ahora devuelve `{conversation, assets}`. La
+    fetch de files va en su propio try/catch — falla aislada deja
+    `assets: []` y el handler downstream omite la sección "Generated
+    assets".
+  - `fetchByRoute` simétrico: chats devuelven `{conversation, assets:
+    []}`. `handlePrimaryClick`, `runPrimaryFromShortcut`, `sendInline`
+    todos refactor para tomar la nueva shape.
+- **`chrome/background.js`**:
+  - Handler de `exportal:sendInline` valida shape de `assets[]` antes
+    de forwardear al bridge: array de objetos con `{filename, content,
+    contentType}` todos string. Otros valores se filtran silenciosamente.
+  - `forwardInlineConversation(conversation, assets)` bundlea solo si
+    `assets.length > 0` — chats quedan byte-idénticos a antes.
+- **`src/extension/http-server.ts`**:
+  - Nuevo `InlineAsset = z.object({filename, content, contentType})`
+    exportado como type para el handler.
+  - `ImportInlinePayload` ahora tiene `assets: z.array(InlineAsset).
+    optional()`.
+  - `MAX_BODY_BYTES_IMPORT_INLINE` 10 MB → 50 MB. Test
+    correspondiente actualizado a "returns 413 for payloads larger
+    than 50 MB".
+- **`src/extension/extension.ts`**:
+  - `handleBridgeImportInline` extrae `assets` del payload, computa
+    `baseName = <ts>-<slug>` una sola vez para que .md y carpeta
+    hermana coincidan.
+  - Nueva `buildAssetsHeader(assets, baseName)` prependa una sección
+    `## Generated assets` al markdown listando los archivos con su
+    tamaño y MIME (computado sin decodear vía `decodedBase64ByteLength`).
+  - `persistAndOpenMarkdown` toma opcionalmente `baseName` y
+    `assets`. Si hay assets, crea `<workspace>/.exportal/<baseName>/`
+    junto al `.md` y escribe cada archivo. Soporta subdirectorios:
+    `components/foo.jsx` crea `components/` adentro.
+  - Nueva `writeInlineAsset(dir, asset)`: `Buffer.from(content,
+    'base64')` → `vscode.workspace.fs.writeFile`.
+  - Nueva `sanitizeAssetFilename(filename)`: rechaza `..`, `.`,
+    paths absolutos (POSIX y Windows), null bytes, segmentos vacíos.
+    Normaliza backslashes a forward para que joinPath funcione.
+
+### Decisiones clave y por qué
+- **Top-level files only en MVP, sin recursión**: el primer caso
+  de uso (proyecto del usuario) tiene 5 archivos top-level + 3
+  directorios. Los archivos importantes (los HTML del design) están
+  todos en root. Las carpetas son subcomponentes que rara vez se
+  necesitan. Recursión es scope creep para un MVP — si alguien la
+  pide, hito separado.
+- **`Promise.allSettled` en lugar de `Promise.all`**: si un archivo
+  específico tira 500 (raro pero posible), no debería tirar el
+  export entero. Mejor exportar lo que se pudo + warning silencioso
+  en consola.
+- **Adapter del lado cliente, no schema nuevo en el bridge**: pude
+  agregar `/import-design-inline` con su propia validación. En su
+  lugar extiendo `/import-inline` con un campo opcional. Razón:
+  el shape de la conversación es idéntico para chat/design (gracias
+  al adapter de Hito 27), solo cambian los assets. Más simple
+  manejarlo como augmentation que como endpoint nuevo.
+- **Cap a 50 MB**: el cap original de 10 MB era razonable para chats
+  puros. Con bundling de assets (HTMLs son texto pero pueden ser ~50
+  KB cada uno × N + JSXs + JSON state), 10 MB se queda corto. 50 MB
+  da ~1000× la cuota típica de un Design con varios HTMLs. Si pasa,
+  ya es bug de schema en otro lado (el servidor no debería dejarte
+  generar tanto).
+- **No filtramos por `chatId`**: cada `versions[i]` tiene `chatId`
+  que indica qué chat generó ese asset. Podría filtrar para exportar
+  solo lo del chat activo. No lo hago en MVP porque (a) el usuario
+  típicamente tiene 1 chat por proyecto Design (b) si tiene varios,
+  probablemente quiere todos los outputs igual. Si esto sale mal en
+  algún caso real, agregamos el filter como flag.
+- **Sanitization a fondo**: el bridge es trust boundary. Los assets
+  vienen del Companion (autenticado por Bearer), pero el Companion
+  los recibe del content-script (que vive en claude.ai donde podría
+  haber XSS u otra injection). Defense in depth: rechazar cualquier
+  filename que pueda escapar la sibling folder.
+- **`buildAssetsHeader` separado del formatter**: agregar un parámetro
+  `assets` al formatter del .md hubiera modificado un módulo core
+  para un caso edge. En su lugar la composición vive en
+  `extension.ts` que ya tiene contexto.
+
+### Verificación
+- 165 tests pasan. El test de payload size se actualizó al nuevo cap
+  pero la lógica del 413 sigue siendo correcta.
+- Typecheck + lint limpios.
+- Build limpio. vsix = 879.2 KB (subió ~3 KB respecto a 0.6.1, todo
+  por el handler nuevo + sanitización).
+- **Smoke test end-to-end pendiente**: el código compila pero hay
+  que probar el flujo en el browser real con el proyecto Design del
+  usuario. Plan: smoke test antes del tag v0.7.0 (lo hago el user
+  cuando reload el companion + reinstall el vsix).
+
+### Lo que NO entra
+- **Recursión en `components/`, `ref/`, `store/`**: el árbol top-level
+  cubre los archivos centrales del design. Si los componentes son
+  load-bearing, hito futuro.
+- **Filtro por `chatId`**: enumerar `inner.assets[name].versions[]`
+  y matchear con activeChatId daría un bundle más chico cuando hay
+  multi-chat. Mientras siga siendo 1-chat-por-proyecto, no vale.
+- **Render server-side a PNG**: lo que el UI hace al "↓ PNG" es
+  client-side render. Nuestro export trae los HTML fuente. Si alguien
+  quiere los PNGs renderizados, tiene que abrir el HTML local y hacer
+  el render — o pedir esto como feature (probablemente requeriría
+  un headless browser corriendo del lado VS Code, scope grande).
+- **Handling de file conflicts si el directory ya existe**: el case
+  típico es que cada export crea una carpeta nueva (timestamp es
+  parte del nombre). Si el usuario fuerza dos exports en el mismo
+  segundo del mismo chat, sobrescribe. Aceptable.

@@ -422,9 +422,9 @@ async function handlePrimaryClick(btn) {
   if (labelEl !== null) labelEl.textContent = chrome.i18n.getMessage('feedbackSearching');
   const t0 = performance.now();
   try {
-    const conversation = await fetchByRoute(route);
+    const { conversation, assets } = await fetchByRoute(route);
     if (labelEl !== null) labelEl.textContent = chrome.i18n.getMessage('feedbackSending');
-    await sendInline(conversation);
+    await sendInline(conversation, assets);
     const ms = Math.round(performance.now() - t0);
     const messages = countMessages(conversation);
     if (labelEl !== null) labelEl.textContent = originalLabel;
@@ -439,9 +439,14 @@ async function handlePrimaryClick(btn) {
 }
 
 // Single dispatch point so both the click handler and the keyboard
-// shortcut path go through the same routing.
+// shortcut path go through the same routing. Always returns
+// `{conversation, assets}` — chat routes leave assets empty; only
+// the Design path bundles generated files.
 async function fetchByRoute(route) {
-  if (route.kind === 'chat') return fetchConversation(route.id);
+  if (route.kind === 'chat') {
+    const conversation = await fetchConversation(route.id);
+    return { conversation, assets: [] };
+  }
   if (route.kind === 'design') return fetchDesignProject(route.id);
   throw new Error('invalid_response');
 }
@@ -456,8 +461,8 @@ async function runPrimaryFromShortcut() {
   showToast(chrome.i18n.getMessage('toastExporting'), 'info');
   const t0 = performance.now();
   try {
-    const conversation = await fetchByRoute(route);
-    await sendInline(conversation);
+    const { conversation, assets } = await fetchByRoute(route);
+    await sendInline(conversation, assets);
     const ms = Math.round(performance.now() - t0);
     const messages = countMessages(conversation);
     showToast(`${chrome.i18n.getMessage('feedbackOpenedInVsCode')} · ${ms}ms · ${messages}`, 'ok');
@@ -496,11 +501,10 @@ async function runSecondaryAction(id) {
   if (response?.ok !== true) throw new Error(response?.error ?? 'unknown');
 }
 
-async function sendInline(conversation) {
-  const response = await chrome.runtime.sendMessage({
-    type: 'exportal:sendInline',
-    conversation,
-  });
+async function sendInline(conversation, assets) {
+  const message = { type: 'exportal:sendInline', conversation };
+  if (Array.isArray(assets) && assets.length > 0) message.assets = assets;
+  const response = await chrome.runtime.sendMessage(message);
   if (response?.ok !== true) throw new Error(response?.error ?? 'unknown');
 }
 
@@ -551,23 +555,28 @@ async function fetchOrganizationIds() {
   return ExportalPure.extractOrgIds(data);
 }
 
-// Claude Design uses a Connect-RPC endpoint with a JSON encoding of a
-// protobuf body. The actual project content is base64-encoded inside
-// the `data` field of the outer response (the proto schema declares
-// `bytes data = N` and Connect's JSON canon encodes bytes as base64).
+// Claude Design lives on the same origin as claude.ai/chat but speaks
+// Connect-RPC instead of REST. The project content is base64-encoded
+// inside `data` (proto schema declares `bytes data = N`; Connect's JSON
+// canon encodes bytes as base64). The generated assets (HTML, JSX,
+// renders) live in a parallel filesystem-like store accessed via
+// ListFiles + GetFile.
 //
 // We adapt the inner Design shape into the same claude.ai/chat
 // "conversation" shape that `parseSingleConversation` validates on
-// the bridge side, so the rest of the pipeline (formatter,
-// auto-attach) stays unchanged.
-const DESIGN_RPC_URL = '/design/anthropic.omelette.api.v1alpha.OmeletteService/GetProject';
+// the bridge side, so the formatter + auto-attach stay unchanged.
+// Assets travel as a sibling field that the bridge writes to a
+// folder next to the .md.
+const DESIGN_RPC_BASE = '/design/anthropic.omelette.api.v1alpha.OmeletteService';
 
-async function fetchDesignProject(projectId) {
+// Shared Connect-RPC plumbing: same auth/timeout/JSON-negotiation for
+// every method on the OmeletteService.
+async function callDesignRpc(method, body) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
   let res;
   try {
-    res = await fetch(DESIGN_RPC_URL, {
+    res = await fetch(`${DESIGN_RPC_BASE}/${method}`, {
       method: 'POST',
       credentials: 'same-origin',
       headers: {
@@ -575,7 +584,7 @@ async function fetchDesignProject(projectId) {
         Accept: 'application/json',
         'Connect-Protocol-Version': '1',
       },
-      body: JSON.stringify({ project_id: projectId }),
+      body: JSON.stringify(body),
       signal: controller.signal,
     });
   } catch (err) {
@@ -586,9 +595,53 @@ async function fetchDesignProject(projectId) {
   }
   if (res.status === 401 || res.status === 403) throw new Error('session_expired');
   if (res.status === 404) throw new Error('not_found');
-  if (!res.ok) throw new Error(`design_api_${String(res.status)}`);
-  const outer = await parseJsonOrThrow(res);
-  return adaptDesignToConversation(outer);
+  if (!res.ok) throw new Error(`design_api_${method}_${String(res.status)}`);
+  return parseJsonOrThrow(res);
+}
+
+async function fetchDesignProject(projectId) {
+  const outer = await callDesignRpc('GetProject', { project_id: projectId });
+  const conversation = adaptDesignToConversation(outer);
+  // Files in parallel — kept as a separate fetch so a failure here
+  // (e.g. ListFiles 500) doesn't block the conversation export. We
+  // surface the failure as `assets: []` and the bridge handler
+  // gracefully omits the "Generated assets" header.
+  let assets = [];
+  try {
+    assets = await fetchDesignFiles(projectId);
+  } catch (err) {
+    console.warn('[Exportal] design: assets fetch failed, exporting chat only', err);
+  }
+  return { conversation, assets };
+}
+
+// List the project's top-level files via ListFiles, then GetFile each
+// in parallel. We currently skip directories — recursion is a
+// follow-up if users ask for it. Returns `[{filename, content (base64),
+// contentType}]` ready to send to the bridge.
+async function fetchDesignFiles(projectId) {
+  const list = await callDesignRpc('ListFiles', { project_id: projectId });
+  const entries = Array.isArray(list?.entries) ? list.entries : [];
+  const files = entries.filter((e) => (
+    e !== null && typeof e === 'object'
+    && typeof e.path === 'string' && e.path.length > 0
+    && e.type !== 'directory'
+  ));
+  const results = await Promise.allSettled(files.map(async (entry) => {
+    const file = await callDesignRpc('GetFile', { project_id: projectId, path: entry.path });
+    if (file === null || typeof file !== 'object'
+        || typeof file.content !== 'string' || typeof file.contentType !== 'string') {
+      throw new Error('invalid_file_shape');
+    }
+    return {
+      filename: entry.path,
+      content: file.content,
+      contentType: file.contentType,
+    };
+  }));
+  return results
+    .filter((r) => r.status === 'fulfilled')
+    .map((r) => r.value);
 }
 
 function adaptDesignToConversation(outer) {

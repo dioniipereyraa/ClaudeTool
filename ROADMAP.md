@@ -24,58 +24,6 @@ Items concretos y cerrados se mueven al `DEVLOG.md`. Releases formales al
 El orden acá es deliberado: lo de arriba arranca antes que lo de
 abajo. Cambios al orden se discuten explícitamente.
 
-### Hito 28 — Export de assets generados por Claude Design (próximo)
-
-**Problema**: Hito 27 (v0.6.0) trajo el chat de Claude Design al
-`.exportal/<ts>-<slug>.md`, pero los **assets generados** (HTML
-components, PNG renders, lo que Claude produjo) quedaron afuera.
-Para Claude Design eso es la mitad del valor — sin los archivos, el
-export es "qué hablamos" sin el "qué construimos". El usuario flagueó
-la primera vez que lo usó end-to-end (post 0.6.1).
-
-**Recon pendiente** (necesito una corrida en consola sobre un
-proyecto Design real con assets):
-- ¿Qué shape tiene `inner.assets[<name>].versions[i]`? Probable
-  candidato: `{ html: string }` o `{ content: string, contentType:
-  string, createdAt: string }`. Si las imágenes (PNGs) están ahí
-  también, ¿van como base64 o como una URL/ref?
-- ¿Cuántas versiones se guardan por asset? (probablemente todas las
-  ediciones — para nuestro export queremos solo la última.)
-- ¿Hay un campo aparte para subcarpetas / file structure
-  (`folders`, `files`, etc.)? El UI muestra carpetas (`compo...`,
-  `ref`, `store`) pero el schema que vimos en Hito 27 solo expuso
-  `assets`. Puede haber otro field top-level que no agarramos.
-
-**Plan tentativo según el recon**:
-
-1. **Adapter expandido**: `adaptDesignToConversation` ahora devuelve
-   `{ conversation, assets: [{ filename, content, contentType }] }`
-   en vez de solo `conversation`.
-2. **Bridge endpoint extendido**: `/import-inline` acepta un campo
-   opcional `assets: [{ filename, content (string|base64),
-   contentType }]`. El handler en VS Code los escribe a
-   `<workspace>/.exportal/<ts>-<slug>/<filename>` (carpeta hermana
-   del `.md`). Filenames se sanitizan (no path traversal).
-3. **Markdown enriquecido**: el `.md` arranca con un bloque listando
-   los assets adjuntos para que Claude Code los vea en el primer
-   prompt: `## Assets generados\n- design-canvas.html (12 KB)\n-
-   tile-small.png (440×280)\n...`
-4. **Límite de tamaño**: el bridge `/import-inline` ya tiene el cap
-   de 10 MB para el JSON. Con los assets adentro puede explotar.
-   Subir el cap a ~50 MB (los .design suelen tener PNGs grandes), o
-   filtrar por `contentType` (saltear binarios > N MB con un warning
-   en el .md).
-5. **Binarios (PNG, etc)**: Si vienen como base64 en el response de
-   Connect-RPC, los pasamos como base64 en el bridge payload y el
-   handler los `atob` antes de escribir. Si son refs a URLs externas
-   (`claudeusercontent.com/...`) entonces el content-script tiene que
-   fetcharlos uno a uno antes de mandarlos.
-
-**Riesgo**: el shape de los assets puede ser más complejo de lo que
-asumo (versionado profundo, dependencies entre files, etc). Decidir
-post-recon si vale el scope completo o si nos quedamos con un MVP
-de "solo el último HTML del primer asset".
-
 ### Hito 19 — Import como "chat del historial" (reconstruir `.jsonl`)
 
 **Idea**: en vez de abrir un `.md`, generar un `.jsonl` válido en

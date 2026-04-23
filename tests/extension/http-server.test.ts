@@ -265,7 +265,7 @@ describe('startServer — /import-inline', () => {
   it('accepts payloads up to several MB', async () => {
     h = await setup();
     // ~2 MB of conversation text — comfortably above the /import 64 KB
-    // limit, well below the /import-inline 10 MB cap.
+    // limit, well below the /import-inline 50 MB cap.
     const conversation = { uuid: 'abc', name: 'big', text: 'x'.repeat(2 * 1024 * 1024) };
     const res = await fetch(`${h.baseUrl}/import-inline`, {
       method: 'POST',
@@ -279,9 +279,11 @@ describe('startServer — /import-inline', () => {
     expect(h.onImportInline).toHaveBeenCalledOnce();
   });
 
-  it('returns 413 for payloads larger than 10 MB', async () => {
+  it('returns 413 for payloads larger than 50 MB', async () => {
     h = await setup();
-    const huge = 'x'.repeat(11 * 1024 * 1024);
+    // 51 MB of payload — just over the 50 MB cap that hito 28 raised
+    // from the original 10 MB to leave room for Design assets bundles.
+    const huge = 'x'.repeat(51 * 1024 * 1024);
     const res = await fetch(`${h.baseUrl}/import-inline`, {
       method: 'POST',
       headers: {
