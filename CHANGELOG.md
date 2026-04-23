@@ -6,6 +6,16 @@ Companion (Chrome extension) are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 and versions follow [Semantic Versioning](https://semver.org/).
 
+## [0.5.3] — 2026-04-23
+
+### Changed
+
+- Chrome options page now flex-centers inside the browser tab instead
+  of hugging the top-left corner. `body` gets `min-height: 100vh` +
+  `display: flex; align-items: center; justify-content: center;` and
+  the card carries the 420px max-width. Cosmetic follow-up to v0.5.2's
+  switch to `open_in_tab: true`.
+
 ## [0.5.2] — 2026-04-23
 
 ### Changed

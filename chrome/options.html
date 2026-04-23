@@ -36,14 +36,20 @@
         -webkit-font-smoothing: antialiased;
       }
       body {
-        width: 420px;
+        min-height: 100vh;
         margin: 0;
-        padding: 0;
+        padding: 48px 24px;
+        box-sizing: border-box;
         background: var(--exp-bg);
         color: var(--exp-text);
         line-height: 1.5;
+        display: flex;
+        align-items: center;
+        justify-content: center;
       }
       .card {
+        width: 100%;
+        max-width: 420px;
         border-radius: var(--exp-radius-lg);
         overflow: hidden;
         background: var(--exp-surface);
