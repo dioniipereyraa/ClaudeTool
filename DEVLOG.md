@@ -1229,7 +1229,7 @@ en `push` de tags `v*`:
 
 ---
 
-## 2026-04-21 — Hito 13 · Preparación para Chrome Web Store (en curso)
+## 2026-04-21 → 2026-04-23 — Hito 13 · Publicación al Chrome Web Store
 
 ### Qué hicimos
 - Preparamos toda la documentación que Google exige para review de
@@ -1240,6 +1240,15 @@ en `push` de tags `v*`:
   - `docs/CHROME_WEB_STORE_LISTING.md` — borrador listo-para-pegar
     con todos los campos del dashboard: single purpose, justificación
     por permiso, data usage disclosure, privacy policy URL.
+- Pago de la cuenta de developer (US$5 one-time) en Chrome Web Store.
+- Upload de `exportal-companion-0.3.0.zip`, primera review aprobada en
+  ~1 día hábil sin cambios solicitados.
+- Post-aprobación vino el arco de redesign (hitos 25 + 26) con varias
+  iteraciones: 0.5.0 (redesign + auto-pair + ping loop), 0.5.1
+  (options tres estados), 0.5.2 (`open_in_tab: true` + auto-open), 0.5.3
+  (centrado), 0.5.5 (refresh READMEs), 0.5.6 (code-review sweep +
+  refresh de one-liner description).
+- Upload final de `exportal-companion-0.5.6.zip`. Segunda review aprobada.
 
 ### Decisiones clave y por qué
 - **Privacy policy en el repo, no en un sitio externo**: cero
@@ -1253,15 +1262,23 @@ en `push` de tags `v*`:
 - **Justificación de `host_permissions: 127.0.0.1`**: éste es el
   permiso que más suele disparar review manual. Lo justificamos
   explícito: "loopback only, bearer-token auth, traffic never leaves
-  the device". Si el review rechaza, iteramos sobre la redacción.
+  the device". La redacción pasó en la primera review sin objeciones.
+- **Re-submit de 0.5.6 fue un patch release, no una descripción
+  nueva**: ninguna permission ni surface change requirió re-justificar
+  nada. El "What's new in this version" cubrió los cambios.
 
-### Pendiente
-- Pago de US$5 de cuenta developer en Chrome Web Store.
-- Upload del `exportal-companion-0.3.0.zip` via el dashboard.
-- Copiar los textos de `CHROME_WEB_STORE_LISTING.md` al formulario.
-- Screenshots: reutilizar `docs/screenshots/*` (3 archivos ya
-  versionados).
-- Enviar a review y esperar 1-3 días hábiles.
+### Verificación
+- Extensión pública en el Chrome Web Store, instalable con un click.
+- Primera review: 0.3.0 aprobada.
+- Segunda review: 0.5.6 aprobada con los redesigns 25 + 26 incluidos.
+
+### Lo que NO entra
+- Auto-publish vía CI (`chrome-webstore-upload-cli`). Requiere gestión
+  de API credentials + OAuth refresh tokens; por la frecuencia de
+  release actual (~1 por sprint) el upload manual desde el dashboard
+  es más barato en mantenimiento.
+- Update de screenshots del listing a las del diseño citrus. Las del
+  navy+orange siguen arriba — pendiente en ROADMAP near-term.
 
 ---
 
@@ -1334,3 +1351,232 @@ en `push` de tags `v*`:
 - Release 0.4.0 (vsix + zip firmado del companion) cuando apruebe la
   review del CWS de 0.3.0 — subir ambas versiones juntas evita
   confundir a usuarios con "versión mínima para emparejar".
+
+---
+
+## 2026-04-22 → 2026-04-23 — Hito 25 · Emparejamiento en un click
+
+### Qué hicimos
+Reemplazamos el flujo "copiá este token de VS Code y pegalo en las
+opciones del Companion" por un pipeline zero-paste entre VS Code y
+Chrome. Shipped en v0.5.0 y ajustado a través de 0.5.1 → 0.5.6.
+
+- **Fuente (VS Code)**: el comando `Exportal: Mostrar token de
+  emparejamiento` abre un webview panel con un botón **"Copiar y abrir
+  Chrome"**. El handler escribe el token al clipboard (fallback),
+  construye un `vscode.Uri.from({scheme:'https', authority:'claude.ai',
+  path:'/', fragment:'exportal-pair=<token>'})` y llama
+  `vscode.env.openExternal`. El panel queda abierto — el usuario puede
+  re-disparar si Chrome no detecta el token.
+- **Consumo (content script claude.ai)**: `consumePairingFragment()`
+  corre al cargar; usa `URLSearchParams` sobre el hash (tolera
+  percent-encoding del `=`) y, si la regex `/^[0-9a-fA-F]{64}$/`
+  matchea, manda `{type:'exportal:setPairingToken', token}` al service
+  worker. Si `window.location.hash` viene vacío (claude.ai strippeó la
+  URL antes del `document_idle`), cae a `performance.getEntriesByType
+  ('navigation')[0].name` para recuperar la URL original.
+- **Storage (service worker)**: valida de nuevo el shape 64-hex y
+  persiste via `chrome.storage.local.set({[TOKEN_KEY]: token})`. El
+  `storage.onChanged` listener que ya existía refresca el badge solo.
+- **Confirmation loop**: el service worker, tras guardar el token,
+  corre `pingBridge(token)` — probe de los puertos 9317-9326 con
+  `POST /ping` + Bearer. El endpoint `/ping` nuevo en `http-server.ts`
+  valida el Bearer y dispara `onPing` en la extensión. Ahí
+  `handlePairConfirmed()` muestra una notification, y si el webview
+  panel sigue abierto le manda `{type:'paired'}` — el webview swap-ea
+  a un overlay con check lime y auto-disposes a 2.5s. El debounce de
+  3s en `handlePairConfirmed` evita doble-notification si el mismo
+  tab de claude.ai se recarga.
+- **Abrir options page después del pair**: el content script también
+  dispara `{type:'exportal:openOptionsPage'}`; el service worker llama
+  `chrome.runtime.openOptionsPage()`. El usuario aterriza en el
+  panel del Companion mostrando el estado "paired" completo, no
+  solo el toast efímero en claude.ai.
+- **Post-consumo**: `history.replaceState(null, '', pathname+search)`
+  para que un reload no re-aplique el token.
+- **Onboarding v2**: renombrado el flag `exportal.onboardingShown` a
+  `exportal.onboardingShownV2` para que usuarios upgrading desde 0.4.x
+  vean la nueva UI una vez.
+- **Single-instance del webview**: referencia del panel en una var de
+  módulo (`let pairingPanel`), no sobre `ExtensionContext` (que VS Code
+  congela y rechaza nuevos properties — error `object is not extensible`
+  en la primera iteración).
+
+### Decisiones clave y por qué
+- **URL fragment vs query string**: fragmentos no se envían al server,
+  claude.ai nunca ve el token. Vale la complicación de leer
+  `window.location.hash` en el content script.
+- **`Uri.from` vs `Uri.parse`**: en algunas builds de VS Code,
+  `parse("https://claude.ai/#a=b").toString()` re-encodea `=` a `%3D`
+  en el fragment. Chrome entrega eso literal en `window.location.hash`,
+  rompiendo la regex. `Uri.from` con components explícitos preserva
+  el fragment verbatim. Encontrado el bug en 0.5.1, solucionado en
+  0.5.2.
+- **No pedimos `clipboardRead`**: Chrome permitiría auto-detectar el
+  token con `navigator.clipboard.readText()` en el options page, pero
+  agregar el permiso dispara re-review de CWS para todos los usuarios
+  existentes. El fragment cubre el happy path; el paste manual sigue
+  funcionando en options como fallback.
+- **Threat model**: un link malicioso tipo
+  `claude.ai/#exportal-pair=ATTACKER_TOKEN` puede sobreescribir el
+  token del Companion. El peor caso es que el siguiente export falle
+  con "Token inválido" (la VS Code bridge tiene otro token), y el
+  usuario re-empareja. Cero filtración de datos, cero RCE. Documentado
+  en el comentario de `consumePairingFragment`.
+- **Panel del webview no se auto-cierra en "Copy and open Chrome"**:
+  si Chrome no detecta el fragment (default browser distinto, Companion
+  desactualizado), el usuario puede re-clickear sin tener que re-abrir
+  el panel. Feedback visual inline (botón en verde + "Abriendo
+  Chrome…" 1.8s) mata la ansiedad.
+- **Logs `console.info` persistentes**: para que el usuario pueda
+  diagnosticar sin attachearse un debugger. Noise mínimo (una línea
+  por page load con hash).
+- **`open_in_tab: true` en el manifest**: sin esto, `openOptionsPage`
+  renderiza el panel como popup chiquito dentro de `chrome://extensions`,
+  lo que rompe el layout de la card del design.
+
+### Verificación
+- End-to-end manual en Windows + Chrome 131 + VS Code 1.95: VS Code
+  abre claude.ai, Chrome muestra toast lime "Emparejado con VS Code",
+  options page abre mostrando "¡Listo! — Todo conectado", VS Code
+  recibe ping y muestra notification + overlay lime en el webview.
+- Logs `[Exportal] pair:` aparecen en la consola de claude.ai en
+  cada paso.
+- `Version History` del tab CWS lista la 0.5.6 con los cambios
+  acumulados.
+
+### Lo que NO entra
+- **Native messaging** (VS Code habla con el Companion vía stdio
+  de un native host): requiere instalar un JSON manifest en el
+  filesystem del OS + un binario permanente. Demasiada fricción
+  para una ganancia marginal.
+- **Custom URL scheme** `exportal://`: requiere registrar un handler
+  OS-level, varía por plataforma. El fragment flow hace el mismo
+  trabajo sin instalación extra.
+- **Auto-detect del clipboard en options**: requiere `clipboardRead`,
+  ya discutido arriba.
+
+---
+
+## 2026-04-22 → 2026-04-23 — Hito 26 · Rediseño Graphite Citrus
+
+### Qué hicimos
+Reescritura completa de la identidad visual de ambas extensiones, de
+la paleta navy+orange original a **Graphite Citrus** (dark, con acento
+lime `#D4FF3A`). Shipped en v0.5.0 y pulido a través de 0.5.1 → 0.5.6.
+
+- **Design source**: vendored `design-cds/` con los tokens, componentes
+  (FabExpanded, OnboardingChrome, OnboardingVsCode, ExportalMark) y
+  referencias de color/tipografía. Ignorado por vsce y eslint; no
+  ship, solo referencia.
+- **Sistema de tokens**: un objeto `TOKENS` en
+  `chrome/content-script.js` (surface `#111315`, accent lime,
+  textDim opacidad 60%, fsXs 11 / fsSm 13 / fsBase 14 / pad 16 / radius
+  10, etc.) replicado como variables CSS `--exp-*` en las tres
+  surfaces (content-script, options.html, webview de pairing). Single
+  source of truth que mantiene consistencia.
+- **FAB + popover en claude.ai**: el FAB pasa de círculo navy 44px a
+  orb ambient 46px con ExportalMark (SVG inline) + pulse dot lime en
+  la esquina. El popover adopta la layout de `FabExpanded`: header con
+  ExportalMark + nombre + chip "VS Code" con dot verde, botón primary
+  lime "Exportar este chat" con ArrowGlyph, secundario ghost
+  "Preparar export oficial", y kbd chips `Alt+Shift+E` / `Alt+Shift+O`
+  en JetBrains Mono (pasaron de los glyphs Mac-only `⌥⇧` a spelled-out
+  en v0.5.0).
+- **SuccessPulse** en el popover cuando el export termina: un overlay
+  absoluto que cubre la card entera, check glyph lime que se dibuja
+  con `stroke-dasharray` animation, y una línea mono con
+  `{ms}ms · {count} mensajes` donde `ms` es `performance.now()` diff
+  real y `count` viene de `conversation.chat_messages.length`.
+- **Options page del Companion**: adopta OnboardingChrome con tres
+  estados driven por `[data-state]` en la card:
+  - `waiting`: chip "Esperando…", botón primary desactivado.
+  - `detected`: chip "Token detectado", token field con border lime +
+    shimmer animation, botón primary actionable.
+  - `paired`: chip verde "Emparejado", headline "¡Listo!", botón
+    mutado a "✓ Todo conectado", y aparece un link low-contrast
+    "Desemparejar".
+  `chrome.storage.onChanged` listener sincroniza el estado si el
+  auto-pair via URL fragment completa en otra pestaña.
+  `open_in_tab: true` en el manifest hace que la page se renderice como
+  tab completa (no como popup embedded en `chrome://extensions`). El
+  body es flex-centered en el viewport para que la card 420px quede
+  en el medio.
+- **Pairing webview de VS Code**: adopta OnboardingVsCode — titlebar
+  fake con 3 dots estilo macOS, mark + headline "Conectá tu navegador",
+  stepper VS Code → Chrome → Listo, token card con borde punteado y el
+  token en mono, y botones "Luego" (ghost) + "Copiar y abrir Chrome"
+  (primary con flecha). Reemplazó el `showInformationMessage` bloqueante
+  que traíamos. CSP con nonce + `default-src 'none'`, single-instance
+  via var de módulo (ver Hito 25 para el detalle del storage bug).
+- **Status bar de VS Code**: codicon `$(export)` en lugar del genérico
+  `$(cloud-download)`, para eco del motivo flecha-del-mark.
+- **Icon refresh**: `assets/icon.svg` reescrito como ExportalMark
+  — fondo `#0A0B0D`, trazos de la E en `#F2F3F0`, barra central +
+  flecha en `#D4FF3A`. Regenerado a PNG 128×128 con `scripts/build-
+  icon.mjs` y copiado a `chrome/icon-128.png`.
+- **i18n completo**: keys nuevos para los tres estados de options
+  (`chipWaiting`/`chipDetected`/`chipPaired`,
+  `headlineWaiting`/`headlineDetected`/`headlinePaired`, etc.), para
+  el SuccessPulse (`pulseHeadline`, `pulseMessagesSuffix`), para el
+  pair success toast (`toastPairedWithVsCode`), para el local-first
+  block (`localFirstLead`, `localFirstBody`), y para el webview
+  (`Connect your browser`, `Paired with Chrome`, etc.).
+- **Polish releases 0.5.1 → 0.5.6**: options tres estados (0.5.1),
+  auto-open de options page + `open_in_tab` (0.5.2), centrado del
+  viewport (0.5.3), version-bump-only para destrabar upload al
+  Marketplace (0.5.4), refresh de READMEs sacando el `v0.3.0`
+  hardcodeado + flujo de pairing 1-click (0.5.5), code-review sweep
+  + refresh del one-liner del Marketplace + cleanup de 21 i18n keys
+  muertos (0.5.6).
+
+### Decisiones clave y por qué
+- **Paleta Graphite Citrus sobre navy+orange**: la paleta original era
+  solvente pero genérica. Citrus da una identidad visual distintiva
+  (lime sobre near-black), el dark mode matchea el entorno natural de
+  Claude Code / VS Code, y el contraste del accent sobre surface
+  oscura lee mejor a tamaño chico (icon 128×128 de CWS/Marketplace).
+- **FAB colapsado + popover expandido, no card permanente**: el design
+  original mostraba `FabExpanded` como card siempre visible. Eso es
+  ~280×240px tapando contenido de claude.ai. Compromiso: orb 46px
+  ambient por defecto, click expande el popover con los contents del
+  FabExpanded. Misma identidad visual, sin el cost de UI siempre
+  presente.
+- **CSS vars bajo `#exportal-panel` scope**: evita que reglas de
+  claude.ai se filtren a nuestra UI y al revés. Las keyframes
+  (expPop, expCheckIn, expShimmer, etc.) van globales porque Chrome
+  las registra una sola vez y no vale encapsularlas.
+- **Badges `OK`/`SET`/`AUTH`/`OFF`/`OLD`/`ERR` no se traducen**:
+  decisión explícita, los tratamos como códigos tipo HTTP status
+  universales.
+- **SVG inline en vez de `<img src>` del icon**: evita el round-trip
+  al filesystem del extension, fill-colors editables via tokens, y
+  no depende de que `icon-128.png` esté rasterizado al tamaño exacto
+  que necesitamos.
+- **`.vscodeignore` actualizado**: `design-cds/**` bumpea el vsix a
+  ~500KB si se incluye. Ignorado explícito.
+
+### Verificación
+- 154 tests pasan, typecheck limpio, lint limpio (post-cleanup en
+  v0.5.6).
+- Smoke test manual del flujo completo en Windows + Chrome 131 + VS
+  Code 1.95.
+- El icon citrus aparece correctamente en el card del Marketplace
+  (después del cache invalidation) y en el CWS.
+- Options page centrada en viewport con la tab de Chrome resized
+  a varios anchos (sin cortar la card ni dejar espacio raro).
+
+### Lo que NO entra
+- **Modo light**: el design tiene una paleta light shipped en
+  `tokens.jsx` pero no la implementamos. Dark matchea el uso
+  mayoritario de claude.ai (forzado dark) y VS Code (mayoría usa dark).
+  Si hay demanda, el CSS ya está scopeado via `--exp-*` — agregarlo
+  después es viable.
+- **Densidad compact**: misma lógica. `cozy` es el único shipped.
+- **Refactor del renderizador para múltiples paletas**: el componente
+  `tokens.jsx` del design soporta `ember`/`citrus`/`violet`. Bajamos
+  citrus solamente; si iteramos branding a otro nombre/paleta en el
+  futuro, la reescritura es mecánica.
+- **Recapturar screenshots para los listings de CWS + Marketplace**:
+  los shipped son del navy+orange viejo. Queda pendiente en ROADMAP
+  near-term.

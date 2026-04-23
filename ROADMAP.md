@@ -8,16 +8,16 @@ Items concretos y cerrados se mueven al `DEVLOG.md`. Releases formales al
 
 - [ ] Verificar el flujo de instalación en una máquina limpia (vsix +
   zip del companion desde releases, emparejar, probar ambos sentidos).
-
-## Medium-term (distribución)
-
-### Hito 13 — Publicación al Chrome Web Store
-- Requisitos: cuenta de developer (US$5 one-time), review process
-  (~días), justificación de permisos `downloads` + `host_permissions`.
-- **Por qué**: "Load unpacked" exige modo desarrollador activado en
-  Chrome. CWS es un click install, más creíble para terceros.
-- Orden sugerido: después del Marketplace — el flujo más fricción
-  (pago + review) espera a tener el camino de VS Code sólido.
+- [ ] Recapturar `docs/screenshots/fab.png`, `onboarding.jpeg`,
+  `options.png` con el branding citrus (hoy siguen siendo capturas del
+  navy+orange viejo, desaliniadas con la UI real). Después subir las
+  nuevas al listing del Chrome Web Store y al del VS Code Marketplace.
+- [ ] Investigar el flake de `npm run ci` en Windows: la primera
+  corrida de vitest falla con `TypeError: Cannot read properties of
+  undefined (reading 'config')` en los 18 test files y la segunda
+  pasa limpia. Hipótesis de trabajo: race entre `tsc --noEmit` y el
+  transform cache de vitest 4 sobre NTFS. No afecta CI en GitHub
+  Actions (corre en Linux).
 
 ## Medium-term (soporte multi-IA)
 
