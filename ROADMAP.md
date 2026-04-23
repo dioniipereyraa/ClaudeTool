@@ -60,7 +60,21 @@ conversación que quiera llevar a VS Code. El one-click que tenemos en
   `{code, message, details: [{type: 'buf.validate.Violations', value, debug}]}`.
   El server-side usa `buf.validate` para validación de schema, lo
   que implica que la API es protobuf-first con la JSON como
-  fachada. La shape del response 200 — pendiente de capturar.
+  fachada.
+- **Response 200 (GetProject)**: top-level fields `projectId`, `name`,
+  `ownerUuid`, `ownerEmail`, `createdAt`, `updatedAt`, `sharing`,
+  `type`, `claudeMd`, `ownerDisplayName`, y un `data: string` de
+  ~316 KB que con altísima probabilidad es el blob real del
+  proyecto base64-encoded (proto schema usa `bytes data` que en
+  Connect/JSON canon se encodea como base64). Coincide con el hex
+  dump del primer recon donde el body raw (los bytes de `data`)
+  arrancaba con `{"name":"Exportal","created":...,"chats":{...}}`.
+- **Response 200 (GetProjectData)**: solo `{data: string}`, mismo
+  ~316 KB. Probablemente lo mismo sin la metadata top-level.
+  GetProject es el más útil — viene con todo.
+- **Pendiente**: confirmar que `data` es base64 + JSON, y capturar
+  la shape interna del JSON (es donde viven los messages que
+  necesitamos exportar).
 - Tab de Claude Design = mismo storage / sesión que claude.ai/chat,
   no requiere login separado.
 
