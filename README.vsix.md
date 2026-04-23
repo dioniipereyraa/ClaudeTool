@@ -13,14 +13,16 @@ Cuando pasás de claude.ai a Claude Code (o viceversa), perdés todo el contexto
 
 Con las dos extensiones instaladas y emparejadas:
 
-1. Abrí cualquier chat en `claude.ai/chat/<uuid>`.
+1. Abrí cualquier chat en `claude.ai/chat/<uuid>` **o un proyecto en `claude.ai/design/p/<uuid>`**.
 2. Click en el botón flotante de Exportal (esquina inferior derecha) → **Exportar este chat**.
 3. VS Code guarda la conversación en `<workspace>/.exportal/<timestamp>-<slug>.md`, abre el archivo, **y automáticamente abre el panel de Claude Code con el Markdown adjunto como `@-mention`**. Solo escribís tu prompt y listo.
 
+En proyectos de **Claude Design**, además del chat se descargan los archivos generados (HTML, JSX, JSON, etc.) a `<workspace>/.exportal/<timestamp>-<slug>/` (carpeta hermana del `.md`). El `.md` arranca con un encabezado *"Generated assets"* listando los archivos para que Claude Code los vea.
+
 O con atajo de teclado (sin abrir el panel):
 
-- `Alt+Shift+E` — exportá el chat actual a VS Code.
-- `Alt+Shift+O` — preparar el export oficial (por si querés la versión con todos tus chats; la extensión reenvía el ZIP cuando llega por email).
+- `Alt+Shift+E` — exportá el chat actual a VS Code (funciona en `/chat` y `/design/p`).
+- `Alt+Shift+O` — preparar el export oficial (solo en `/chat`, por si querés la versión con todos tus chats; la extensión reenvía el ZIP cuando llega por email).
 
 El auto-attach al chat de Claude Code se puede desactivar con el setting `exportal.autoAttachToClaudeCode`. Agregá `.exportal/` a tu `.gitignore` si no querés versionar los imports.
 
@@ -51,12 +53,12 @@ Al abrir VS Code por primera vez se abre un panel con el **token de emparejamien
 
 El badge del ícono refleja el estado: `OK` verde (importó), `SET` amarillo (falta token), `OFF` rojo (VS Code no responde), `AUTH` rojo (token inválido), `OLD` rojo (VS Code desactualizado), `ERR` rojo (otros).
 
-## Dos formas de exportar
+## Formas de exportar
 
-| Método | Cuándo sirve | Qué hace |
+| Método | Dónde sirve | Qué hace |
 |---|---|---|
-| **Exportar este chat** (botón o `Alt+Shift+E`) | Querés *este* chat ahora mismo. | Lee la API interna de claude.ai (mismas cookies de sesión), manda el JSON al bridge local de VS Code, abre el Markdown. Cero ZIPs, cero mails. |
-| **Preparar export oficial** (botón o `Alt+Shift+O`) | Querés *todos* tus chats, o el export oficial completo con attachments/proyectos. | Guarda el UUID del chat actual. Cuando el ZIP oficial de claude.ai termina de descargar, el companion se lo pasa a VS Code y VS Code abre directo ese chat del listado. |
+| **Exportar este chat** (botón o `Alt+Shift+E`) | `claude.ai/chat/<uuid>` y `claude.ai/design/p/<uuid>`. | Lee la API interna de claude.ai (mismas cookies de sesión), manda el JSON al bridge local de VS Code, abre el Markdown. Cero ZIPs, cero mails. En Design también descarga los archivos generados a una carpeta hermana del `.md`. |
+| **Preparar export oficial** (botón o `Alt+Shift+O`) | Solo `claude.ai/chat`. | Guarda el UUID del chat actual. Cuando el ZIP oficial de claude.ai termina de descargar, el companion se lo pasa a VS Code y VS Code abre directo ese chat del listado. |
 
 ## CLI (opcional)
 

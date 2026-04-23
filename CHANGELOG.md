@@ -6,6 +6,26 @@ Companion (Chrome extension) are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 and versions follow [Semantic Versioning](https://semver.org/).
 
+## [0.7.1] — 2026-04-23
+
+Prep round antes de arrancar Hito 19 (.jsonl). Sin features nuevos.
+
+### Changed
+
+- READMEs (`README.md` + `README.vsix.md`) refrescados para
+  mencionar el soporte de Claude Design (`/design/p/<UUID>`) y el
+  bundling de assets generados. La tabla "Formas de exportar"
+  ahora aclara qué shortcut funciona en qué surface.
+- Header de `chrome/content-script.js` reescrito para reflejar las
+  dos surfaces (chat + Design) en lugar de solo `/chat/<UUID>`.
+
+### Removed
+
+- Directiva `eslint-disable-next-line no-console` no usada en
+  `src/extension/http-server.ts:214` (la regla `no-console` no
+  está activa para `src/`, así que la directiva era no-op y eslint
+  mismo la flageó).
+
 ## [0.7.0] — 2026-04-23
 
 ### Added

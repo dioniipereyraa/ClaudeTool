@@ -13,14 +13,16 @@ Cuando pasás de claude.ai a Claude Code (o viceversa), perdés todo el contexto
 
 Con las dos extensiones instaladas y emparejadas:
 
-1. Abrí cualquier chat en `claude.ai/chat/<uuid>`.
+1. Abrí cualquier chat en `claude.ai/chat/<uuid>` **o un proyecto en `claude.ai/design/p/<uuid>`**.
 2. Click en el botón flotante de Exportal (esquina inferior derecha) → **Exportar este chat**.
 3. VS Code guarda la conversación en `<workspace>/.exportal/<timestamp>-<slug>.md`, abre el archivo, **y automáticamente abre el panel de Claude Code con el Markdown adjunto como `@-mention`**. Solo escribís tu prompt y listo.
 
+En proyectos de **Claude Design**, además del chat se descargan los archivos generados (HTML, JSX, JSON, etc.) a `<workspace>/.exportal/<timestamp>-<slug>/` (carpeta hermana del `.md`). El `.md` arranca con un encabezado *"Generated assets"* listando los archivos para que Claude Code los vea.
+
 O con atajo de teclado (sin abrir el panel):
 
-- `Alt+Shift+E` — exportá el chat actual a VS Code.
-- `Alt+Shift+O` — preparar el export oficial (por si querés la versión con todos tus chats; la extensión reenvía el ZIP cuando llega por email).
+- `Alt+Shift+E` — exportá el chat actual a VS Code (funciona en `/chat` y `/design/p`).
+- `Alt+Shift+O` — preparar el export oficial (solo en `/chat`, por si querés la versión con todos tus chats; la extensión reenvía el ZIP cuando llega por email).
 
 El auto-attach al chat de Claude Code se puede desactivar con el setting `exportal.autoAttachToClaudeCode`. Agregá `.exportal/` a tu `.gitignore` si no querés versionar los imports.
 

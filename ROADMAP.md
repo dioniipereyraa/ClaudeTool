@@ -27,34 +27,70 @@ Items concretos y cerrados se mueven al `DEVLOG.md`. Releases formales al
 El orden acá es deliberado: lo de arriba arranca antes que lo de
 abajo. Cambios al orden se discuten explícitamente.
 
-### Hito 19 — Import como "chat del historial" (reconstruir `.jsonl`)
+### Hito 19 — Import como "chat del historial" (reconstruir `.jsonl`) — próximo (v0.8.x)
 
-**Idea**: en vez de abrir un `.md`, generar un `.jsonl` válido en
-`~/.claude/projects/<cwd-encoded>/` para que la conversación aparezca
-en `/resume` de Claude Code como si fuera un chat local.
+**Idea**: en vez de (o además de) abrir un `.md`, generar un `.jsonl`
+válido en `~/.claude/projects/<cwd-encoded>/` para que la conversación
+aparezca en `/resume` de Claude Code como si fuera un chat local.
 
 **Why**: UX ideal — el usuario "continúa" la conversación de claude.ai
-en Claude Code sin ningún paso extra. Hoy tienen que arrancar un chat
-nuevo y adjuntar el `.md` como contexto.
+en Claude Code sin pasos extra. Hoy tienen que arrancar un chat nuevo
+y adjuntar el `.md` como contexto (Hito 18 hace el adjunto auto pero
+sigue siendo un chat NUEVO con un attachment, no la continuación
+semánticamente fluida).
+
+**Versión**: 0.8.0 ships el feature core. Patches +1 (0.8.1, 0.8.2…)
+para cada bug que aparezca durante smoke tests reales — el formato es
+ingeniería inversa así que esperamos iteración.
+
+**Recon necesario antes de codear** (ningún probe alcanza, hay que
+inspeccionar fixtures reales en `~/.claude/projects/`):
+- Estructura exacta de los eventos `user` / `assistant` /
+  `queue-operation` y cualquier otro tipo nuevo que haya aparecido
+  desde las notas iniciales (`reference_jsonl_format.md` en
+  memoria — verificar que sigue vigente).
+- Reglas de encadenamiento de `uuid` / `parentUuid`: ¿pueden ser
+  null en root? ¿pueden saltar messages? ¿qué pasa con branching?
+- Campos que el state manager de Claude Code lee y valida: `cwd`,
+  `sessionId`, `gitBranch`, `toolUseResult`, `version`. Algunos
+  pueden ser opcionales, otros load-bearing.
+- Cómo manejar `tool_use` y `tool_result` blocks (claude.ai tiene
+  algunos; Claude Code tiene su propio set distinto). Probable que
+  los tool calls de claude.ai no se puedan replicar 1:1 — opciones:
+  (a) skipearlos del .jsonl reconstruido, (b) convertirlos a
+  text-only con un comentario, (c) intentar mapear los más comunes.
+
+**Plan tentativo (post-recon)**:
+1. **Reader-side**: extender el bridge handler para escribir
+   también un `.jsonl` además del `.md`. Posible flag
+   `exportal.jsonlMode = 'both' | 'only-md' | 'only-jsonl'` para
+   no forzar el rebuild a usuarios que estén contentos con `.md`.
+2. **Generator nuevo** en `src/formatters/claude-code-jsonl.ts`:
+   `formatAsJsonl(conversation, opts: {cwd, sessionId, gitBranch})`
+   → string de NDJSON. Tests con fixtures reales del usuario.
+3. **Path encoding**: `~/.claude/projects/<encoded>/` necesita el
+   mismo `encodeProjectDir` que ya tenemos en
+   `src/core/paths.ts`. Reusar.
+4. **Test de integración con Claude Code**: imposible de unit-testear
+   end-to-end (depende del state manager de Claude Code). Smoke
+   test manual: generar el `.jsonl`, abrir Claude Code, ver si la
+   conversación aparece en `/resume`, intentar continuar el chat.
 
 **Risks**:
-- El formato `.jsonl` es ingeniería inversa; los `uuid` / `parentUuid`
-  tienen reglas de encadenamiento no documentadas.
-- El state manager de Claude Code puede rechazar o ensuciarse si
-  mapeamos mal algún campo (`cwd`, `sessionId`, `gitBranch`,
-  `toolUseResult`).
-- Si Anthropic cambia el formato, nuestro generator se rompe hasta
-  que lo auditemos de nuevo.
-
-**Bloqueado por**: auditoría a fondo del formato y fixtures reales
-(varias conversaciones con tool use, thinking, code interpreter, y
-conversaciones con branching). Hay notas en memoria sobre el shape.
+- Formato `.jsonl` no documentado, basado en ingeniería inversa.
+  Si Anthropic cambia campos, hay que re-auditar.
+- Tool calls / tool_results pueden no ser portables entre
+  superficies (claude.ai vs Claude Code).
+- El state manager puede tener side effects al ver chats que no
+  generó él (`history` corrupto, indexes desincronizados).
 
 **Trade-off vs. Hito 18**: Hito 18 (auto-attach del .md como
 @-mention) ya cubre el caso "traer contexto al próximo chat" con
 cero fricción extra. Hito 19 sería "el chat es el mismo chat, con
-historial replay-able". Vale el cost solo si Hito 18 deja faltando
-algo que usuarios piden.
+historial replay-able". Vale el cost porque Hito 18 deja al usuario
+en un nuevo chat con contexto-vía-attachment, no continuando la
+sesión original — algunas operaciones (revisar mensajes anteriores,
+búsqueda en el historial) sólo funcionan con el .jsonl real.
 
 ### Hitos 20-23 — Soporte multi-IA
 

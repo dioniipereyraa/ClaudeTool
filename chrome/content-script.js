@@ -1,28 +1,33 @@
 // Exportal Companion — content script for claude.ai.
 //
-// Surfaces two export actions on /chat/<uuid>:
+// Activates on two surfaces (route detection in routeFromPath):
+//   - /chat/<UUID>          — claude.ai chat conversations
+//   - /design/p/<UUID>      — Claude Design projects (hito 27 + 28)
 //
-//   1. "Exportar este chat" (primary) — fetches the active conversation
-//      from claude.ai's internal API (same origin, reuses session
-//      cookies) and forwards the JSON to the VS Code bridge immediately.
-//      No ZIP, no email wait.
+// Primary export ("Exportar este chat", Alt+Shift+E) on both surfaces:
+// fetches the active conversation from the internal API and forwards
+// the JSON to the VS Code bridge immediately. No ZIP, no email wait.
+// On Design pages the fetch also pulls the project's top-level files
+// via ListFiles + GetFile and bundles them as `assets` for the bridge
+// to write next to the .md.
 //
-//   2. "Preparar export oficial" (secondary) — stores the conversation
-//      UUID so that when the user triggers Settings → Export data, the
-//      background worker can match the eventually-downloaded ZIP to
-//      this conversation and auto-open it in VS Code.
+// Secondary export ("Preparar export oficial", Alt+Shift+O) only
+// appears on /chat: stores the conversation UUID so the official
+// export ZIP — when it eventually downloads — auto-opens the right
+// conversation. Hidden on Design routes since the URL there exposes
+// a project UUID, not a chat UUID, and the ZIP matches by chat.
 //
 // UI: a small ambient orb sits at bottom-right; clicking it toggles a
 // popover card that matches the Graphite Citrus design (dark surface,
 // lime accent, jetbrains-mono kbd chips). Success becomes a full-panel
 // pulse showing real metrics (ms + message count) instead of a button
-// flash. Keyboard shortcuts (Alt+Shift+E / Alt+Shift+O) skip the
-// popover entirely and trigger a toast.
+// flash. Keyboard shortcuts skip the popover entirely and trigger a
+// toast.
 //
-// This script DOES NOT read the DOM for conversation content. The
-// primary action uses the internal JSON API directly — same data the
-// claude.ai frontend itself consumes. CSRF/auth is enforced by
-// Anthropic's session cookies.
+// This script DOES NOT read the DOM for conversation content. Every
+// path goes through internal JSON APIs — the same data the claude.ai
+// frontend itself consumes. CSRF/auth is enforced by Anthropic's
+// session cookies.
 //
 // claude.ai is a SPA with client-side navigation. Content scripts run
 // in an isolated world, so we can't wrap history.pushState — we poll

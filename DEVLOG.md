@@ -1877,3 +1877,73 @@ Claude Design eso es la mitad del valor.
   típico es que cada export crea una carpeta nueva (timestamp es
   parte del nombre). Si el usuario fuerza dos exports en el mismo
   segundo del mismo chat, sobrescribe. Aceptable.
+
+---
+
+## 2026-04-23 — Prep round pre-Hito 19 (v0.7.1)
+
+### Qué hicimos
+Sesión corta de cleanup + docs antes de arrancar Hito 19 (.jsonl).
+Ningún feature nuevo — solo sweep de tech debt y refresh de
+documentación ahora que Hitos 27 y 28 están cerrados y el
+companion 0.7.0 está pendiente de review en CWS.
+
+- **Sweep de tech debt** (post v0.5.6 fueron varias rondas chicas
+  de redesign + features; vale re-mirar):
+  - **i18n Chrome**: 47 keys declarados, 47 en uso. 0 dead. La
+    disciplina de eliminar al cerrar features post-redesign
+    sostuvo el invariante.
+  - **l10n VS Code**: 50 keys declarados, 50 en uso. 0 dead.
+    Mismo resultado.
+  - **TODO/FIXME/console.log/debugger/eslint-disable**: cero
+    debt. El único `eslint-disable-next-line no-console` que
+    quedó en `http-server.ts:214` era unused (la regla `no-console`
+    no está activa para ese path) — eslint mismo lo flageó.
+    Removido.
+  - **Imports muertos / dead exports**: ninguno encontrado.
+- **Header del content-script.js**: estaba describiendo dos export
+  actions sobre `/chat/<uuid>`, sin mencionar Claude Design ni
+  el bundling de assets. Reescrito para reflejar las dos
+  surfaces (`/chat/<UUID>` y `/design/p/<UUID>`) y el flujo
+  unificado.
+- **READMEs actualizados** (`README.md` y `README.vsix.md`,
+  ambos en sync por la regla del dual-README):
+  - "Cómo se usa" menciona explícitamente Claude Design.
+  - Tabla "Formas de exportar" (era "Dos formas de exportar")
+    actualizada con la columna "Dónde sirve" y nota sobre el
+    bundling de assets en Design.
+  - Atajos `Alt+Shift+E` aclarado que funciona en ambos paths;
+    `Alt+Shift+O` aclarado que solo en `/chat`.
+- **ROADMAP**:
+  - Item de screenshots: confirma que el recapture está hecho
+    (las 5 screenshots citrus ya existen, hechas en Claude Design
+    incluida una nueva del bundling de assets de Hito 28); solo
+    queda subirlas a CWS + Marketplace listings.
+  - Hito 19 expandido con scope concreto: versión 0.8.0 base + .x
+    para fixes, recon necesario antes de codear (estructura de
+    eventos jsonl, encadenamiento uuid/parentUuid, campos
+    load-bearing, manejo de tool calls), plan tentativo
+    post-recon (reader-side flag, generator nuevo, smoke test
+    manual con Claude Code).
+
+### Verificación
+- 165 tests pasan, typecheck + lint limpios (incluyendo el cleanup
+  del eslint-disable).
+- vsix y zip empaquetan sin problemas.
+- Smoke test del flujo Design → VS Code seguía OK desde v0.7.0.
+
+### Pendiente (no es código)
+- **CWS approval**: el companion v0.7.0 está pending review.
+  Cuando apruebe, subimos los nuevos screenshots al listing.
+- **Marketplace upload**: vsix v0.7.0 listo, falta subirlo desde
+  el dashboard.
+- **Screenshots a docs/screenshots/**: las nuevas existen pero no
+  están commiteadas al repo todavía. Pisarían los .png/jpeg
+  navy+orange viejos para que README de GitHub muestre el citrus.
+- **Vitest flake en Windows**: sigue intermitente en la primera
+  corrida de `npm run ci`. La segunda siempre pasa. No bloquea
+  CI en Linux. A investigar durante Hito 19 si molesta.
+
+### Próximo paso
+Hito 19 — recon del formato `.jsonl` con fixtures reales en
+`~/.claude/projects/`. Spec final post-recon.

@@ -211,7 +211,6 @@ async function handleRequest(
       // A handler exception shouldn't leak back to Chrome — it already
       // has the token and the user still sees the (separate) toast on
       // claude.ai. Log once and move on.
-      // eslint-disable-next-line no-console
       console.warn('Exportal: onPing handler threw');
     }
     sendJson(res, 200, { ok: true });
