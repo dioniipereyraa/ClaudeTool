@@ -6,6 +6,54 @@ Companion (Chrome extension) are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 and versions follow [Semantic Versioning](https://semver.org/).
 
+## [0.8.0] — 2026-04-23
+
+### Added
+
+- **Import como sesión de Claude Code (hito 19, experimental).**
+  Nuevo setting `exportal.alsoWriteJsonl` (default `false`). Cuando
+  está en `true`, después de escribir el `.md` también se genera un
+  `.jsonl` compatible con Claude Code en
+  `~/.claude/projects/<encoded-cwd>/<sessionId>.jsonl`. La
+  conversación importada aparece en `/resume` de Claude Code como si
+  fuera una sesión local del proyecto actual.
+  - Nuevo formatter `src/formatters/claude-code-jsonl.ts` con 9
+    tests unitarios (round-trip a través del `parseEvent` del propio
+    reader como validación estructural).
+  - Conversión lossy (documentada en el header del formatter):
+    - `text` → preservado.
+    - `thinking` → **descartado** (no podemos generar la `signature`
+      criptográfica que Anthropic adjunta a los thinking blocks).
+    - `tool_use` → text marker `[Tool: <name>] <input JSON>` (los
+      tools de claude.ai no existen en Claude Code, no son
+      replay-eables).
+    - `tool_result` → text marker `[Tool result] <content>`.
+  - Markers sintéticos para identificar imports a ojo:
+    `requestId: "exportal-imported-<sessionId>"`,
+    `message.id: "msg_imported_<random>"`,
+    `message.model: "claude-imported-from-claude-ai"`.
+  - Detección best-effort de la versión de Claude Code instalada
+    (probe `vscode.extensions.getExtension(...)` con un par de IDs
+    candidatos) y de la rama de git activa (`git symbolic-ref
+    --short HEAD` con timeout 2s).
+  - Wireado en ambos paths: el flujo inline (Companion → bridge) y
+    el flujo de import desde ZIP del comando `Exportal: Importar
+    ZIP`. Toast `Exportal: también escribí <id>.jsonl para /resume
+    en Claude Code.` cuando termina.
+  - Fail-soft: si no hay workspace, si no se puede escribir el
+    archivo, si el directory no existe — se loggea warning y el
+    `.md` queda OK como antes. Nunca rompe el flujo principal.
+
+### Notes
+
+- El formato `.jsonl` es ingeniería inversa, no oficialmente
+  documentado. Puede romperse entre versiones de Claude Code. Por
+  eso el setting es opt-in. Si encontrás que `/resume` no muestra
+  los chats importados o que Claude Code se rompe al continuarlos,
+  abrí un issue con la versión de Claude Code que tenés instalada.
+- Patches sobre 0.8.x van a ir a `0.8.1`, `0.8.2`, etc. para fixes
+  del formato a medida que aparezcan.
+
 ## [0.7.1] — 2026-04-23
 
 Prep round antes de arrancar Hito 19 (.jsonl). Sin features nuevos.

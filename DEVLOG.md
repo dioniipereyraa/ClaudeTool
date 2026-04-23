@@ -1947,3 +1947,164 @@ companion 0.7.0 está pendiente de review en CWS.
 ### Próximo paso
 Hito 19 — recon del formato `.jsonl` con fixtures reales en
 `~/.claude/projects/`. Spec final post-recon.
+
+---
+
+## 2026-04-23 — Hito 19 · Import como sesión de Claude Code (.jsonl, v0.8.0)
+
+### Qué hicimos
+Cerramos el último gap del flujo claude.ai → Claude Code: hasta hoy
+el chat exportado vivía como `.md` que se adjuntaba como @-mention
+(Hito 18). Eso es contexto en un chat NUEVO, no la continuación de
+la conversación original. Hito 19 genera además un `.jsonl`
+compatible con Claude Code que aparece en `/resume` como si fuera
+una sesión local del proyecto, restituyendo el historial completo
+para que el usuario continúe el chat literal.
+
+- **Recon en una sola pasada**: la nota
+  `reference_jsonl_format.md` en memory cubría lo básico (path,
+  encoding, tipos de eventos). Inspección de fixtures reales en
+  `~/.claude/projects/d--Dionisio-ClaudeTool/` agregó:
+  - Campos comunes adicionales que la nota no listaba:
+    `isSidechain`, `userType: "external"`, `entrypoint:
+    "claude-vscode"`, `version: "2.1.114"`, `gitBranch`.
+  - `user` específicos: `promptId`, `permissionMode: "acceptEdits"`.
+  - `assistant` específicos: `requestId`, `message.id` (msg_*),
+    `message.model`, `message.usage` (con tokens y cache),
+    `stop_reason`, `stop_sequence`, `stop_details`.
+  - `thinking` blocks llevan una `signature` en base64 (~3 KB) que
+    Anthropic firma con su API. Sin acceso al API, no podemos
+    forjarla.
+  - `tool_result` events tienen una key top-level extra
+    `toolUseResult` (con `file: {filePath, content}` para
+    Read/Edit) que es el rich-view interno de Claude Code para su
+    propia UI.
+  - Nuevos tipos vistos: `attachment` (subtipos
+    `deferred_tools_delta`, `skill_listing`).
+- **Validación de decisiones con el user** antes de codear: 4
+  preguntas (thinking → skip; tool_use/result → text marker;
+  setting → opt-in default off; version → detect installed). Las
+  4 respondidas, scope locked.
+- **`src/formatters/claude-code-jsonl.ts`** (~200 LOC):
+  `formatAsClaudeCodeJsonl(conversation, opts)` devuelve
+  `{jsonl, sessionId}`. Iteración simple: un evento por message,
+  encadenado via `parentUuid`, con todos los campos del envelope
+  que vimos en fixtures reales. Helper `collapseToText` colapsa el
+  array de content blocks de claude.ai en un solo string `text`,
+  aplicando las conversiones lossy (skip thinking, marker para
+  tool_use y tool_result).
+- **Tests** (`tests/formatters/claude-code-jsonl.test.ts`): 9
+  casos. El más importante es el round-trip: cada line del jsonl
+  generado pasa por `parseEvent` (el mismo Zod schema que usamos
+  para leer `.jsonl` reales) y todas las events validan. Esa es la
+  garantía estructural más fuerte sin tener que probar contra el
+  loader real de Claude Code.
+- **Setting `exportal.alsoWriteJsonl`** (default `false`):
+  declarado en `package.json` + descriptions en `package.nls.json`
+  y `package.nls.es.json`. Opt-in porque el formato es ingeniería
+  inversa y queremos shipping seguro.
+- **Helper `maybeWriteClaudeCodeJsonl(conversation)`** en
+  `extension.ts`:
+  - Lee el setting; si está off, no hace nada.
+  - Toma `cwd` del
+    `vscode.workspace.workspaceFolders[0].uri.fsPath`.
+  - Detecta git branch via `git symbolic-ref --short HEAD` con
+    timeout 2s y child_process. Si falla (no es repo, no hay git),
+    devuelve `''` — Claude Code real también deja branch vacío en
+    proyectos sin git.
+  - Detecta versión de Claude Code probando dos extension IDs
+    candidatos (`anthropic.claude-code`, `Anthropic.claude-code`).
+    Fallback hardcodeado a `"2.1.114"` si ninguno está instalado.
+  - Genera el `.jsonl`, escribe a
+    `~/.claude/projects/<encoded(cwd)>/<sessionId>.jsonl` usando
+    `vscode.workspace.fs` (atomic-ish, funciona cross-platform).
+  - Toast cuando termina OK. Fail-soft en cualquier paso: log
+    warning + return, el `.md` ya está escrito.
+- **Wireado en ambos paths**:
+  - Inline (Companion → bridge `/import-inline`) en
+    `handleBridgeImportInline`, después de
+    `persistAndOpenMarkdown` y antes de
+    `attachToClaudeCodeIfAvailable`.
+  - ZIP (`Exportal: Importar ZIP de claude.ai`) en
+    `openConversationFromZip`, mismo lugar relativo. Así el
+    feature aplica para ambas formas de importar.
+
+### Decisiones clave y por qué
+- **Skip total de thinking blocks**: la `signature` criptográfica
+  no la podemos generar. Las opciones eran (a) skip, (b) convertir
+  a text plain, (c) emitir thinking sin signature y rezar. Skip
+  total es la más segura: si Claude Code valida la firma al
+  cargar, un thinking sin firma puede tirar el load entero. Quedó
+  documentado en el header del formatter para que el próximo que
+  mire entienda por qué.
+- **Tool blocks → text markers**: el ecosistema de tools de
+  claude.ai (web_search, drive, code interpreter) no existe en
+  Claude Code. Replayear no es opción. Tres caminos: skip, marker
+  visible, intentar mapear. Optamos por marker visible:
+  `[Tool: <name>] <input>` y `[Tool result] <content>`. Mantiene
+  contexto narrativo sin pretender ejecutar nada.
+- **Setting opt-in (default off)**: el formato es ingeniería
+  inversa. Activarlo sin saberlo y que falle sería peor UX que el
+  default actual (solo `.md`). Opt-in da control al usuario que
+  sabe lo que está haciendo + invita a iteración: si el feature se
+  prueba estable durante varios meses, podemos cambiar el default
+  a `true` en una versión futura.
+- **Markers sintéticos en `requestId` / `message.id` /
+  `message.model`**: cualquiera que mire el `.jsonl` con un editor
+  puede identificar rápidamente que vino de Exportal y no de un
+  API call real. Útil para debug y para que un future Claude Code
+  que valide ownership pueda whitelistear estos prefijos si
+  quisiera.
+- **Round-trip a través de `parseEvent` como test principal**: el
+  schema Zod es estricto sobre los campos requeridos del envelope.
+  Si un evento generado pasa `parseEvent`, sabemos que la shape
+  matchea lo que Claude Code reconoce — al menos en lo que nuestro
+  reader chequea, que es a su vez la fuente de verdad de la nota
+  de memoria. No reemplaza el smoke test contra Claude Code real,
+  pero descarta toda una clase de bugs sin necesidad de un browser.
+- **Detect Claude Code version, no hardcode**: si Anthropic cambia
+  el formato en una version futura, queremos que el `.jsonl`
+  generado declare la versión local del usuario, no una nuestra
+  outdated. Si la detección falla (extension no instalada bajo los
+  IDs probados), caemos al hardcoded `"2.1.114"` — la versión
+  cosmética del envelope no es load-bearing en lo que vimos.
+
+### Verificación
+- `npx vitest run tests/formatters/claude-code-jsonl.test.ts` →
+  9/9 tests verde, incluido el round-trip.
+- Typecheck limpio.
+- Build limpio.
+- **Smoke test end-to-end pendiente** (lo hace el user post-tag):
+  instalar `exportal-0.8.0.vsix`, activar
+  `exportal.alsoWriteJsonl: true` en settings, exportar un chat
+  de claude.ai, verificar:
+  1. Aparece toast "también escribí ..." en VS Code.
+  2. Existe el archivo
+     `~/.claude/projects/<encoded>/<sessionId>.jsonl`.
+  3. Reload window (o reabrir Claude Code) → `/resume` lista la
+     conversación importada con su nombre.
+  4. Click en la sesión importada → muestra los mensajes.
+  5. Intentar continuar el chat → ver si el primer reply funciona.
+     Ese paso 5 es el que más probable rompa por
+     formato/expectativas del API. Si rompe, abrimos issue, vamos
+     a 0.8.1 con el fix.
+
+### Lo que NO entra en v0.8.0
+- **Thinking blocks como text** (la opción B que no elegimos):
+  posible feature flag futuro
+  `exportal.jsonl.includeThinking = "skip" | "as-text"` si alguien
+  lo pide.
+- **Replay real de tools de claude.ai**: ni siquiera el equipo de
+  Anthropic permite eso entre superficies — están desacopladas a
+  propósito.
+- **Modo "only-jsonl" (sin .md)**: el `.md` sigue siendo útil para
+  leer el chat fuera de Claude Code, para git-trackear, para
+  compartir. Generamos los dos siempre que el setting está on.
+- **Auto-detect del workspace cwd vs el cwd original del chat**:
+  el `.jsonl` se importa al workspace abierto, no al directory
+  donde "originalmente" pasó la conversación claude.ai (que ni
+  siquiera tiene cwd — pasa en el browser). Es una decisión
+  deliberada: importar al contexto donde el usuario va a continuar
+  el trabajo, no a uno ficticio.
+- **Multi-folder workspace**: si el user tiene varios workspace
+  folders abiertos, agarramos el primero. Caso edge.

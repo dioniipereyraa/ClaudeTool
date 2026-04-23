@@ -1,9 +1,10 @@
 import * as vscode from 'vscode';
 
-import { encodeProjectDir } from '../core/paths.js';
+import { encodeProjectDir, PROJECTS_DIR } from '../core/paths.js';
 import { readJsonl } from '../core/reader.js';
 import { describeSession, listSessionFiles } from '../core/session.js';
 import { type SessionMetadata } from '../core/types.js';
+import { formatAsClaudeCodeJsonl } from '../formatters/claude-code-jsonl.js';
 import { formatConversation } from '../formatters/claudeai-markdown.js';
 import { formatAsMarkdown } from '../formatters/markdown.js';
 import { readClaudeAiExport } from '../importers/claudeai/reader.js';
@@ -191,6 +192,7 @@ async function handleBridgeImportInline(payload: ImportInlinePayload): Promise<v
     : convMarkdown;
   const savedUri = await persistAndOpenMarkdown(conversation, markdown, baseName, assets);
   announceImport(conversation);
+  await maybeWriteClaudeCodeJsonl(conversation);
   await attachToClaudeCodeIfAvailable(savedUri);
 }
 
@@ -607,6 +609,7 @@ async function openConversationFromZip(
 
   const savedUri = await persistAndOpenMarkdown(conversation, markdown);
   announceImport(conversation);
+  await maybeWriteClaudeCodeJsonl(conversation);
   await attachToClaudeCodeIfAvailable(savedUri);
 }
 
@@ -829,6 +832,106 @@ function sanitizeAssetFilename(filename: string): string | undefined {
     if (segment === '..' || segment === '.' || segment.length === 0) return undefined;
   }
   return normalized;
+}
+
+/**
+ * Optionally write a Claude Code-compatible `.jsonl` next to the .md
+ * (Hito 19). Gated by `exportal.alsoWriteJsonl` (default off because
+ * the .jsonl format is reverse-engineered and may break across
+ * Claude Code versions).
+ *
+ * Fails soft: any error here logs a warning and returns. The .md
+ * write already succeeded by the time this runs, so the user keeps
+ * the working export even if the .jsonl path explodes.
+ */
+async function maybeWriteClaudeCodeJsonl(
+  conversation: ClaudeAiConversation,
+): Promise<void> {
+  const enabled = vscode.workspace
+    .getConfiguration('exportal')
+    .get<boolean>('alsoWriteJsonl', false);
+  if (!enabled) return;
+
+  const folder = vscode.workspace.workspaceFolders?.[0];
+  if (folder === undefined) return; // no workspace, no project dir to target
+
+  const cwd = folder.uri.fsPath;
+  const gitBranch = await detectGitBranch(cwd);
+  const version = detectClaudeCodeVersion();
+
+  const { jsonl, sessionId } = formatAsClaudeCodeJsonl(conversation, {
+    cwd,
+    gitBranch,
+    version,
+  });
+  if (jsonl.length === 0) return; // empty conversation, nothing to write
+
+  // ~/.claude/projects/<encoded>/<sessionId>.jsonl — the encoded
+  // segment matches Claude Code's own naming so /resume picks it up.
+  const projectsRoot = vscode.Uri.file(PROJECTS_DIR);
+  const projectDir = vscode.Uri.joinPath(projectsRoot, encodeProjectDir(cwd));
+  const fileUri = vscode.Uri.joinPath(projectDir, `${sessionId}.jsonl`);
+
+  try {
+    await vscode.workspace.fs.createDirectory(projectDir);
+    await vscode.workspace.fs.writeFile(fileUri, new TextEncoder().encode(jsonl));
+    void vscode.window.showInformationMessage(
+      vscode.l10n.t(
+        'Exportal: also wrote {0} for /resume in Claude Code.',
+        `${sessionId.slice(0, 8)}.jsonl`,
+      ),
+    );
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.warn(`Exportal: could not write .jsonl: ${message}`);
+  }
+}
+
+// Best-effort git branch detection. Returns '' if git is missing,
+// the directory isn't a repo, or any other failure — the .jsonl
+// generator accepts an empty branch (real Claude Code sessions use
+// the empty string when there's no branch context).
+async function detectGitBranch(cwd: string): Promise<string> {
+  try {
+    const { execFile } = await import('node:child_process');
+    return await new Promise<string>((resolve) => {
+      execFile(
+        'git',
+        ['symbolic-ref', '--short', 'HEAD'],
+        { cwd, timeout: 2000 },
+        (err, stdout) => {
+          if (err !== null) {
+            resolve('');
+            return;
+          }
+          resolve(stdout.trim());
+        },
+      );
+    });
+  } catch {
+    return '';
+  }
+}
+
+// Best-effort: probe a couple of likely Claude Code extension IDs and
+// return its declared version. Falls back to a known-good baseline
+// if the extension isn't installed or under a different ID — the
+// version is mostly cosmetic in the .jsonl envelope, not load-bearing.
+function detectClaudeCodeVersion(): string {
+  const candidates = ['anthropic.claude-code', 'Anthropic.claude-code'];
+  for (const id of candidates) {
+    const ext = vscode.extensions.getExtension(id);
+    if (ext === undefined) continue;
+    // packageJSON is typed as `any` by VS Code; narrow defensively.
+    const pkg: unknown = ext.packageJSON;
+    if (pkg === null || typeof pkg !== 'object') continue;
+    const v = (pkg as { version?: unknown }).version;
+    if (typeof v === 'string' && v.length > 0) return v;
+  }
+  // Last seen on the test machine while reverse-engineering the
+  // format. Anthropic doesn't publish a version-compat matrix; this
+  // is a stable-looking fallback.
+  return '2.1.114';
 }
 
 /**

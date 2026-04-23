@@ -14,6 +14,7 @@
   "Copy and open Chrome": "Copiar y abrir Chrome",
   "Opening Chrome…": "Abriendo Chrome…",
   "Exportal: pairing complete. Chrome is ready to export chats.": "Exportal: emparejamiento completo. Chrome ya puede exportar chats.",
+  "Exportal: also wrote {0} for /resume in Claude Code.": "Exportal: también escribí {0} para /resume en Claude Code.",
   "Paired with Chrome": "Emparejado con Chrome",
   "You can export chats with a single click now.": "Ya podés exportar chats con un click.",
   "Exportal: opened claude.ai in your browser — pairing completes automatically if the Companion is installed.": "Exportal: abrí claude.ai en tu navegador — el emparejamiento se completa solo si tenés instalado el Companion.",

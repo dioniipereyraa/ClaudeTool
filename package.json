@@ -1,7 +1,7 @@
 {
   "name": "exportal",
   "displayName": "Exportal",
-  "version": "0.7.1",
+  "version": "0.8.0",
   "description": "%extension.description%",
   "l10n": "./l10n",
   "private": true,
@@ -57,6 +57,11 @@
           "type": "boolean",
           "default": true,
           "description": "%configuration.autoAttachToClaudeCode.description%"
+        },
+        "exportal.alsoWriteJsonl": {
+          "type": "boolean",
+          "default": false,
+          "description": "%configuration.alsoWriteJsonl.description%"
         }
       }
     }
