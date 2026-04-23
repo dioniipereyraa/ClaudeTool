@@ -26,50 +26,68 @@ abajo. Cambios al orden se discuten explícitamente.
 
 ### Hito 27 — Soporte para Claude Design (próximo)
 
-**Problema**: Claude Design está ganando tracción y hoy no hay camino
-de exportación directa — el usuario tiene que descargar el ZIP oficial
-de claude.ai y correr `Exportal: Import claude.ai ZIP` para cada
-conversación que quiera llevar a VS Code. El one-click que tenemos en
-`claude.ai/chat/<uuid>` no aplica porque Claude Design vive en otra
-ruta (o dominio — por verificar).
+**Problema**: Claude Design ganó tracción recientemente pero hoy no
+hay camino de exportación directa — el usuario tiene que descargar
+el ZIP oficial de claude.ai y correr `Exportal: Import claude.ai ZIP`
+para cada proyecto que quiera llevar a VS Code. El one-click que
+tenemos en `claude.ai/chat/<uuid>` no aplica porque la URL de Design
+es distinta.
 
-**Recon pendiente** (bloquea el scope):
-- ¿Cuál es el dominio de Claude Design? (¿`claude.ai/design/...`,
-  `design.claude.ai`, `claude.com/design`?)
-- ¿Cuál es el pattern de URL de una conversación individual?
-  (equivalente al `/chat/<uuid>` que matcheamos hoy)
-- ¿Hay una API JSON interna equivalente a
-  `/api/organizations/<org>/chat_conversations/<id>`? Ideal que sí —
-  podemos reusar la infra del fetch inline.
-- ¿Session cookies compartidas con claude.ai (mismo origin) o
-  cookies separadas (distinto origin)?
+**Recon hecho** (sesión 2026-04-23):
+- **Dominio**: `https://claude.ai/design` (same-origin que
+  `claude.ai/chat`). Cookies de sesión compartidas. Esto significa
+  que `content_scripts.matches: ["https://claude.ai/*"]` del manifest
+  **ya cubre** Design — no hay cambios de permisos, no hay re-review
+  de CWS.
+- **URL patterns observados**:
+  - `/design` — landing sin proyecto.
+  - `/design/p/<UUID>` — proyecto individual abierto (el UUID es el
+    project id; parecido al modelo de Projects de claude.ai, no al de
+    `/chat/<uuid>`).
+  - `/design/p/<UUID>?file=<filename>` — un archivo/artefacto
+    específico dentro del proyecto (ej.
+    `?file=Exportal+Redise%C3%B1o.html`).
+- **API interna**: por confirmar. En DevTools → Network el usuario no
+  ve requests evidentes — puede que sea WebSocket (el chat en Design
+  parece streaming) o que la tab no estaba filtrada por "Fetch/XHR".
+  Candidatos a probar:
+  - `/api/organizations/<org>/projects/<UUID>` — shape Projects
+    estándar de claude.ai.
+  - `/api/organizations/<org>/projects/<UUID>/chat_conversations` —
+    turnos del chat dentro del proyecto.
+  - Algún endpoint de artifacts/files para el `?file=` slug.
 
-**Plan tentativo según el resultado del recon**:
+**Plan** (aprovecha el same-origin):
 
-Si Claude Design está bajo `https://claude.ai/...`:
-1. Agregar matcher al content script para detectar la URL pattern de
-   conversaciones de Claude Design.
-2. Nueva función `extractDesignConversationIdFromPath` en `pure.js`
-   (análoga a `extractConversationIdFromPath`).
-3. Nueva ruta de fetch hacia la API interna de Claude Design (si
-   existe); si no, fall back al formato ZIP con auto-detección de
-   path tipo `design-<uuid>.zip`.
-4. El FAB no cambia visualmente — solo detecta la ruta activa.
+1. En `pure.js`, agregar `extractDesignProjectIdFromPath` para
+   matchear `/design/p/<UUID>` (y opcionalmente el query `?file=`
+   si terminamos soportando export por archivo individual).
+2. En `content-script.js`, `syncPanel()` ya corre en Design por el
+   matcher existente — solo falta agregar el branch de detección:
+   si `extractConversationIdFromPath` no matchea, probar el de
+   Design.
+3. Nuevo fetch hacia `/api/organizations/<org>/projects/<UUID>` (o
+   donde termine viviendo la API). Reusamos la infra de
+   `fetchOrganizationIds` + iteración multi-org para encontrar la
+   org correcta.
+4. Decidir formato de export: (a) chat history del proyecto como
+   Markdown estándar, (b) archivos generados como archivos sueltos
+   en el workspace, (c) ambos. Posible primera entrega: solo (a)
+   — reusa 90% del pipeline actual.
+5. FAB + popover: sin cambio visual. La copy de los botones puede
+   necesitar ajuste ("Exportar este proyecto" en vez de "Exportar
+   este chat") — decisión post-recon.
 
-Si Claude Design vive en otro origin:
-1. Agregar el origin a `manifest.json → host_permissions` y
-   `content_scripts.matches`. Esto dispara re-review en CWS.
-2. Evaluar si el flujo de auto-pair via URL fragment necesita
-   extenderse a ese origin también.
-3. Mismo pipeline de fetch + inline → `/import-inline` en el bridge.
+**Bloqueado por**: confirmar la API interna de Design. Recon a
+hacer: con DevTools filtrado a "Fetch/XHR", abrir un proyecto, scroll
+del chat, click en algún file. Si no aparece nada HTTP, usar la tab
+"WS" de Network para ver si es WebSocket. Si es WebSocket, la ruta
+de fetch inline queda descartada — caemos al ZIP con un matcher
+nuevo en `pure.js` para `design-<uuid>.zip`.
 
-**Riesgo**: la API interna de Claude Design puede no estar expuesta
-(si es un componente más UI-heavy que data-heavy), forzándonos al
-path ZIP. Vale evaluar antes de committear.
-
-**Side benefit**: parte del work de recon + abstracción acá se solapa
-con el Hito 20 (core abstracto). Si el fetch de Claude Design requiere
-un formatter distinto, podemos adelantar parte del Hito 20 en este.
+**Side benefit**: si el formatter de Design termina teniendo shape
+muy distinto al de claude.ai/chat, parte del work del Hito 20 (core
+abstracto) se adelanta acá.
 
 ### Hito 19 — Import como "chat del historial" (reconstruir `.jsonl`)
 
