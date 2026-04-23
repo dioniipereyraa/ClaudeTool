@@ -42,12 +42,19 @@ conversación que quiera llevar a VS Code. El one-click que tenemos en
 - **URL pattern**: `claude.ai/design/p/<UUID>` con UUID en el mismo
   formato RFC-4122 que ya matcheamos. Variante con archivo abierto:
   `?file=<filename>` (no afecta la identidad de la conversación).
-- **API**: endpoints interesantes en el Network tab durante navegación
-  de un proyecto: `GetProject` y `GetProjectData` (~56 KB cada uno),
-  `ListFiles`, `ListComments`. Los dos primeros con alta probabilidad
-  contienen el chat history (el sidebar izquierdo del UI tiene el
-  diálogo completo). **Falta capturar el path exacto y la shape JSON
-  de uno de esos endpoints** para poder escribir el reader/parser.
+- **API**: endpoints relevantes durante navegación de un proyecto:
+  - `POST /design/anthropic.omelette.api.v1alpha.OmeletteService/GetProject`
+  - `POST /design/anthropic.omelette.api.v1alpha.OmeletteService/GetProjectData`
+  - también `ListFiles`, `ListComments`, `ListOrgProjects`,
+    `UpdateProjectData`, todos bajo el mismo prefijo de servicio.
+  Transport: **Connect-RPC**. Content-Type response es `application/proto`
+  pero la inspección hex de la respuesta muestra que el body es un
+  protobuf trivial (`0A` + 3-byte varint length + JSON puro desde el
+  byte 4). Probable que el server soporte negociación JSON nativa
+  via `Content-Type: application/json` + `Connect-Protocol-Version: 1`
+  — pendiente de confirmar con un fetch de prueba en consola.
+  Si la negociación falla, plan B es strippear los 4 bytes de
+  framing antes del `JSON.parse` (trivial, ya vimos la estructura).
 - Tab de Claude Design = mismo storage / sesión que claude.ai/chat,
   no requiere login separado.
 
