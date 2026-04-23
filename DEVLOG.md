@@ -1580,3 +1580,122 @@ lime `#D4FF3A`). Shipped en v0.5.0 y pulido a través de 0.5.1 → 0.5.6.
 - **Recapturar screenshots para los listings de CWS + Marketplace**:
   los shipped son del navy+orange viejo. Queda pendiente en ROADMAP
   near-term.
+
+
+---
+
+## 2026-04-23 — Hito 27 · Soporte para Claude Design (v0.6.0)
+
+### Qué hicimos
+Extendimos el FAB y el flujo de export inline para que también
+funcionen en proyectos de Claude Design (`https://claude.ai/design/p/<UUID>`),
+no sólo en chats clásicos (`/chat/<UUID>`). El usuario ahora puede
+exportar un chat de Claude Design a VS Code con un click sin pasar
+por el ZIP oficial.
+
+- **Recon (4 rondas iterativas, todas documentadas en ROADMAP commits
+  29f6647 / 5665985 / bd91345 / aef2eda)**: Claude Design es
+  same-origin con claude.ai, transport Connect-RPC bajo
+  `/design/anthropic.omelette.api.v1alpha.OmeletteService/...`,
+  endpoint clave `GetProject`. Negociación JSON via `Content-Type`/
+  `Accept: application/json` + `Connect-Protocol-Version: 1` anda;
+  field name del request es `project_id` (snake_case). Response 200
+  trae el blob real en `data: <base64-encoded JSON>`.
+- **`chrome/pure.js`** (`+30 LOC`): nuevas
+  `extractDesignProjectIdFromPath(pathname)` y `routeFromPath(pathname)`.
+  La segunda devuelve `{kind: 'chat'|'design', id} | undefined` y es
+  el único punto de entrada de routing para el content script.
+  Tests en `tests/chrome/pure.test.ts` (+11 tests, 165 total).
+- **`chrome/content-script.js`**: el viejo `currentConversationId()`
+  → `currentRoute()`. El panel guarda `data-route-kind` y
+  `data-route-id`. `syncPanel` rebuilda el panel cuando cambia la
+  *kind* (chat ↔ design) porque el popover difiere (Design oculta
+  el botón de "Preparar export oficial" — el ZIP oficial matchea
+  por chat UUID, y en Design la URL solo expone el project UUID,
+  no el chat UUID activo). Nuevo dispatcher `fetchByRoute(route)`
+  consume el route y llama `fetchConversation(id)` para chat o
+  `fetchDesignProject(id)` para design.
+- **`fetchDesignProject(projectId)`**: POST al endpoint Connect-RPC
+  con headers + body correctos, parsea JSON, llama
+  `adaptDesignToConversation(outer)`.
+- **`adaptDesignToConversation(outer)`**: `atob(outer.data)` →
+  `JSON.parse` → toma el chat activo via `inner.viewState.activeChatId`
+  (fallback al primero si está stale) → mapea cada message del
+  shape Design (`{role, content: string, id, timestamp, ...}`) al
+  shape claude.ai/chat que `parseSingleConversation` valida en el
+  bridge (`{uuid, sender: 'human'|'assistant', text, content: [{type:
+  'text', text}], created_at}`). Naming de la conversación:
+  `[<projectName>] <chatTitle>` para que sea identificable en VS
+  Code.
+- **Kbd chips** en Design: solo `Alt+Shift+E`, sin `Alt+Shift+O`,
+  porque el shortcut secundario es el "preparar export oficial" que
+  no aplica.
+- **Sin cambios en el bridge ni en el manifest del Chrome
+  Companion**: la adaptación del shape pasa enteramente del lado
+  cliente, así que `/import-inline` y los permisos no se enteran.
+  Bonus: cero re-review en CWS por permisos (mismo `host_permissions`,
+  mismo `content_scripts.matches`).
+
+### Decisiones clave y por qué
+- **Adaptación del shape del lado cliente, no del bridge**: hubiera
+  sido tentador agregar `/import-design-inline` y un parser dedicado
+  en VS Code. Pero la shape de Design es estrictamente más simple
+  (content es string, no array de bloques), así que upgrade-a-claude.ai-shape
+  es más barato que duplicar pipeline. Si en el futuro Design agrega
+  features que no caben en la shape de chat (artifacts inline,
+  branching, etc.), refactorizamos.
+- **Solo el chat activo, no todos los chats del proyecto**: cada
+  proyecto Design tiene un dict `chats: { uuid: {...}, ... }` y un
+  `viewState.activeChatId` que apunta al que está en pantalla. El
+  modelo mental del usuario es "estoy viendo este chat, lo exporto",
+  no "exporto los 14 chats del proyecto a la vez". Mismo paradigma
+  que en claude.ai/chat (un chat por export). Si alguien pide
+  "exportar todos", hito separado.
+- **Esconder el botón de "Preparar export oficial" en Design**: el
+  flujo de official-export matchea conversaciones por UUID en el ZIP
+  de Settings → Export data. La URL de Design solo expone el project
+  UUID, no el chat UUID activo. Wirearlo daría un silent no-match
+  cuando el ZIP arrive. Mejor esconder el botón que confundir.
+- **Connect-Protocol-Version: 1 + JSON negotiation**: nos ahorra
+  implementar protobuf wire-format. La alternativa (strippear los
+  4 bytes de framing del proto wrapper antes de parsear el JSON
+  embebido) era trivial pero implicaba más código defensivo. JSON
+  nativo es la versión que ningún cambio futuro de framing nos rompe.
+- **`buildPopover(route)` rebuilda en lugar de `display:none`**: una
+  navegación chat→design dispara `syncPanel`, que detecta el cambio
+  de kind y llama `existing.remove()` antes de construir el panel
+  nuevo. Más limpio que mantener el popover con secondary oculto y
+  preocuparnos del estado.
+
+### Verificación
+- 165 tests pasan (154 previos + 11 nuevos sobre
+  `extractDesignProjectIdFromPath` y `routeFromPath`).
+- Typecheck + lint limpios (post-add de `atob` al eslint globals
+  de `chrome/**`).
+- Build limpio. vsix empacado con `npm run package:vsix`. Companion
+  zip empacado con `npm run package:chrome`.
+- Smoke test manual sobre el proyecto del usuario
+  `https://claude.ai/design/p/ab145d0a-56e9-443b-8a4d-b655ef8ac02d`
+  pendiente — el código compila pero el end-to-end con el bridge
+  hay que probarlo en el browser. Plan: smoke test antes del tag
+  v0.6.0.
+
+### Lo que NO entra
+- **Atajos para todos los chats del proyecto Design**: el usuario
+  ve un chat por vez; exportar el chat activo es la operación
+  natural. Si alguien pide "exportar el proyecto completo",
+  pensamos formato (varios `.md`? un `.md` con secciones?) en otro
+  hito.
+- **Inclusión de `claudeMd` del proyecto en el export**: cada
+  proyecto Design tiene un campo `claudeMd` (presumiblemente el
+  CLAUDE.md asociado al proyecto). Útil como contexto pero amplía
+  el scope de "exportar el chat" a "exportar el chat + el system
+  prompt". Lo dejo afuera — el usuario puede pegarlo a mano si lo
+  necesita.
+- **`assets` (los archivos generados por Claude Design)**: el
+  proyecto tiene un dict `assets` con HTML/components/PNGs
+  versionados. Nuestro export es del CHAT, no del output. Si el
+  usuario quiere los archivos, los descarga con los botones nativos
+  de Claude Design (`↓ Descargar todos` etc).
+- **`todos` / `composer.text` (estado del UI)**: irrelevante para
+  el contexto de Claude Code.

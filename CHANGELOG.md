@@ -6,6 +6,38 @@ Companion (Chrome extension) are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 and versions follow [Semantic Versioning](https://semver.org/).
 
+## [0.6.0] — 2026-04-23
+
+### Added
+
+- **Claude Design support (hito 27).** The Chrome companion now
+  recognizes `https://claude.ai/design/p/<UUID>` URLs and exports the
+  active chat of a Claude Design project to VS Code with the same
+  one-click flow as `/chat/<UUID>`. No new permissions — Claude
+  Design is same-origin with claude.ai, so the existing
+  `host_permissions` and `content_scripts.matches` already cover it.
+  - New `extractDesignProjectIdFromPath` and `routeFromPath` helpers
+    in `chrome/pure.js` (with 11 new unit tests).
+  - `chrome/content-script.js` routes the FAB by `{kind, id}` instead
+    of a bare conversation id. Switching tab from chat to design (or
+    back) rebuilds the popover so the layout matches the active kind.
+  - New `fetchDesignProject(projectId)` hits the Connect-RPC endpoint
+    `/design/anthropic.omelette.api.v1alpha.OmeletteService/GetProject`
+    with JSON content negotiation (`Connect-Protocol-Version: 1`),
+    base64-decodes the embedded project blob, picks the active chat
+    via `viewState.activeChatId`, and adapts the messages into the
+    same shape that `/import-inline` already validates on the bridge.
+    No bridge or manifest changes required.
+
+### Changed
+
+- The "Prepare official export" secondary button (and its
+  `Alt+Shift+O` shortcut) is hidden on Design pages. The official
+  export ZIP matches by chat UUID, but Design URLs only expose the
+  project UUID — wiring the button would silently no-match later.
+- The kbd chips in the FAB popover collapse from two to one on
+  Design pages (`Alt+Shift+E` only).
+
 ## [0.5.6] — 2026-04-23
 
 ### Changed

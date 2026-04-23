@@ -24,6 +24,8 @@ interface Pure {
   readonly PORT_RANGE_START: number;
   readonly PORT_RANGE_END: number;
   extractConversationIdFromPath(pathname: unknown): string | undefined;
+  extractDesignProjectIdFromPath(pathname: unknown): string | undefined;
+  routeFromPath(pathname: unknown): { kind: 'chat' | 'design'; id: string } | undefined;
   isClaudeAiExport(filename: unknown, url?: unknown, referrer?: unknown): boolean;
   buildPortOrder(lastPort?: number): number[];
   extractOrgIds(data: unknown): string[];
@@ -75,6 +77,71 @@ describe('ExportalPure.extractConversationIdFromPath', () => {
     expect(pure.extractConversationIdFromPath(undefined)).toBeUndefined();
     expect(pure.extractConversationIdFromPath(null)).toBeUndefined();
     expect(pure.extractConversationIdFromPath(42)).toBeUndefined();
+  });
+});
+
+describe('ExportalPure.extractDesignProjectIdFromPath', () => {
+  const valid = 'ab145d0a-56e9-443b-8a4d-b655ef8ac02d';
+
+  it('returns the UUID from a /design/p/<uuid> path', () => {
+    expect(pure.extractDesignProjectIdFromPath(`/design/p/${valid}`)).toBe(valid);
+  });
+
+  it('ignores trailing segments and query strings (Claude Design uses ?file=)', () => {
+    expect(pure.extractDesignProjectIdFromPath(`/design/p/${valid}?file=Foo.html`)).toBe(valid);
+    expect(pure.extractDesignProjectIdFromPath(`/design/p/${valid}#section`)).toBe(valid);
+    expect(pure.extractDesignProjectIdFromPath(`/design/p/${valid}/extra`)).toBe(valid);
+  });
+
+  it('returns undefined for /design root (no project)', () => {
+    expect(pure.extractDesignProjectIdFromPath('/design')).toBeUndefined();
+    expect(pure.extractDesignProjectIdFromPath('/design/')).toBeUndefined();
+    expect(pure.extractDesignProjectIdFromPath('/design/p')).toBeUndefined();
+    expect(pure.extractDesignProjectIdFromPath('/design/p/')).toBeUndefined();
+  });
+
+  it('does not match /chat/<uuid> (those go through the other extractor)', () => {
+    expect(pure.extractDesignProjectIdFromPath(`/chat/${valid}`)).toBeUndefined();
+  });
+
+  it('returns undefined for non-UUID segments', () => {
+    expect(pure.extractDesignProjectIdFromPath('/design/p/not-a-uuid')).toBeUndefined();
+    expect(pure.extractDesignProjectIdFromPath('/design/p/12345')).toBeUndefined();
+  });
+
+  it('returns undefined for non-string input', () => {
+    expect(pure.extractDesignProjectIdFromPath(undefined)).toBeUndefined();
+    expect(pure.extractDesignProjectIdFromPath(null)).toBeUndefined();
+    expect(pure.extractDesignProjectIdFromPath(42)).toBeUndefined();
+  });
+});
+
+describe('ExportalPure.routeFromPath', () => {
+  const valid = 'ab145d0a-56e9-443b-8a4d-b655ef8ac02d';
+
+  it('returns kind: chat for /chat/<uuid>', () => {
+    expect(pure.routeFromPath(`/chat/${valid}`)).toEqual({ kind: 'chat', id: valid });
+  });
+
+  it('returns kind: design for /design/p/<uuid>', () => {
+    expect(pure.routeFromPath(`/design/p/${valid}`)).toEqual({ kind: 'design', id: valid });
+  });
+
+  it('preserves chat priority — a contrived /chat/<uuid> always matches first', () => {
+    // Not a real-world URL, but documents the precedence intent.
+    expect(pure.routeFromPath(`/chat/${valid}`)?.kind).toBe('chat');
+  });
+
+  it('returns undefined for unrelated paths', () => {
+    expect(pure.routeFromPath('/')).toBeUndefined();
+    expect(pure.routeFromPath('/design')).toBeUndefined();
+    expect(pure.routeFromPath('/projects')).toBeUndefined();
+    expect(pure.routeFromPath('/login')).toBeUndefined();
+  });
+
+  it('returns undefined for non-string input', () => {
+    expect(pure.routeFromPath(undefined)).toBeUndefined();
+    expect(pure.routeFromPath(null)).toBeUndefined();
   });
 });
 

@@ -29,6 +29,28 @@ var ExportalPure = (function () {
     return UUID_PATTERN.test(id) ? id : undefined;
   }
 
+  // claude.ai/design/p/<UUID> is a Claude Design project. The pattern
+  // is parallel to /chat/<UUID> — same UUID shape, same trailing
+  // tolerance for query strings (`?file=...`) and extra path segments.
+  function extractDesignProjectIdFromPath(pathname) {
+    if (typeof pathname !== 'string') return undefined;
+    const match = /^\/design\/p\/([^/?#]+)/.exec(pathname);
+    if (match === null) return undefined;
+    const id = match[1];
+    return UUID_PATTERN.test(id) ? id : undefined;
+  }
+
+  // Single entry point for routing the FAB on claude.ai. Returns the
+  // route kind + id when we recognize the page, otherwise undefined.
+  // Tried in priority order: chat first (most common), then design.
+  function routeFromPath(pathname) {
+    const chatId = extractConversationIdFromPath(pathname);
+    if (chatId !== undefined) return { kind: 'chat', id: chatId };
+    const designId = extractDesignProjectIdFromPath(pathname);
+    if (designId !== undefined) return { kind: 'design', id: designId };
+    return undefined;
+  }
+
   function isClaudeAiExport(filename, url, referrer) {
     if (typeof filename !== 'string') return false;
     if (!FILENAME_PATTERN.test(filename)) return false;
@@ -101,6 +123,8 @@ var ExportalPure = (function () {
     PORT_RANGE_START,
     PORT_RANGE_END,
     extractConversationIdFromPath,
+    extractDesignProjectIdFromPath,
+    routeFromPath,
     isClaudeAiExport,
     buildPortOrder,
     extractOrgIds,

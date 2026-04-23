@@ -22,6 +22,7 @@ export default tseslint.config(
     languageOptions: {
       globals: {
         AbortController: 'readonly',
+        atob: 'readonly',
         chrome: 'readonly',
         clearTimeout: 'readonly',
         console: 'readonly',

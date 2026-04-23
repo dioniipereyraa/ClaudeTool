@@ -69,8 +69,12 @@ let lastPathname = '';
 let shortcutsInstalled = false;
 let actionInFlight = false;
 
-function currentConversationId() {
-  return ExportalPure.extractConversationIdFromPath(window.location.pathname);
+// What page are we on? Returns `{kind: 'chat'|'design', id}` for any
+// recognized claude.ai surface, or undefined for everything else
+// (login, settings, /design root, etc.). The two kinds share the same
+// FAB UI but route to different fetch pipelines.
+function currentRoute() {
+  return ExportalPure.routeFromPath(window.location.pathname);
 }
 
 function injectStyles() {
@@ -99,27 +103,35 @@ function injectStyles() {
 
 function syncPanel() {
   const existing = document.getElementById(PANEL_ID);
-  const id = currentConversationId();
+  const route = currentRoute();
 
-  if (id === undefined) {
+  if (route === undefined) {
     if (existing !== null) existing.remove();
     return;
   }
 
   if (existing !== null) {
-    existing.dataset.conversationId = id;
-    return;
+    if (existing.dataset.routeKind === route.kind) {
+      // Same kind, just refresh the id (e.g. user navigates between two chats).
+      existing.dataset.routeId = route.id;
+      return;
+    }
+    // Kind changed (chat ↔ design): rebuild so the popover layout
+    // matches the new route (Design hides the secondary "official
+    // export" button — there is no official ZIP path for Design).
+    existing.remove();
   }
 
   injectStyles();
-  const panel = buildPanel(id);
+  const panel = buildPanel(route);
   document.body.appendChild(panel);
 }
 
-function buildPanel(conversationId) {
+function buildPanel(route) {
   const panel = document.createElement('div');
   panel.id = PANEL_ID;
-  panel.dataset.conversationId = conversationId;
+  panel.dataset.routeKind = route.kind;
+  panel.dataset.routeId = route.id;
   Object.assign(panel.style, {
     position: 'fixed',
     bottom: '20px',
@@ -131,7 +143,7 @@ function buildPanel(conversationId) {
     gap: '10px',
   });
 
-  const popover = buildPopover();
+  const popover = buildPopover(route);
   const fab = buildFab();
   panel.appendChild(popover);
   panel.appendChild(fab);
@@ -190,7 +202,14 @@ function buildFab() {
 // FabExpanded card — brand header with status chip, primary CTA with
 // arrow glyph, secondary ghost button, kbd chips. The SuccessPulse
 // overlay lives inside this container so it covers the whole card.
-function buildPopover() {
+//
+// Secondary "Prepare official export" only renders for chat routes:
+// the official export ZIP path matches conversations by their UUID,
+// and on Design pages the URL exposes the *project* UUID, not the
+// individual chat UUID. Wiring it up would just give the user a
+// silent no-match later. Kept the kbd row for both kinds since
+// Alt+Shift+E is still meaningful on Design.
+function buildPopover(route) {
   const popover = document.createElement('div');
   popover.id = POPOVER_ID;
   Object.assign(popover.style, {
@@ -212,15 +231,18 @@ function buildPopover() {
     label: chrome.i18n.getMessage('btnSendNow'),
     onClick: handlePrimaryClick,
   });
-  const secondary = makeSecondaryButton({
-    id: SECONDARY_BTN_ID,
-    label: chrome.i18n.getMessage('btnPrepareOfficial'),
-    onClick: handleSecondaryClick,
-  });
-
   popover.appendChild(primary);
-  popover.appendChild(secondary);
-  popover.appendChild(buildKbdRow());
+
+  if (route.kind === 'chat') {
+    const secondary = makeSecondaryButton({
+      id: SECONDARY_BTN_ID,
+      label: chrome.i18n.getMessage('btnPrepareOfficial'),
+      onClick: handleSecondaryClick,
+    });
+    popover.appendChild(secondary);
+  }
+
+  popover.appendChild(buildKbdRow(route));
 
   return popover;
 }
@@ -263,7 +285,7 @@ function buildBrandHeader() {
   return header;
 }
 
-function buildKbdRow() {
+function buildKbdRow(route) {
   const row = document.createElement('div');
   row.className = 'exp-mono';
   Object.assign(row.style, {
@@ -278,8 +300,12 @@ function buildKbdRow() {
   // but the Windows/Linux users pressing the actual keys see "Alt" and
   // "Shift" on their keycaps — the glyph chips were aspirationally
   // cross-platform but functionally misleading. Also consistent with
-  // the fabTooltip i18n string.
-  row.innerHTML = `${kbdChip('Alt+Shift+E')}${kbdChip('Alt+Shift+O')}`;
+  // the fabTooltip i18n string. On Design pages we only show the
+  // primary shortcut since the official-export flow doesn't apply.
+  const chips = route.kind === 'chat'
+    ? `${kbdChip('Alt+Shift+E')}${kbdChip('Alt+Shift+O')}`
+    : `${kbdChip('Alt+Shift+E')}`;
+  row.innerHTML = chips;
   return row;
 }
 
@@ -374,10 +400,12 @@ function makeSecondaryButton({ id, label, onClick }) {
 }
 
 async function handleSecondaryClick(btn) {
-  const id = panelConversationId();
-  if (id === undefined) return;
+  // Only wired for chat routes — buildPopover hides this button on
+  // Design pages, so this handler should never fire there.
+  const route = panelRoute();
+  if (route === undefined || route.kind !== 'chat') return;
   try {
-    await runSecondaryAction(id);
+    await runSecondaryAction(route.id);
     flash(btn, chrome.i18n.getMessage('feedbackOfficialPrepared'), 'ok');
   } catch (err) {
     console.warn('Exportal: could not save pending conversation.', err);
@@ -386,15 +414,15 @@ async function handleSecondaryClick(btn) {
 }
 
 async function handlePrimaryClick(btn) {
-  const id = panelConversationId();
-  if (id === undefined) return;
+  const route = panelRoute();
+  if (route === undefined) return;
   const labelEl = btn.querySelector('[data-exp-label]');
   const originalLabel = labelEl?.textContent ?? '';
   btn.disabled = true;
   if (labelEl !== null) labelEl.textContent = chrome.i18n.getMessage('feedbackSearching');
   const t0 = performance.now();
   try {
-    const conversation = await fetchConversation(id);
+    const conversation = await fetchByRoute(route);
     if (labelEl !== null) labelEl.textContent = chrome.i18n.getMessage('feedbackSending');
     await sendInline(conversation);
     const ms = Math.round(performance.now() - t0);
@@ -410,17 +438,25 @@ async function handlePrimaryClick(btn) {
   }
 }
 
+// Single dispatch point so both the click handler and the keyboard
+// shortcut path go through the same routing.
+async function fetchByRoute(route) {
+  if (route.kind === 'chat') return fetchConversation(route.id);
+  if (route.kind === 'design') return fetchDesignProject(route.id);
+  throw new Error('invalid_response');
+}
+
 // Shortcut-driven variants: same underlying actions, but feedback is a
 // floating toast (the popover may be collapsed).
 async function runPrimaryFromShortcut() {
   if (actionInFlight) return;
-  const id = currentConversationId();
-  if (id === undefined) return;
+  const route = currentRoute();
+  if (route === undefined) return;
   actionInFlight = true;
   showToast(chrome.i18n.getMessage('toastExporting'), 'info');
   const t0 = performance.now();
   try {
-    const conversation = await fetchConversation(id);
+    const conversation = await fetchByRoute(route);
     await sendInline(conversation);
     const ms = Math.round(performance.now() - t0);
     const messages = countMessages(conversation);
@@ -435,11 +471,14 @@ async function runPrimaryFromShortcut() {
 
 async function runSecondaryFromShortcut() {
   if (actionInFlight) return;
-  const id = currentConversationId();
-  if (id === undefined) return;
+  const route = currentRoute();
+  // Alt+Shift+O is a no-op on Design pages — see buildPopover for why
+  // (project UUID ≠ chat UUID, so the pending-conversation match
+  // wouldn't fire when the official ZIP arrives).
+  if (route === undefined || route.kind !== 'chat') return;
   actionInFlight = true;
   try {
-    await runSecondaryAction(id);
+    await runSecondaryAction(route.id);
     showToast(chrome.i18n.getMessage('feedbackOfficialPrepared'), 'ok');
   } catch (err) {
     console.warn('Exportal: could not save pending conversation.', err);
@@ -512,6 +551,106 @@ async function fetchOrganizationIds() {
   return ExportalPure.extractOrgIds(data);
 }
 
+// Claude Design uses a Connect-RPC endpoint with a JSON encoding of a
+// protobuf body. The actual project content is base64-encoded inside
+// the `data` field of the outer response (the proto schema declares
+// `bytes data = N` and Connect's JSON canon encodes bytes as base64).
+//
+// We adapt the inner Design shape into the same claude.ai/chat
+// "conversation" shape that `parseSingleConversation` validates on
+// the bridge side, so the rest of the pipeline (formatter,
+// auto-attach) stays unchanged.
+const DESIGN_RPC_URL = '/design/anthropic.omelette.api.v1alpha.OmeletteService/GetProject';
+
+async function fetchDesignProject(projectId) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
+  let res;
+  try {
+    res = await fetch(DESIGN_RPC_URL, {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+        'Connect-Protocol-Version': '1',
+      },
+      body: JSON.stringify({ project_id: projectId }),
+      signal: controller.signal,
+    });
+  } catch (err) {
+    if (err?.name === 'AbortError') throw new Error('timeout');
+    throw err;
+  } finally {
+    clearTimeout(timer);
+  }
+  if (res.status === 401 || res.status === 403) throw new Error('session_expired');
+  if (res.status === 404) throw new Error('not_found');
+  if (!res.ok) throw new Error(`design_api_${String(res.status)}`);
+  const outer = await parseJsonOrThrow(res);
+  return adaptDesignToConversation(outer);
+}
+
+function adaptDesignToConversation(outer) {
+  if (outer === null || typeof outer !== 'object' || typeof outer.data !== 'string') {
+    throw new Error('invalid_response');
+  }
+  let inner;
+  try {
+    inner = JSON.parse(atob(outer.data));
+  } catch {
+    throw new Error('invalid_response');
+  }
+  if (inner === null || typeof inner !== 'object') throw new Error('invalid_response');
+  const chats = inner.chats;
+  if (chats === null || typeof chats !== 'object') throw new Error('invalid_response');
+
+  // Pick the active chat from viewState; fall back to the first key
+  // if viewState is missing or stale (chat was deleted, etc.).
+  const activeId = inner.viewState?.activeChatId;
+  const chatId = (typeof activeId === 'string' && chats[activeId] !== undefined)
+    ? activeId
+    : Object.keys(chats)[0];
+  if (chatId === undefined) throw new Error('not_found');
+  const chat = chats[chatId];
+  if (chat === null || typeof chat !== 'object' || !Array.isArray(chat.messages)) {
+    throw new Error('invalid_response');
+  }
+
+  const projectName = typeof outer.name === 'string' && outer.name.length > 0
+    ? outer.name
+    : 'Claude Design';
+  const chatTitle = typeof chat.title === 'string' && chat.title.length > 0
+    ? chat.title
+    : '(untitled)';
+
+  // Map Design messages → claude.ai/chat MessageSchema. Design uses
+  // role: 'user'|'assistant' and content as a plain string; the chat
+  // schema expects sender: 'human'|'assistant' and content as an
+  // array of typed blocks. We wrap the text in a single text block.
+  const chatMessages = chat.messages.map((m) => {
+    const text = typeof m.content === 'string' ? m.content : '';
+    return {
+      uuid: typeof m.id === 'string' ? m.id : `design-${Math.random().toString(36).slice(2)}`,
+      sender: m.role === 'user' ? 'human' : 'assistant',
+      text,
+      content: [{ type: 'text', text }],
+      created_at: typeof m.timestamp === 'string' ? m.timestamp : new Date().toISOString(),
+    };
+  });
+
+  if (typeof chat.id !== 'string' || chat.id.length === 0) {
+    throw new Error('invalid_response');
+  }
+  return {
+    uuid: chat.id,
+    name: `[${projectName}] ${chatTitle}`,
+    created_at: typeof chat.created === 'string' ? chat.created : new Date().toISOString(),
+    updated_at: typeof chat.lastOpened === 'string' ? chat.lastOpened : undefined,
+    chat_messages: chatMessages,
+  };
+}
+
 async function fetchClaudeApi(url) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
@@ -543,10 +682,14 @@ async function parseJsonOrThrow(res) {
   }
 }
 
-function panelConversationId() {
+function panelRoute() {
   const panel = document.getElementById(PANEL_ID);
-  const id = panel?.dataset.conversationId;
-  return typeof id === 'string' && id.length > 0 ? id : undefined;
+  const kind = panel?.dataset.routeKind;
+  const id = panel?.dataset.routeId;
+  if ((kind !== 'chat' && kind !== 'design') || typeof id !== 'string' || id.length === 0) {
+    return undefined;
+  }
+  return { kind, id };
 }
 
 // For errors on either button: swap label + bg briefly. Uses tokens so
@@ -687,9 +830,10 @@ function installShortcuts() {
   window.addEventListener(
     'keydown',
     (ev) => {
-      // Require Alt+Shift, no Ctrl/Meta, and only on /chat/<uuid> pages.
+      // Require Alt+Shift, no Ctrl/Meta, and only on a recognized
+      // claude.ai page (chat or Design project).
       if (!ev.altKey || !ev.shiftKey || ev.ctrlKey || ev.metaKey) return;
-      if (currentConversationId() === undefined) return;
+      if (currentRoute() === undefined) return;
       const key = ev.key.toLowerCase();
       if (key === 'e') {
         ev.preventDefault();
