@@ -6,6 +6,14 @@ Companion (Chrome extension) are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 and versions follow [Semantic Versioning](https://semver.org/).
 
+## [0.5.4] — 2026-04-23
+
+Version-number-only bump: v0.5.3 of the VS Code extension was
+uploaded to the Marketplace earlier; the Marketplace permanently
+reserves every version number ever registered, so to ship the
+centered-options-page fix we need a fresh slot. No behavioral change
+vs v0.5.3 on either extension.
+
 ## [0.5.3] — 2026-04-23
 
 ### Changed
