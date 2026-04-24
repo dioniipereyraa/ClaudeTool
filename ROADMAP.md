@@ -15,12 +15,6 @@ Items concretos y cerrados se mueven al `DEVLOG.md`. Releases formales al
   `docs/screenshots/fab.png`, `onboarding.jpeg`, `options.png` con
   los nuevos para que el README y el detail page del Marketplace
   dejen de mostrar las capturas del navy+orange viejo.
-- [ ] Investigar el flake de `npm run ci` en Windows: la primera
-  corrida de vitest falla con `TypeError: Cannot read properties of
-  undefined (reading 'config')` en los 18 test files y la segunda
-  pasa limpia. Hipótesis de trabajo: race entre `tsc --noEmit` y el
-  transform cache de vitest 4 sobre NTFS. No afecta CI en GitHub
-  Actions (corre en Linux).
 
 ## Próximos hitos — en orden de prioridad
 
@@ -71,6 +65,34 @@ Bloque de hitos que se habilitan mutuamente. Orden interno:
 ## Backlog
 
 Tier más abajo — útiles pero no en la cola activa.
+
+### Flake intermitente de `npm run ci` en Windows (no reproducible)
+
+Reportado durante los releases de 0.8.1 y 0.8.2: la primera corrida
+de vitest falla con
+`TypeError: Cannot read properties of undefined (reading 'config')`
+en los 22 test files y la segunda pasa limpia.
+
+**Sesión de investigación 2026-04-24**:
+- 30 corridas consecutivas de `npm run ci` en frío (cache `.vite`
+  borrado entre cada una, archivos tocados, full lint+typecheck+test+build) → **0 fallas**.
+- 4 escenarios de `results.json` corrupto → vitest los maneja graceful.
+- El error literal no aparece en las sources de vitest (es runtime
+  error de JS), no se puede grepear el origen exacto.
+- Patrón observado: aparece SOLO durante workflows con edición
+  concurrente intensa (Claude Code escribiendo archivos mientras CI
+  corre). En CI normal (GitHub Actions Linux) no se ve nunca.
+
+**Conclusión**: sin reproducción confiable, cualquier fix sería
+cargo-culting. Las opciones consideradas y descartadas:
+- `pool: 'forks'` con `singleFork: true`: enlentece tests 2-3x sin
+  garantía de atacar la causa real.
+- Auto-retry en el script de CI: esconde flakes transitorios pero
+  agrega ruido visual ("Retrying...") en el caso raro.
+- Cambiar de vitest a otro runner: cambio masivo para un bug raro.
+
+**Reabrir cuando**: el flake reaparezca con datos frescos (output
+completo, qué archivos se editaron antes, qué procesos corrían).
 
 ### Hito 14 — Optimización de latencia para usuarios multi-org (re-scopeado)
 
