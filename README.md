@@ -30,6 +30,14 @@ El auto-attach al chat de Claude Code se puede desactivar con el setting `export
 
 `Ctrl+Shift+P` → **Exportal: Send Claude Code session to claude.ai**. Elegís una de las sesiones de Claude Code del proyecto actual, Exportal renderiza el chat a Markdown, lo copia al portapapeles y abre `claude.ai/new`. Pegás con `Ctrl+V` y arrancás un chat nuevo con todo el contexto. claude.ai no tiene API de escritura — el paso de pegar es manual por diseño.
 
+### Aparecer en `/resume` de Claude Code (opt-in)
+
+Si activás el setting `exportal.alsoWriteJsonl`, junto al `.md` se escribe un `.jsonl` compatible con Claude Code en `~/.claude/projects/<encoded-cwd>/<sessionId>.jsonl`. La conversación importada aparece directo en `/resume` como si fuera una sesión local del proyecto. Es experimental — el formato `.jsonl` es ingeniería inversa, no oficialmente documentado, y puede romperse entre versiones.
+
+### Tab dedicada en VS Code
+
+Hay un ícono de Exportal en la activity bar (la barra vertical de la izquierda). El panel reúne los toggles más usados (`autoAttachToClaudeCode`, `alsoWriteJsonl`) y los tres comandos principales sin tener que pasar por Preferences UI.
+
 ![FAB expandido en claude.ai](docs/screenshots/fab.png)
 
 ## Instalación

@@ -341,6 +341,12 @@ function showPairingPanel(context: vscode.ExtensionContext, token: string): void
       // explicit dismiss paths are the "Later" button and the tab X.
     } else if (type === 'dismiss') {
       panel.dispose();
+    } else if (type === 'open-sidebar') {
+      // Reveals the Exportal activity-bar tab so the user can flip
+      // the .jsonl toggle without hunting through Preferences UI.
+      // The view-container id matches the `viewsContainers.activitybar[].id`
+      // declared in package.json.
+      await vscode.commands.executeCommand('workbench.view.extension.exportal');
     }
   });
   pairingPanel = panel;
@@ -426,6 +432,16 @@ function renderPairingHtml(webview: vscode.Webview, token: string): string {
   @keyframes expPop { 0% { transform: scale(.96); opacity: 0 } 100% { transform: scale(1); opacity: 1 } }
   @keyframes expCheckIn { 0% { transform: scale(.4); opacity: 0 } 100% { transform: scale(1); opacity: 1 } }
   @keyframes expDraw { to { stroke-dashoffset: 0 } }
+
+  /* Tip card: surfaces the new sidebar tab + .jsonl toggle so users
+   * who close this panel without exploring still see the feature once. */
+  .tip { display: flex; gap: 12px; align-items: flex-start; margin-top: 18px; padding: 12px 14px; border-radius: var(--exp-radius); background: var(--exp-surface2); border: 1px solid var(--exp-line); }
+  .tip-icon { flex-shrink: 0; width: 22px; height: 22px; border-radius: 11px; background: color-mix(in srgb, var(--exp-accent) 18%, transparent); color: var(--exp-accent); display: flex; align-items: center; justify-content: center; }
+  .tip-body { flex: 1; min-width: 0; }
+  .tip-headline { font-size: 12px; font-weight: 600; color: var(--exp-text); margin-bottom: 3px; letter-spacing: -0.01em; }
+  .tip-text { font-size: 11px; color: var(--exp-text-dim); line-height: 1.5; }
+  .tip-link { display: inline-flex; align-items: center; gap: 4px; margin-top: 8px; padding: 0; background: transparent; border: none; color: var(--exp-accent); font-size: 11px; font-weight: 600; cursor: pointer; font-family: inherit; letter-spacing: 0.02em; }
+  .tip-link:hover { color: var(--exp-accent-hover); text-decoration: underline; }
 </style>
 </head>
 <body>
@@ -474,6 +490,17 @@ function renderPairingHtml(webview: vscode.Webview, token: string): string {
         <button class="ghost" id="dismiss">${t('Later')}</button>
         <button class="primary" id="pair-open"><span id="pair-open-label">${t('Copy and open Chrome')}</span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12h14M13 6l6 6-6 6"/></svg></button>
       </div>
+
+      <div class="tip">
+        <div class="tip-icon" aria-hidden="true">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/><circle cx="12" cy="12" r="4"/></svg>
+        </div>
+        <div class="tip-body">
+          <div class="tip-headline">${t('New: also write .jsonl for /resume')}</div>
+          <div class="tip-text">${t('Imported chats can appear in Claude Code’s /resume list. Toggle it from the Exportal tab in the activity bar.')}</div>
+          <button class="tip-link" id="open-sidebar">${t('Open Exportal tab')} <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
+        </div>
+      </div>
     </main>
     <div class="success-overlay" id="success-overlay" aria-hidden="true">
       <div class="success-check">
@@ -521,6 +548,9 @@ function renderPairingHtml(webview: vscode.Webview, token: string): string {
   });
   document.getElementById('dismiss').addEventListener('click', () => {
     vscode.postMessage({ type: 'dismiss' });
+  });
+  document.getElementById('open-sidebar').addEventListener('click', () => {
+    vscode.postMessage({ type: 'open-sidebar' });
   });
   // Host posts { type: 'paired' } when Chrome's /ping hits the bridge.
   // We swap to the success overlay; the host will dispose the panel
