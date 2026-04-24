@@ -6,6 +6,29 @@ Companion (Chrome extension) are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 and versions follow [Semantic Versioning](https://semver.org/).
 
+## [0.8.2] — 2026-04-23
+
+### Added
+
+- **Discoverability tip para `.jsonl` en la pairing panel.** El panel
+  de emparejamiento (que se abre solo la primera vez que se instala la
+  extensión) ahora incluye un card con el mensaje *"Nuevo: también
+  escribir .jsonl para /resume"* y un botón "Abrir tab de Exportal"
+  que revela la activity-bar tab directamente
+  (`workbench.view.extension.exportal`). Quien ignora el panel sin
+  explorar la feature se la encuentra igual la primera vez.
+- **README.md y README.vsix.md actualizados.** Secciones nuevas que
+  documentan el toggle `exportal.alsoWriteJsonl` (aparecer en /resume
+  de Claude Code) y la tab dedicada en la activity bar — ambas
+  features existían desde 0.8.0 / 0.8.1 respectivamente pero solo
+  estaban mencionadas en CHANGELOG/DEVLOG.
+
+### Notes
+
+- Esta versión **no cambia comportamiento funcional**: es puramente
+  discoverability y docs. El núcleo (strip de placeholder, tab,
+  `.jsonl` generator) viene de 0.8.1 / 0.8.0.
+
 ## [0.8.1] — 2026-04-23
 
 ### Added

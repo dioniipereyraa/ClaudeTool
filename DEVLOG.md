@@ -2183,3 +2183,74 @@ para que el usuario continúe el chat literal.
 - **Re-traducción del .md ya importado**: si alguien tiene `.md`
   exportados con la versión 0.8.0 sucia, se quedan así. El strip
   aplica en imports nuevos. Re-importar es trivial.
+
+---
+
+## 2026-04-23 — v0.8.2 · Discoverability + prep de Hito 21
+
+### Qué hicimos
+- **Tip de discoverability en la pairing panel.** Las features que
+  agregamos en 0.8.0 (`.jsonl` para `/resume`) y 0.8.1 (tab dedicada
+  en la activity bar) existían pero ningún usuario se enteraba de
+  ellas sin leer el CHANGELOG. Agregamos un tip card al final del
+  pairing webview con un botón "Abrir tab de Exportal" que ejecuta
+  `workbench.view.extension.exportal` y revela la tab. Como el
+  panel se abre automáticamente la primera vez
+  (`showOnboardingIfNeeded`), todo usuario nuevo ve el tip al
+  menos una vez sin hacer nada.
+- **README.md y README.vsix.md**: secciones nuevas
+  *"Aparecer en /resume de Claude Code (opt-in)"* y *"Tab dedicada
+  en VS Code"*. Ambos READMEs estaban desactualizados respecto a las
+  features de 0.8.0 y 0.8.1 — todo el texto de discovery estaba solo
+  en CHANGELOG, que nadie lee salvo al investigar un bug.
+- **Prep round del Hito 21** (import de ChatGPT): scaffold del
+  importer en `src/importers/chatgpt/` siguiendo la estructura de
+  `claudeai/`. Tres archivos (`schema.ts`, `reader.ts`, `walk.ts`)
+  + 15 tests contra fixture sintético. Nada wireado en la extensión
+  todavía — puro prep para arrancar rápido cuando llegue el ZIP real
+  de export de ChatGPT.
+
+### Decisiones clave y por qué
+- **Tip en el pairing panel, no como notification toast ni comando
+  separado**: las notifications son efímeras y el usuario en su
+  primera instalación ya tiene un panel grande al frente. Poner el
+  tip ahí garantiza 1 impresión garantizada sin estorbar. Efímero
+  (dismissable) y descubrible.
+- **Botón "Abrir tab de Exportal" ejecuta `workbench.view.extension.<id>`**:
+  es el command built-in de VS Code para revelar una view container
+  por su id. No hay que registrar nada propio. El id coincide con
+  `viewsContainers.activitybar[].id` en `package.json` (`exportal`).
+- **ChatGPT schemas SIN `.passthrough()`, al revés que claude.ai**:
+  Zod 4 propaga el `{[x:string]: unknown}` del passthrough por todo
+  el tipo inferido, lo que hace que `conversation.mapping[k]` termine
+  siendo `any` (TS7022 bajo `--strict`) y rompa los lints no-unsafe-*.
+  Pero además, en la práctica, los formatters consumen campos
+  explícitos (`content_type`, `parts`, `author.role`) — los campos
+  desconocidos que preservaría el passthrough nunca se leen. Usar
+  strip (default) + campos explícitos opcionales da forward-compat
+  sin pagar el costo de tipos. Si algún día necesitamos preservar
+  datos desconocidos en ChatGPT, se evalúa en ese momento.
+- **Walk del árbol siguiendo sólo la rama activa (`current_node`)**:
+  ChatGPT soporta branching (regenerate, edit) y guarda todas las
+  ramas en `mapping`, pero el usuario cuando exporta espera ver lo
+  que estaba mirando — la rama activa. Cualquier otra estrategia
+  (merge de ramas, incluir todas) introduce decisiones de UX sin
+  beneficio claro.
+- **Dos commits separados**: `feat:` para el tip + READMEs (user-
+  visible, shippable) y `chore(hito-21):` para el scaffold (interno,
+  no shippea). Así el diff del release es chico y revisable sin
+  mezclar features con prep work.
+
+### Verificación
+- `npm run ci` → verde. 22 test files, 198 tests passan (183 previos
+  + 9 de chatgpt/walk + 6 de chatgpt/schema).
+- `npm run package:all` → `exportal-0.8.2.vsix` + `exportal-companion-0.8.2.zip`
+  generados limpios. El SVG sigue shippeando (no repite el bug del 0.8.1).
+
+### Lo que NO entra en v0.8.2
+- **Import real de ChatGPT**: el scaffold está pero nada wireado en
+  la extensión. Esperando el ZIP del user para tunear schemas contra
+  data real antes de agregar comando + formatter + UI.
+- **Status pill del bridge** (acumula desde 0.8.1): todavía pendiente
+  porque el tip quedó ocupando ese real estate visual; volveremos a
+  esto cuando pensemos un header más chico o un segundo slot.
