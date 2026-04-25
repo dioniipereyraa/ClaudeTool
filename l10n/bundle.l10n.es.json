@@ -62,5 +62,8 @@
   "The local bridge starts automatically when this extension activates. To pair the Chrome companion, click \"Show pairing token\" above and follow the panel.": "El puente local arranca solo cuando se activa la extensión. Para emparejar el Companion de Chrome, hacé click en \"Mostrar token de emparejamiento\" y seguí el panel.",
   "New: also write .jsonl for /resume": "Nuevo: también escribir .jsonl para /resume",
   "Imported chats can appear in Claude Code’s /resume list. Toggle it from the Exportal tab in the activity bar.": "Los chats importados pueden aparecer en /resume de Claude Code. Activalo desde la tab de Exportal en la activity bar.",
-  "Open Exportal tab": "Abrir tab de Exportal"
+  "Open Exportal tab": "Abrir tab de Exportal",
+  "Select the ZIP exported from ChatGPT": "Seleccioná el ZIP exportado desde ChatGPT",
+  "Exportal: \"{0}\" imported from ChatGPT.": "Exportal: \"{0}\" importado desde ChatGPT.",
+  "Import ChatGPT .zip": "Importar .zip de ChatGPT"
 }

@@ -4,9 +4,12 @@ import { encodeProjectDir, PROJECTS_DIR } from '../core/paths.js';
 import { readJsonl } from '../core/reader.js';
 import { describeSession, listSessionFiles } from '../core/session.js';
 import { type SessionMetadata } from '../core/types.js';
+import { formatChatGptConversation } from '../formatters/chatgpt-markdown.js';
 import { formatAsClaudeCodeJsonl } from '../formatters/claude-code-jsonl.js';
 import { formatConversation } from '../formatters/claudeai-markdown.js';
 import { formatAsMarkdown } from '../formatters/markdown.js';
+import { readChatGptExport } from '../importers/chatgpt/reader.js';
+import { type ChatGptConversation } from '../importers/chatgpt/schema.js';
 import { stripUnsupportedBlockPlaceholders } from '../importers/claudeai/cleanup.js';
 import { readClaudeAiExport } from '../importers/claudeai/reader.js';
 import {
@@ -62,6 +65,10 @@ export function activate(context: vscode.ExtensionContext): void {
     vscode.commands.registerCommand(
       'exportal.sendSessionToClaudeAi',
       sendSessionToClaudeAiCommand,
+    ),
+    vscode.commands.registerCommand(
+      'exportal.importFromChatGptZip',
+      importFromChatGptZipCommand,
     ),
   );
 
@@ -208,7 +215,7 @@ async function handleBridgeImportInline(payload: ImportInlinePayload): Promise<v
   const markdown = assets.length > 0
     ? buildAssetsHeader(assets, baseName) + convMarkdown
     : convMarkdown;
-  const savedUri = await persistAndOpenMarkdown(conversation, markdown, baseName, assets);
+  const savedUri = await persistAndOpenMarkdown(conversation.name, markdown, baseName, assets);
   announceImport(conversation);
   await maybeWriteClaudeCodeJsonl(conversation);
   await attachToClaudeCodeIfAvailable(savedUri);
@@ -589,6 +596,90 @@ async function importFromZipCommand(): Promise<void> {
   await openConversationFromZip(zipUri.fsPath);
 }
 
+/**
+ * Command: Importar .zip de ChatGPT (hito 21).
+ *
+ * Auto-attach to Claude Code is wired (the .md is universal). v1 does
+ * not produce a .jsonl for `/resume` — the Anthropic envelope assumes
+ * message/tool shapes ChatGPT doesn't natively map to.
+ */
+async function importFromChatGptZipCommand(): Promise<void> {
+  const picks = await vscode.window.showOpenDialog({
+    canSelectFiles: true,
+    canSelectFolders: false,
+    canSelectMany: false,
+    filters: { 'ChatGPT export': ['zip'] },
+    openLabel: vscode.l10n.t('Import'),
+    title: vscode.l10n.t('Select the ZIP exported from ChatGPT'),
+  });
+  const zipUri = picks?.[0];
+  if (zipUri === undefined) return;
+
+  let exported: Awaited<ReturnType<typeof readChatGptExport>>;
+  try {
+    exported = await vscode.window.withProgress(
+      {
+        location: vscode.ProgressLocation.Notification,
+        title: vscode.l10n.t('Exportal: reading ZIP...'),
+        cancellable: false,
+      },
+      async () => readChatGptExport(zipUri.fsPath),
+    );
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    await vscode.window.showErrorMessage(
+      vscode.l10n.t('Exportal: could not read the ZIP. {0}', message),
+    );
+    return;
+  }
+
+  if (exported.conversations.length === 0) {
+    await vscode.window.showInformationMessage(
+      vscode.l10n.t('Exportal: the ZIP has no conversations.'),
+    );
+    return;
+  }
+
+  const picked = await pickChatGptConversation(exported.conversations);
+  if (picked === undefined) return;
+
+  const { markdown } = formatChatGptConversation(picked, { redact: true });
+
+  const title = picked.title ?? vscode.l10n.t('(untitled)');
+  const savedUri = await persistAndOpenMarkdown(title, markdown);
+  void vscode.window.showInformationMessage(
+    vscode.l10n.t('Exportal: "{0}" imported from ChatGPT.', title),
+  );
+  await attachToClaudeCodeIfAvailable(savedUri);
+}
+
+interface ChatGptConversationQuickPickItem extends vscode.QuickPickItem {
+  readonly conversation: ChatGptConversation;
+}
+
+async function pickChatGptConversation(
+  conversations: readonly ChatGptConversation[],
+): Promise<ChatGptConversation | undefined> {
+  const sorted = [...conversations].sort((a, b) => b.create_time - a.create_time);
+  const items: ChatGptConversationQuickPickItem[] = sorted.map((conv) => {
+    const id = conv.conversation_id ?? conv.id;
+    return {
+      label: conv.title ?? vscode.l10n.t('(untitled)'),
+      description: new Date(conv.create_time * 1000).toISOString().slice(0, 10),
+      ...(id !== undefined && { detail: id.slice(0, 8) }),
+      conversation: conv,
+    };
+  });
+
+  const selected = await vscode.window.showQuickPick(items, {
+    title: vscode.l10n.t('Exportal — {0} conversations', String(conversations.length)),
+    placeHolder: vscode.l10n.t('Pick a conversation to open as Markdown'),
+    matchOnDescription: true,
+    matchOnDetail: true,
+  });
+  return selected?.conversation;
+}
+
 interface OpenOptions {
   /**
    * If true, re-throw after surfacing errors as notifications. Used by
@@ -657,7 +748,7 @@ async function openConversationFromZip(
 
   const { markdown } = formatConversation(conversation, { redact: true });
 
-  const savedUri = await persistAndOpenMarkdown(conversation, markdown);
+  const savedUri = await persistAndOpenMarkdown(conversation.name, markdown);
   announceImport(conversation);
   await maybeWriteClaudeCodeJsonl(conversation);
   await attachToClaudeCodeIfAvailable(savedUri);
@@ -807,7 +898,7 @@ function compareByCreatedDesc(a: ClaudeAiConversation, b: ClaudeAiConversation):
  * to attempt the auto-attach.
  */
 async function persistAndOpenMarkdown(
-  conversation: ClaudeAiConversation,
+  conversationName: string,
   markdown: string,
   baseName?: string,
   assets: InlineAsset[] = [],
@@ -827,7 +918,7 @@ async function persistAndOpenMarkdown(
   }
 
   const dir = vscode.Uri.joinPath(folder.uri, '.exportal');
-  const finalBase = baseName ?? `${buildExportTimestamp()}-${slugify(conversation.name)}`;
+  const finalBase = baseName ?? `${buildExportTimestamp()}-${slugify(conversationName)}`;
   const fileUri = vscode.Uri.joinPath(dir, `${finalBase}.md`);
 
   await vscode.workspace.fs.createDirectory(dir);

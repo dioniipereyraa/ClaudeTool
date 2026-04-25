@@ -11,7 +11,7 @@
   "publisher": "dioniipereyraa",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/dioniipereyraa/ClaudeTool.git"
+    "url": "https://github.com/dioniipereyraa/ClaudeTool.git"
   },
   "engines": {
     "node": ">=20.0.0",
@@ -48,6 +48,10 @@
       {
         "command": "exportal.sendSessionToClaudeAi",
         "title": "%command.sendSessionToClaudeAi.title%"
+      },
+      {
+        "command": "exportal.importFromChatGptZip",
+        "title": "%command.importFromChatGptZip.title%"
       }
     ],
     "configuration": {

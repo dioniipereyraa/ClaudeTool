@@ -69,13 +69,18 @@ function renderToolResultContent(content: unknown): string {
  * Wrap text in a markdown code fence. Uses a 4-backtick fence when the
  * content itself contains triple backticks, so embedded code blocks in
  * a tool_result don't escape the fence.
+ *
+ * Optional `lang` tag is appended to the opening fence (e.g. `python`).
+ * Empty bodies always render as `(empty)` without a language tag — a
+ * language hint on an empty block reads as a bug to a human reader.
  */
-export function fenceCode(text: string): string {
+export function fenceCode(text: string, lang?: string): string {
   const trimmed = text.replace(/\s+$/u, '');
   if (trimmed.length === 0) return '```\n(empty)\n```';
   const needsLongFence = trimmed.includes('```');
   const fence = needsLongFence ? '````' : '```';
-  return `${fence}\n${trimmed}\n${fence}`;
+  const tag = lang !== undefined && lang.length > 0 ? lang : '';
+  return `${fence}${tag}\n${trimmed}\n${fence}`;
 }
 
 export function stringifyJson(value: unknown): string {

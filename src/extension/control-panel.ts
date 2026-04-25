@@ -223,6 +223,7 @@ export class ExportalControlPanelProvider implements vscode.WebviewViewProvider 
 
 <button class="action" data-cmd="exportal.showPairingInfo">${t('Show pairing token')}</button>
 <button class="action" data-cmd="exportal.importFromZip">${t('Import claude.ai .zip')}</button>
+<button class="action" data-cmd="exportal.importFromChatGptZip">${t('Import ChatGPT .zip')}</button>
 <button class="action" data-cmd="exportal.sendSessionToClaudeAi">${t('Send Claude Code session to claude.ai')}</button>
 
 <div class="note">
