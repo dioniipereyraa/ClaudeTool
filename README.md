@@ -26,6 +26,12 @@ O con atajo de teclado (sin abrir el panel):
 
 El auto-attach al chat de Claude Code se puede desactivar con el setting `exportal.autoAttachToClaudeCode`. Agregá `.exportal/` a tu `.gitignore` si no querés versionar los imports.
 
+![Botón flotante de Exportal en claude.ai](docs/screenshots/exportal-s1-fab-1280x800.png)
+
+En proyectos de Claude Design la captura del export incluye los archivos generados (HTML, JSX, JSON) en una carpeta hermana del `.md`:
+
+![Export desde un proyecto de Claude Design](docs/screenshots/exportal-s0-claude-design-1280x800.png)
+
 ### Al revés: Claude Code → claude.ai
 
 `Ctrl+Shift+P` → **Exportal: Send Claude Code session to claude.ai**. Elegís una de las sesiones de Claude Code del proyecto actual, Exportal renderiza el chat a Markdown, lo copia al portapapeles y abre `claude.ai/new`. Pegás con `Ctrl+V` y arrancás un chat nuevo con todo el contexto. claude.ai no tiene API de escritura — el paso de pegar es manual por diseño.
@@ -34,11 +40,13 @@ El auto-attach al chat de Claude Code se puede desactivar con el setting `export
 
 Si activás el setting `exportal.alsoWriteJsonl`, junto al `.md` se escribe un `.jsonl` compatible con Claude Code en `~/.claude/projects/<encoded-cwd>/<sessionId>.jsonl`. La conversación importada aparece directo en `/resume` como si fuera una sesión local del proyecto. Es experimental — el formato `.jsonl` es ingeniería inversa, no oficialmente documentado, y puede romperse entre versiones.
 
+![Conversación importada apareciendo en /resume de Claude Code](docs/screenshots/exportal-s5-jsonl-sync-1280x800.png)
+
 ### Tab dedicada en VS Code
 
 Hay un ícono de Exportal en la activity bar (la barra vertical de la izquierda). El panel reúne los toggles más usados (`autoAttachToClaudeCode`, `alsoWriteJsonl`) y los tres comandos principales sin tener que pasar por Preferences UI.
 
-![FAB expandido en claude.ai](docs/screenshots/fab.png)
+![Tab de Exportal en la activity bar de VS Code](docs/screenshots/exportal-s4-vscode-1280x800.png)
 
 ## Instalación
 
@@ -56,7 +64,7 @@ code --install-extension exportal-*.vsix
 
 Al abrir VS Code por primera vez se abre un panel con el **token de emparejamiento** y un botón **"Copiar y abrir Chrome"**. Si te distraés, lo reabrís con `Ctrl+Shift+P` → **Exportal: Mostrar token de emparejamiento**.
 
-![Modal de onboarding en VS Code](docs/screenshots/onboarding.jpeg)
+![Panel de onboarding en VS Code](docs/screenshots/exportal-s2-onboarding-1280x800.png)
 
 ### Companion de Chrome
 
@@ -65,7 +73,7 @@ Al abrir VS Code por primera vez se abre un panel con el **token de emparejamien
 
 El badge del ícono refleja el estado: `OK` verde (importó), `SET` amarillo (falta token), `OFF` rojo (VS Code no responde), `AUTH` rojo (token inválido), `OLD` rojo (VS Code desactualizado), `ERR` rojo (otros).
 
-![Página de opciones del companion](docs/screenshots/options.png)
+![Companion conectado en estado "Listo"](docs/screenshots/exportal-s3-success-1280x800.png)
 
 ## Dos formas de exportar
 

@@ -148,10 +148,12 @@ https://github.com/dioniipereyraa/ClaudeTool/blob/main/docs/PRIVACY.md
 ## Assets a subir
 
 - **Icon**: `chrome/icon-128.png` (ya empaquetado en el ZIP).
-- **Screenshots** (1280×800 o 640×400 — subí al menos 1, ideal 3):
-  - `docs/screenshots/fab.png`
-  - `docs/screenshots/options.png`
-  - `docs/screenshots/onboarding.jpeg`
+- **Screenshots** (1280×800 — subí al menos 1, ideal 3-5):
+  - `docs/screenshots/exportal-s1-fab-1280x800.png` (botón flotante en claude.ai)
+  - `docs/screenshots/exportal-s3-success-1280x800.png` (companion conectado)
+  - `docs/screenshots/exportal-s0-claude-design-1280x800.png` (export desde Claude Design)
+  - `docs/screenshots/exportal-s4-vscode-1280x800.png` (tab en VS Code, opcional)
+  - `docs/screenshots/exportal-s5-jsonl-sync-1280x800.png` (/resume sync, opcional)
 - **Promotional tile** (440×280): opcional, podés skippearlo para la
   primera versión.
 - **ZIP del package**: `exportal-companion-<version>.zip` (generar con `npm run package:chrome`; la versión se toma de `chrome/manifest.json`).

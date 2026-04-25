@@ -8,13 +8,10 @@ Items concretos y cerrados se mueven al `DEVLOG.md`. Releases formales al
 
 - [ ] Verificar el flujo de instalación en una máquina limpia (vsix +
   zip del companion desde releases, emparejar, probar ambos sentidos).
-- [ ] Subir los screenshots nuevos al listing del Chrome Web Store
-  y al del VS Code Marketplace. Las capturas ya están hechas en
-  Claude Design (incluida una nueva del bundling de assets que
-  agregamos en hito 28). Pendiente también: pisar
-  `docs/screenshots/fab.png`, `onboarding.jpeg`, `options.png` con
-  los nuevos para que el README y el detail page del Marketplace
-  dejen de mostrar las capturas del navy+orange viejo.
+- [ ] Subir los screenshots nuevos (ya en `docs/screenshots/exportal-s*-1280x800.png`)
+  al detail page del Chrome Web Store y al listing del VS Code
+  Marketplace. README ya está actualizado; queda el upload manual a
+  los dos dashboards (no se puede automatizar).
 
 ## Próximos hitos — en orden de prioridad
 
@@ -38,12 +35,20 @@ Bloque de hitos que se habilitan mutuamente. Orden interno:
 - Parte del work puede adelantarse en Hito 27 (Claude Design) si el
   formatter termina siendo suficientemente distinto.
 
-**Hito 21 — Import de ChatGPT**
+**Hito 21 — Import de ChatGPT** *(en curso, schema-independent done — esperando ZIP real para validar)*
 - Camino oficial: Settings → Data controls → Export → ZIP por email
   con `conversations.json`. Formato semi-documentado; tool use
   (code interpreter, browsing) requiere parsing específico.
 - Camino one-click: extensión de Chrome scrapea la API interna de
   `chat.openai.com`. Mismo patrón que el Hito 10e de claude.ai.
+- **Estado actual**: scaffold completo (`src/importers/chatgpt/{schema,reader,walk}.ts`),
+  formatter (`src/formatters/chatgpt-markdown.ts`), comando
+  `exportal.importFromChatGptZip` con handler + entrada en sidebar
+  tab + i18n. 23 tests sintéticos passan. Falta validar contra
+  export ZIP real (queued del lado del usuario, esperando mail) —
+  cuando llegue, ajustar schema contra data real, agregar manejo
+  fino de `content_type` raros (tether_quote, multimodal con
+  imágenes, gizmos), y release.
 - Entrega mínima: reader + schema + formatter, sin one-click (se
   agrega después si hay demanda).
 
