@@ -2324,3 +2324,159 @@ de scope). Sin código nuevo hasta entonces.
   de cómo termine quedando la UI agrupada.
 - **Refactor de `control-panel.ts` a estructura data-driven con
   PROVIDERS array**: parte del Hito 29.
+
+---
+
+## 2026-04-26 — Hito 29 implementado · v0.9.0
+
+### Qué hicimos
+
+Sesión larga, mezcla de muchas piezas convergiendo. Cuatro frentes
+que terminaron en el release `0.9.0`:
+
+**1. Send-to-claude.ai mejorado (Capa 0 del refactor):**
+- Reader del `.jsonl` reconoce los event types `ai-title`,
+  `custom-title`, `last-prompt` que Claude Code escribe como sidecar
+  metadata (antes los descartábamos como "unmodeled"). La QuickPick
+  prioriza `customTitle ?? aiTitle ?? firstUserText` para el label.
+- Sort por `lastActiveAt` (file mtime) en vez de startedAt — la
+  sesión más activa queda arriba.
+- Detail line: turns + git branch + cwd basename + sessionId.
+- `.md` siempre se guarda en `.exportal/` como fallback drag-drop
+  para sesiones >100K (claude.ai trunca pastes grandes).
+- Toast con botón "Reveal file".
+
+**2. Hito 21 wireado (ChatGPT importer):**
+- El scaffold ya estaba en main desde 0.8.2. En esta sesión wireamos
+  el comando `exportal.importFromChatGptZip` + handler completo +
+  botón en la sidebar tab + i18n + tests del formatter.
+- El formatter `chatgpt-markdown.ts` espeja el visual del de claude.ai:
+  `## User` / `## Assistant`, tool calls como `<details>`,
+  `cloud-download`/`cloud-upload` codicons.
+
+**3. Hito 29 Capa 1 (sidebar tab redesign):**
+- Reemplazamos la lista plana de 6 items por la **Variante B
+  "filas direccionales"** que diseñó Claude Design.
+- Layout: Settings → ↓ Importar al workspace (3 filas: claude,
+  chatgpt, gemini disabled) → ↑ Exportar la sesión actual (3 filas
+  espejo) → Bridge expandable + Footer.
+- Codicons shippeando dentro del vsix
+  (`assets/codicons/{codicon.css,codicon.ttf}`, copiados al build via
+  `esbuild.config.mjs`).
+- Nuevo comando `exportal.sendSessionToChatGpt` (mirror del a
+  claude.ai, abre `chatgpt.com`).
+- Auto-pick de la sesión más reciente al exportar (el QuickPick era
+  confuso cuando varias sesiones tenían el mismo título por
+  compactación).
+
+**4. Capa 2/3 lite (post-mortem y pivot):**
+- **Intentamos drag-drop sobre filas de import. Falló.** VS Code
+  tiene una limitación arquitectural: el workbench (parent window)
+  intercepta los drops de archivos externos antes de que lleguen al
+  webview iframe. Confirmado con DevTools del user — cero eventos en
+  consola al arrastrar.
+- **Pivot a auto-detect + live watch:** mejor UX que drag-drop para
+  el caso de uso real (descargar zip de Chrome → importar). Cuando
+  el panel está visible, escanea `~/Downloads` y `~/Desktop` por
+  ZIPs de claude/chatgpt en las últimas 2h, detecta el proveedor
+  por contenido (peek a `conversations.json` para distinguir shape),
+  y muestra un sub-hint verde con filename + tiempo relativo en la
+  fila. Click → import directo sin file picker.
+- **Watch en tiempo real:** `fs.watch` sobre Downloads/Desktop con
+  debounce de 1.5s y gated por visibility — el panel se entera
+  apenas termina una descarga (Chrome cierra `.crdownload` y rename
+  al `.zip`), sin necesidad de toggle del panel. Cero costo cuando
+  el panel está cerrado.
+- Sacamos el código muerto de drag-drop. Mantuvimos los estados
+  visuales `working`/`done`/`error` — sirven para click-triggered
+  imports (file picker o detected-zip).
+
+### Decisiones clave y por qué
+
+- **Parar drag-drop cuando se confirmó arquitecturalmente
+  bloqueado**, en vez de seguir intentando workarounds (TreeView
+  drop, `<input type=file>` invisible, dragging desde Explorer
+  pane). Cada workaround tenía cost-benefit pésimo. Auto-detect es
+  estructuralmente más sólido y resuelve el use case real mejor que
+  drag-drop.
+- **Ventana de detección de 2h**, no 7 días: el patrón "recién
+  descargué algo y quiero importarlo" es de minutos. Zips viejos
+  ensucian el panel y no son accionables.
+- **Visibility-gated watcher**: `fs.watch` cuesta poco pero no
+  cero — gatearlo por visibility evita gastar handles cuando el
+  user no está mirando el panel.
+- **Debounce de 1.5s** (no 500ms): Chrome escribe `.crdownload`
+  primero y luego rename a `.zip`. Si reaccionamos al primer event
+  de `.crdownload`, encontramos un archivo incompleto. 1.5s es
+  margen seguro para que Chrome termine y suelte el lock.
+- **Detección por contenido vs filename**: claude.ai tiene pattern
+  `data-...zip` confiable, ChatGPT no tiene canonical pattern. Para
+  uniformidad, ambos se detectan por contenido (peek a
+  `conversations.json` y match de campos clave: `chat_messages`
+  para claude, `mapping`+`current_node` para chatgpt). El cap de
+  50MB por zip evita que un export gigante o un installer rotuleo
+  como zip pause el panel.
+- **No metimos tests para el sidebar webview**: testear webviews
+  requiere harness de browser/jsdom no instalado, y el código del
+  webview es presentational (HTML + event handlers). Los tests del
+  zip-finder cubren la parte testeable (detección de proveedor
+  contra fixtures).
+- **Codicons via assets/ en lugar de exception en .vscodeignore**:
+  intentamos primero `!node_modules/@vscode/codicons/...` pero vsce
+  no honra esas exceptions confiablemente. Esbuild copia los
+  archivos al build → llegan al vsix vía path estable
+  (`assets/codicons/`).
+- **Reemplazo de la URL `git+https://` → `https://`** en
+  `package.json`: el linter de VS Code se quejaba de URLs relativas
+  en README.md aunque nuestro packaging swappea README.md por
+  README.vsix.md (sin imágenes) en el vsix. False positive del
+  linter, fix trivial.
+
+### Verificación
+- `npm run ci` → verde. 23 test files, 210 tests passan.
+- `npm run package:all` → vsix de ~230 KB con codicons incluidos.
+- Smoke test del user end-to-end:
+  - Sidebar nueva renderiza igual al diseño de Claude Design en
+    Dark+ y Light+.
+  - Click en filas dispara los comandos correctos.
+  - Bridge expandible funciona, copy del token funciona.
+  - Auto-pick de sesión activa funciona (toast incluye el título).
+  - Send-to-ChatGPT abre `chatgpt.com` con el clipboard listo.
+  - Auto-detect de descargas: panel abierto + descargar zip → fila
+    correspondiente se actualiza sola con el sub-hint verde dentro
+    de ~1.5s post-download.
+  - Click en fila con detected zip → import directo, sin file
+    picker. Estados `working` (shimmer) → `done` (border verde)
+    → idle.
+- **Flake de Windows** del backlog reapareció una vez durante el
+  ciclo (después de muchas ediciones consecutivas de archivos).
+  Reproduce ahora confirmadamente: aparece en sesiones con
+  workflows de edición intensa concurrentes con CI. Sigue siendo
+  intermitente y reintento siempre arregla. Item del backlog
+  actualizado con estos datos frescos abajo.
+
+### Lo que NO entra en v0.9.0
+- **Validación de ChatGPT contra data real**: aún esperando el ZIP
+  de export del user (queued hace muchas horas, OpenAI sigue sin
+  enviarlo). El schema y formatter funcionan contra fixtures
+  sintéticos + 1 export chico que el user logró exportar. Casos
+  raros (browsing con many tabs, code interpreter con outputs
+  binarios, custom GPTs) van a tener bugs que vamos a ir limpiando
+  en `0.9.1+`.
+- **Capa 3 completa con progress bar real**: solo Capa 3 lite
+  (estados visuales en click). Progress bar real (% real durante
+  import) requiere refactor de los handlers para reportar fases
+  de progreso. Bajo, no urgente.
+- **Capa 4 con SessionChip dinámico** en filas de Exportar:
+  mostrar el título de la sesión que se va a enviar antes de
+  clickear. Útil pero no shippeable hoy — requiere file watcher
+  separado en `~/.claude/projects/`. Backlog.
+- **Companion-installed warning** en el footer del panel: el
+  diseño lo tiene, no lo implementamos porque requeriría un signal
+  fiable de "companion instalado" (hoy solo sabemos cuando se
+  emparejó alguna vez via globalState). Item de polish.
+- **Notification automática "nuevo zip detectado"** sin abrir el
+  panel: el watch en tiempo real solo afecta al panel cuando está
+  visible. Si querés que VS Code te avise apenas detecta una
+  descarga (incluso con el panel cerrado), eso es una feature
+  separada. Más invasiva, evaluamos si llega feedback pidiéndola.

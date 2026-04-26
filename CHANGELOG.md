@@ -6,6 +6,53 @@ Companion (Chrome extension) are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 and versions follow [Semantic Versioning](https://semver.org/).
 
+## [0.9.0] — 2026-04-26
+
+Release grande con dos cambios visibles importantes: **soporte multi-IA** (ChatGPT entra al ecosistema, antes solo claude.ai) y **rediseño de la sidebar tab** (de lista plana a menú direccional con auto-detect de descargas).
+
+### Added
+
+- **Soporte para ChatGPT (Hito 21)**:
+  - **Importar .zip de ChatGPT**: comando `exportal.importFromChatGptZip` + botón en la sidebar tab. Lee el ZIP exportado desde *Settings → Data controls → Export*, recorre el árbol de mensajes (sigue solo la rama activa, ignora regenerated replies viejas), y produce un `.md` con el mismo estilo visual que los imports de claude.ai. Los `content_type` desconocidos (browsing, code interpreter, multimodal) se preservan como markers `[type] {json}` para no perder info.
+  - **Enviar sesión de Claude Code a ChatGPT**: comando `exportal.sendSessionToChatGpt` espejo del flow a claude.ai. Copia el markdown al portapapeles, guarda el `.md` en `.exportal/` como fallback drag-drop, y abre `chatgpt.com`.
+- **Rediseño de la sidebar tab (Hito 29)** — pasa de lista plana de 6 items a menú jerárquico:
+  - **Settings** — los dos toggles existentes.
+  - **↓ Importar al workspace** — header con badge direccional + una fila por proveedor (claude.ai, ChatGPT, Gemini disabled "soon").
+  - **↑ Exportar la sesión actual** — header con badge direccional + filas espejo.
+  - **Bridge status** — fila clickeable con dot pulsante (verde/rojo). Click expande para mostrar endpoint, token con botón copy + rotar, y "Logs".
+  - **Footer** — versión + links docs/changelog.
+  - Diseño hecho en Claude Design (Variante B "filas direccionales") con fidelidad visual al theming nativo de VS Code (`var(--vscode-*)`, codicons).
+- **Auto-detect de descargas frescas en el panel**:
+  - Cuando el panel se abre (o se hace visible), escanea `~/Downloads` y `~/Desktop` por ZIPs de claude.ai/ChatGPT modificados en las últimas 2h.
+  - Detecta el proveedor por contenido (peek a `conversations.json`) — claude.ai por `chat_messages`, ChatGPT por `mapping`+`current_node`.
+  - La fila del proveedor matchea muestra un sub-hint verde con el filename + tiempo relativo.
+  - Click en una fila con detection → import directo, sin file picker.
+- **Watch en tiempo real del Downloads folder**: mientras el panel está visible, `fs.watch` con debounce de 1.5s detecta nuevos ZIPs apenas terminan de descargarse (Chrome cierra el `.crdownload` y renombra al `.zip` final). El watcher se cierra al ocultar/cerrar el panel — cero costo cuando no se usa.
+- **Auto-pick de sesión activa** en send-to-AI: el QuickPick que listaba todas las sesiones de Claude Code era confuso cuando varias compartían título por compactación. Ahora se elige automáticamente la más reciente por mtime — la que estás usando ahora mismo. El toast de éxito incluye el título de la sesión enviada para transparencia.
+- **Drag-drop fallback para sesiones largas**: cuando enviás una sesión a claude.ai/ChatGPT, además del clipboard se guarda el `.md` en `.exportal/<timestamp>-<slug>-cc-export.md`. claude.ai/ChatGPT truncan silenciosamente pastes >100K chars; ahora podés arrastrar el `.md` al chat (botón "Reveal file" en la notification).
+- **QuickPick title-aware** (cuando el auto-pick no aplica): el reader reconoce los event types `ai-title`, `custom-title` y `last-prompt` que Claude Code escribe como sidecar metadata. La QuickPick prioriza `customTitle ?? aiTitle ?? firstUserText` para el label, suma git branch + cwd basename al detail line, y ordena por `lastActiveAt` (file mtime).
+- **Discoverability tip** del `.jsonl` para `/resume` en la pairing panel (heredado de 0.8.2 — ya estaba en main desde antes).
+- **Botón "Abrir tab de Exportal"** en la pairing panel.
+- **Codicons** ahora ship-ean dentro del vsix (`assets/codicons/`) — copiados al build via `esbuild.config.mjs`.
+
+### Changed
+
+- **El comando `Send Claude Code session to claude.ai`** ya no abre QuickPick (ver auto-pick arriba). El usuario que necesite elegir una sesión específica puede seguir invocando el flow por palette — vamos a agregar una variante "pick specific session" si llegan reportes.
+- **El warning modal a 150KB** del send-to-claude.ai (que mostraba *"Copy anyway"*) está eliminado. Reemplazado por mensaje inline en la notification post-acción + el `.md` siempre guardado como fallback de drag-drop.
+
+### Removed
+
+- Drag-drop de archivos externos sobre el panel (intentado pero estructuralmente bloqueado por VS Code — el workbench intercepta los drops antes de que lleguen al webview). Cubierto por el auto-detect + watch.
+
+### Fixed
+
+- **Repository URL en `package.json`** sin prefijo `git+` para que el package linter de VS Code deje de quejarse de URLs relativas en README.md.
+
+### Notes
+
+- **Validación de ChatGPT contra data real pendiente**: el schema y el formatter están escritos contra docs públicas + 1 export real chico. Casos raros (browsing con many tabs, code interpreter con outputs binarios, custom GPTs con instructions largas, multimodal con varios images por turno) pueden tener bugs. Reportar `[unknown_content_type]` markers en el `.md` exportado es el síntoma típico.
+- **Codicons agregan ~110KB al vsix** (CSS + TTF). Vale el costo por la consistencia visual con el resto de VS Code.
+
 ## [0.8.2] — 2026-04-23
 
 ### Added

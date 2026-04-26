@@ -136,6 +136,18 @@ en los 22 test files y la segunda pasa limpia.
   concurrente intensa (Claude Code escribiendo archivos mientras CI
   corre). En CI normal (GitHub Actions Linux) no se ve nunca.
 
+**Datos frescos 2026-04-26** (durante el ciclo de Hito 29):
+- **Reproducido una vez** después de ~6 ediciones consecutivas a
+  `control-panel.ts` y `extension.ts` en el mismo segundo.
+  Output exacto: 23 test files failed con "Tests no tests",
+  duration 1.80s (vs ~4-7s normal — confirma que falló al cargar,
+  no al correr). Mensaje: `TypeError: Cannot read properties of
+  undefined (reading 'config')` en `tests/importers/claudeai/schema.test.ts:30:1`.
+- Reintento inmediato (segundo `npm run test`) → 210/210 limpio.
+- Confirma la hipótesis original: race entre file system writes
+  recientes y el bootstrap de vitest. Sigue intermitente — no
+  reproduce siempre, solo bajo ciertas combinaciones de timing.
+
 **Conclusión**: sin reproducción confiable, cualquier fix sería
 cargo-culting. Las opciones consideradas y descartadas:
 - `pool: 'forks'` con `singleFork: true`: enlentece tests 2-3x sin
