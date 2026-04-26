@@ -354,29 +354,41 @@ async function finalizeForwardResult(result) {
   return { ok: false, error: 'bridge_offline' };
 }
 
-// Triggers the `vscode://` URI handler so the OS launches VS Code if
-// it isn't already running, then polls /ping until the bridge answers
-// or the timeout elapses. Best-effort: if the browser refuses to open
-// custom-scheme URLs from a service worker (rare), or the user has no
+// Triggers a `vscode://` URI so the OS launches VS Code if it isn't
+// already running, then polls /ping until the bridge answers or the
+// timeout elapses. Best-effort: if the browser refuses to open
+// custom-scheme URLs from a service worker, or the user has no
 // VS Code installed, the polling just times out and the caller falls
 // back to the normal `bridge_offline` error.
+//
+// URL strategy: we hit `vscode://dioniipereyraa.exportal/wake`
+// instead of bare `vscode://`. Bare schemes sometimes fail to
+// hand-off in Chrome (the URL is malformed enough that the
+// custom-protocol dispatcher skips it); a path that targets a
+// known extension reliably triggers the OS handler. The path
+// itself is meaningless to our extension — VS Code will route it
+// to a UriHandler if registered, or ignore the routing failure
+// gracefully. Either way, VS Code itself launches and our
+// activationEvents (onStartupFinished) bring the bridge up.
 //
 // Polling cadence: probe immediately and then every ~800ms — VS Code
 // cold start is typically 3-8s, so polling-based is fine without push
 // notifications from the extension side. Total budget 20s covers slow
 // machines without leaving the user staring at a frozen FAB forever.
 async function wakeVsCodeAndPoll(token) {
-  const WAKE_URL = 'vscode://';
+  const WAKE_URL = 'vscode://dioniipereyraa.exportal/wake';
   const MAX_WAIT_MS = 20000;
   const POLL_INTERVAL_MS = 800;
+  console.info('[Exportal] bridge offline, attempting wake via', WAKE_URL);
   let transientTabId;
   try {
     const tab = await chrome.tabs.create({ url: WAKE_URL, active: false });
     transientTabId = tab?.id;
+    console.info('[Exportal] wake tab created (id=', transientTabId, ')');
   } catch (err) {
     // Browser blocked the custom-scheme open — log and bail out. The
     // caller will surface the original bridge_offline.
-    console.warn('Exportal: wakeVsCode could not open vscode:// tab', err);
+    console.warn('[Exportal] wake tab create failed', err);
     return;
   }
   // The tab is just a vehicle for the OS hand-off; the page never
@@ -388,10 +400,16 @@ async function wakeVsCodeAndPoll(token) {
     }, 250);
   }
   const deadline = Date.now() + MAX_WAIT_MS;
+  let attempt = 0;
   while (Date.now() < deadline) {
-    if (await isBridgeReachable(token)) return;
+    attempt += 1;
+    if (await isBridgeReachable(token)) {
+      console.info('[Exportal] bridge reachable after wake (attempt', attempt, ')');
+      return;
+    }
     await sleep(POLL_INTERVAL_MS);
   }
+  console.warn('[Exportal] wake timeout after', attempt, 'attempts; falling back to bridge_offline');
 }
 
 async function isBridgeReachable(token) {
