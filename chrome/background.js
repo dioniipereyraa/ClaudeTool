@@ -265,6 +265,25 @@ async function forwardInlineConversation(conversation, assets, provider) {
   if (Array.isArray(assets) && assets.length > 0) payload.assets = assets;
   if (provider !== undefined) payload.provider = provider;
   const body = JSON.stringify(payload);
+
+  let result = await tryAllPortsForInline(body, token);
+
+  // Cold-start helper: when the bridge isn't listening on any of our
+  // ports, it usually means VS Code itself is closed. Ask the OS to
+  // wake it via the `vscode://` URI handler, then retry the POST once
+  // VS Code has had a chance to come up. If the user doesn't have
+  // VS Code installed (or has Cursor / Insiders / etc), the wake does
+  // nothing visible and we fall back to the original `bridge_offline`
+  // error path.
+  if (result.kind === 'offline') {
+    await wakeVsCodeAndPoll(token);
+    result = await tryAllPortsForInline(body, token);
+  }
+
+  return finalizeForwardResult(result);
+}
+
+async function tryAllPortsForInline(body, token) {
   const ports = await buildPortOrder();
   let sawAuthError = false;
   // Captures the first response that unambiguously identifies our own
@@ -291,8 +310,7 @@ async function forwardInlineConversation(conversation, assets, provider) {
     }
     if (res.status === 200) {
       await chrome.storage.session.set({ [LAST_PORT_KEY]: port });
-      await setBadge('OK', '#16a34a');
-      return { ok: true };
+      return { kind: 'ok' };
     }
     if (res.status === 401) {
       sawAuthError = true;
@@ -309,20 +327,96 @@ async function forwardInlineConversation(conversation, assets, provider) {
     // but remember the state so we report "outdated" not "offline".
     sawOutdated = true;
   }
-  if (sawAuthError) {
+  if (sawAuthError) return { kind: 'auth' };
+  if (definiteError !== undefined) return { kind: 'definite', code: definiteError };
+  if (sawOutdated) return { kind: 'outdated' };
+  return { kind: 'offline' };
+}
+
+async function finalizeForwardResult(result) {
+  if (result.kind === 'ok') {
+    await setBadge('OK', '#16a34a');
+    return { ok: true };
+  }
+  if (result.kind === 'auth') {
     await setBadge('AUTH', '#dc2626');
     return { ok: false, error: 'bridge_auth' };
   }
-  if (definiteError !== undefined) {
+  if (result.kind === 'definite') {
     await setBadge('ERR', '#dc2626');
-    return { ok: false, error: definiteError };
+    return { ok: false, error: result.code };
   }
-  if (sawOutdated) {
+  if (result.kind === 'outdated') {
     await setBadge('OLD', '#dc2626');
     return { ok: false, error: 'bridge_outdated' };
   }
   await setBadge('OFF', '#dc2626');
   return { ok: false, error: 'bridge_offline' };
+}
+
+// Triggers the `vscode://` URI handler so the OS launches VS Code if
+// it isn't already running, then polls /ping until the bridge answers
+// or the timeout elapses. Best-effort: if the browser refuses to open
+// custom-scheme URLs from a service worker (rare), or the user has no
+// VS Code installed, the polling just times out and the caller falls
+// back to the normal `bridge_offline` error.
+//
+// Polling cadence: probe immediately and then every ~800ms — VS Code
+// cold start is typically 3-8s, so polling-based is fine without push
+// notifications from the extension side. Total budget 20s covers slow
+// machines without leaving the user staring at a frozen FAB forever.
+async function wakeVsCodeAndPoll(token) {
+  const WAKE_URL = 'vscode://';
+  const MAX_WAIT_MS = 20000;
+  const POLL_INTERVAL_MS = 800;
+  let transientTabId;
+  try {
+    const tab = await chrome.tabs.create({ url: WAKE_URL, active: false });
+    transientTabId = tab?.id;
+  } catch (err) {
+    // Browser blocked the custom-scheme open — log and bail out. The
+    // caller will surface the original bridge_offline.
+    console.warn('Exportal: wakeVsCode could not open vscode:// tab', err);
+    return;
+  }
+  // The tab is just a vehicle for the OS hand-off; the page never
+  // really renders. Close it eagerly so the user doesn't notice it
+  // flashing in the tab bar. Errors here are non-fatal.
+  if (typeof transientTabId === 'number') {
+    setTimeout(() => {
+      chrome.tabs.remove(transientTabId).catch(() => {});
+    }, 250);
+  }
+  const deadline = Date.now() + MAX_WAIT_MS;
+  while (Date.now() < deadline) {
+    if (await isBridgeReachable(token)) return;
+    await sleep(POLL_INTERVAL_MS);
+  }
+}
+
+async function isBridgeReachable(token) {
+  if (typeof token !== 'string' || token.length === 0) return false;
+  const ports = await buildPortOrder();
+  for (const port of ports) {
+    try {
+      const res = await fetch(`http://127.0.0.1:${port}/ping`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      // 200 = our bridge with our token; 401 = a bridge is listening
+      // but with a different token (still proves VS Code is up). Any
+      // 2xx/4xx response means *something* answered, which is what we
+      // care about for "is VS Code listening yet".
+      if (res.status === 200 || res.status === 401) return true;
+    } catch {
+      // connection refused on this port — keep probing
+    }
+  }
+  return false;
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 async function readErrorCode(res) {

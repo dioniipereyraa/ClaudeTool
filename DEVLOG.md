@@ -3354,3 +3354,100 @@ hay una sola fuente de verdad.
   al type `PairProvider` + `PAIR_PROVIDER_HOSTS` + el QuickPick
   va a tener tres opciones automáticamente.
 
+---
+
+## 2026-04-26 — Auto-wake VS Code via `vscode://` cuando el bridge está offline (silent patch sobre v0.11.2)
+
+### Qué hicimos
+Silent patch (sin bump de versión, sin CHANGELOG, sin release): el
+companion ahora intenta levantar VS Code automáticamente cuando el
+user clickea el FAB con VS Code cerrado. Antes: `bridge_offline`
+toast → user abría VS Code a mano → recargaba el chat → re-clickeaba
+el FAB. Ahora: `bridge_offline` → wake via `vscode://` → polling
+hasta 20s → retry. Si funciona, success transparente. Si no
+(VS Code no instalado, browser bloqueó el scheme handler, etc.),
+fallback al mismo `bridge_offline` que antes — sin regression.
+
+**`chrome/background.js`:**
+- Refactor: extraído `tryAllPortsForInline(body, token)` del flujo de
+  `forwardInlineConversation`. Devuelve un discriminated union
+  `{ kind: 'ok' | 'auth' | 'definite' | 'outdated' | 'offline', ... }`
+  en vez de tocar el badge directo. El badge ahora se setea solo
+  en `finalizeForwardResult`.
+- `forwardInlineConversation` ahora hace dos pasadas: si la primera
+  retorna `kind: 'offline'`, intenta `wakeVsCodeAndPoll(token)` y
+  reintenta. La segunda corrida pasa por `finalizeForwardResult`
+  igual que la primera, así el badge final refleja el estado real.
+- Nueva función `wakeVsCodeAndPoll(token)`:
+  1. `chrome.tabs.create({ url: 'vscode://', active: false })` para
+     que el OS dispare el handler. La tab queda en about:blank
+     (Chrome no resuelve `vscode://` a contenido HTML), se cierra
+     en 250ms para que el user no la vea flashing.
+  2. Polling cada 800ms al `/ping` de cada port hasta 20s. Si VS
+     Code arranca y abre el bridge, `isBridgeReachable` retorna
+     `true` y volvemos al caller para el retry.
+  3. Si timeout: silent fallback al error original.
+- Nueva `isBridgeReachable(token)`: probe rápido al `/ping` (200 = OK
+  con nuestro token, 401 = bridge listening con token distinto, ambos
+  prueban que VS Code arrancó).
+- Helper `sleep(ms)` para el polling.
+
+### Decisiones técnicas
+- **Silent patch sin bump de versión**: el user pidió explícitamente
+  "mantengamos la versión y hagamoslo". Razón implícita: el feature
+  es transparente al user feliz (cuando VS Code está abierto, el
+  comportamiento es idéntico al de antes), y solo aporta cuando el
+  bridge falla — no merece release notes hasta que el siguiente bump
+  legítimo lo arrastre.
+- **`chrome.tabs.create` sin `tabs` permission**: MV3 permite
+  create/remove de tabs propias sin la permission (solo es needed
+  para leer URL/title de tabs ajenas). Manifest queda sin tocar.
+- **`vscode://` raw, sin path**: cualquier `vscode://...` dispara el
+  handler igual; `vscode://` solo (sin path) abre VS Code restaurando
+  el último workspace, que es exactamente lo que queremos para
+  que el bridge pueda escribir en el cwd correcto. Si pusiéramos
+  `vscode://file/...` sin un path conocido, podría abrir una ventana
+  fresh sin workspace, que es peor.
+- **Polling 800ms × 25 (= 20s)**: cold start típico es 3-8s. 20s
+  cubre máquinas lentas + extension activation latency. Más que eso
+  el user piensa que falló y conviene mostrar el error.
+- **No feedback visual durante el wait**: el FAB sigue mostrando
+  `feedbackSending` ("Enviando a VS Code…") durante todo el wake +
+  retry. UX no ideal — durante 5-15s el user puede pensar que
+  cuelga — pero implementar feedback live requiere
+  `chrome.runtime.sendMessage` desde background al content-script
+  con eventos custom, scope creep para silent patch. Si después
+  llega un report "parece colgarse", agregar el push de feedback.
+- **Confirm dialog del OS la primera vez**: "¿Abrir esto con
+  Visual Studio Code?" — friction inicial, pero el user clickea
+  "Recordar / Always allow" y desaparece. No podemos suprimirlo;
+  es policy del OS / browser.
+
+### Verificación
+- `npm run ci` — lint ✓, typecheck ✓, 242/242 tests ✓ (sin tests
+  nuevos — la lógica nueva es network/orchestration sin pure
+  helpers que justifiquen unit tests; smoke test browser-real
+  cubre).
+- Smoke test pendiente del user: con VS Code cerrado, click FAB en
+  chatgpt.com → debería disparar el dialog del OS (primera vez),
+  abrir VS Code, esperar el cold start, importar el chat
+  automáticamente.
+
+### Release / distribución
+- **No release**: silent patch, queda en `main` para arrastrarse
+  con el próximo bump legítimo (probablemente 0.12.0 si llega
+  feature nueva, o 0.11.3 si un fix lo justifica).
+- **No vsix/zip nuevos**: el user que quiera probarlo hace pull +
+  reload del companion en `chrome://extensions` (carga unpacked).
+- Tests + lint del `companion` siguen verdes — el código está listo
+  para shippear cuando el siguiente release lo lleve.
+
+### Próximo paso
+- Verificar end-to-end con VS Code cerrado.
+- Si el dialog del OS sale tras cada wake (no se cachea el "always
+  allow"), considerar opciones: registrar un origin trusted o
+  usar `chrome.windows.create` con sizing distinto. Pero típicamente
+  el "Always allow" de Chrome para custom protocols persiste por
+  origin (claude.ai / chatgpt.com), así que después del primer OK
+  no debería volver a aparecer.
+
