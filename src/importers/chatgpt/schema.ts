@@ -30,9 +30,25 @@ const AuthorSchema = z.object({
 
 const MessageContentSchema = z.object({
   content_type: z.string(),
+  // Common to text/multimodal_text/code/execution_output
   parts: z.array(z.unknown()).optional(),
   text: z.string().optional(),
   language: z.string().optional(),
+  // Browsing citations (tether_quote, tether_browsing_display)
+  url: z.string().optional(),
+  title: z.string().optional(),
+  domain: z.string().optional(),
+  tether_id: z.string().optional(),
+  // Reasoning surfaces (thoughts, reasoning_recap)
+  thoughts: z.array(z.unknown()).optional(),
+  summary: z.string().optional(),
+  content: z.string().optional(),
+  // Tool/code interpreter outputs and misc
+  name: z.string().optional(),
+  result: z.unknown().optional(),
+  assets: z.array(z.unknown()).optional(),
+  response_format_name: z.string().optional(),
+  source_analysis_msg_id: z.string().optional(),
 });
 
 const MessageSchema = z.object({

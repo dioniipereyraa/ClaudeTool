@@ -18,87 +18,16 @@ Items concretos y cerrados se mueven al `DEVLOG.md`. Releases formales al
 El orden acá es deliberado: lo de arriba arranca antes que lo de
 abajo. Cambios al orden se discuten explícitamente.
 
-### Hito 29 — Menú jerárquico en la sidebar tab (UI redesign + send-to-ChatGPT)
-
-**Motivación**: la sidebar tab actual es una lista flat de 6 items
-(2 toggles + 4 botones de acción). Con cada nuevo proveedor (ChatGPT
-acaba de entrar, Gemini eventualmente) la lista crece y se vuelve
-ilegible. El usuario tiene que pasar por `Ctrl+Shift+P` para muchas
-operaciones que deberían ser visualmente discoverable desde el panel.
-
-**Scope**:
-- Reorganizar `src/extension/control-panel.ts` en grupos jerárquicos:
-  - **Settings**: los toggles existentes (autoAttach, alsoWriteJsonl).
-  - **Importar de…**: selector de proveedor (claude.ai, ChatGPT, …).
-  - **Exportar a…**: selector de proveedor (claude.ai, ChatGPT, …).
-  - **Utilidades**: token de pairing, eventualmente status del bridge.
-- **Feature nueva habilitada por la simetría**: enviar sesión de
-  Claude Code a ChatGPT. Mirror exacto del flow `sendSessionToClaudeAi`
-  (formatter → .exportal/.md → clipboard → abrir browser). Cambia
-  solo la URL destino (`chatgpt.com/c/new` o similar — verificar el
-  endpoint que abre un chat nuevo aceptando paste).
-- Refactor de `control-panel.ts` para que la lista de proveedores sea
-  data-driven (`PROVIDERS` array con `id`, `label`, `importCmd`,
-  `exportCmd`), así Gemini y futuros se agregan en una línea.
-- i18n: nuevas strings ("Importar de…", "Exportar a…", "Enviar a
-  ChatGPT"). Las strings actuales ("Import claude.ai .zip", etc.)
-  pueden seguir vivas si las dejamos en el palette de comandos.
-
-**Bloqueado por**: diseño visual del menú. El usuario está consultando
-con Claude Design el layout (¿accordion? ¿dropdowns? ¿botones
-agrupados con headers?). Implementación arranca cuando llega el diseño.
-
-**Decisiones a tomar cuando arranque la implementación**:
-- ¿Eliminamos el botón del status bar? Hoy hace `import .zip`;
-  cuando la sidebar sea el centro discoverable, puede quedar
-  redundante. O lo dejamos como atajo rápido.
-- ¿Mantenemos los comandos individuales en `Ctrl+Shift+P`
-  (`exportal.importFromZip`, `exportal.importFromChatGptZip`)?
-  Sí — son la vía rápida para power users; el menú es para
-  discoverability, no reemplazo.
-- ¿Cómo se ve "selector de proveedor" cuando hay solo dos
-  opciones (claude/ChatGPT) vs cuando agreguemos Gemini? La UI
-  tiene que escalar bien a 1, 2, 3+ providers sin redesign.
-
-**Out of scope para este hito**:
-- Auto-detection de exports recientes de ChatGPT (ya es backlog
-  separado dentro de Hito 21).
-- One-click export desde el companion para ChatGPT (Hito 23,
-  popover multi-IA).
-
 ### Hitos 20-23 — Soporte multi-IA
 
-Bloque de hitos que se habilitan mutuamente. Orden interno:
-
 **Hito 20 — Abstracción del core para múltiples proveedores**
-- Hoy `importers/` y los tipos de dominio asumen claude.ai. Agregar
-  otro proveedor sin abstraer duplica lógica rápido.
-- Scope: definir `ExportedConversation` como union type
-  (claude / chatgpt / gemini) con metadata común, refactorizar
-  `formatters/` para consumir la union en vez del tipo específico.
-- **Risk**: cada proveedor tiene shape distinto para tool use,
-  multimedia, branching. La abstracción puede filtrarse y terminar
-  siendo menos útil que hacer formatters por proveedor. Decidir al
-  empezar el primer import no-claude — probablemente durante Hito 21.
-- Parte del work puede adelantarse en Hito 27 (Claude Design) si el
-  formatter termina siendo suficientemente distinto.
-
-**Hito 21 — Import de ChatGPT** *(en curso, schema-independent done — esperando ZIP real para validar)*
-- Camino oficial: Settings → Data controls → Export → ZIP por email
-  con `conversations.json`. Formato semi-documentado; tool use
-  (code interpreter, browsing) requiere parsing específico.
-- Camino one-click: extensión de Chrome scrapea la API interna de
-  `chat.openai.com`. Mismo patrón que el Hito 10e de claude.ai.
-- **Estado actual**: scaffold completo (`src/importers/chatgpt/{schema,reader,walk}.ts`),
-  formatter (`src/formatters/chatgpt-markdown.ts`), comando
-  `exportal.importFromChatGptZip` con handler + entrada en sidebar
-  tab + i18n. 23 tests sintéticos passan. Falta validar contra
-  export ZIP real (queued del lado del usuario, esperando mail) —
-  cuando llegue, ajustar schema contra data real, agregar manejo
-  fino de `content_type` raros (tether_quote, multimodal con
-  imágenes, gizmos), y release.
-- Entrega mínima: reader + schema + formatter, sin one-click (se
-  agrega después si hay demanda).
+- Hoy `importers/` tiene dos implementaciones paralelas (claude.ai +
+  chatgpt). El refactor a union type sigue pendiente — descartado
+  hasta el momento porque las dos shapes son lo suficientemente
+  distintas que la abstracción terminaría leakeando.
+- **Disparador**: cuando entre el tercer proveedor (Gemini), revisar
+  si los patrones se repiten lo suficiente como para justificar
+  generalizar. Si solo dos shapes, no vale.
 
 **Hito 22 — Import de Gemini**
 - Camino oficial: Google Takeout export — ZIP con HTML/JSON por
@@ -118,6 +47,28 @@ Bloque de hitos que se habilitan mutuamente. Orden interno:
 ## Backlog
 
 Tier más abajo — útiles pero no en la cola activa.
+
+### Imágenes inline del export de ChatGPT (Tier 3 del Hito 21)
+
+Hoy las imágenes uploadeadas en chats de ChatGPT (`image_asset_pointer`
+dentro de `parts[]`) se renderizan como `*[Image: file-XXX]*` legible
+pero sin linkear al archivo físico. Los `file-XXX.jpeg` viven dentro
+del ZIP del export.
+
+**Scope para Tier 3**:
+- Al importar un chat de ChatGPT, copiar los `file-XXX.jpeg`
+  referenciados al `<workspace>/.exportal/<title>/` (carpeta hermana
+  del .md, mismo patrón que Claude Design).
+- Reescribir las references en el .md como `![](./file-XXX.jpeg)`
+  para que el preview de markdown muestre las imágenes inline.
+- Manejar también `metadata.attachments[]` (149 mensajes en el shape
+  report del user) — son archivos uploadeados por canal distinto al
+  multimodal_text. Verificar shape primero contra data real.
+
+**Por qué no shippeó en 0.9.1**: requiere ampliar `JSZip.loadAsync()`
+para extraer múltiples archivos del export, no solo `conversations.json`.
+Reescribir references en el markdown post-render. Trabajo más grande
+que justifica un release aparte.
 
 ### Flake intermitente de `npm run ci` en Windows (no reproducible)
 

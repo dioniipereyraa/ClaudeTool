@@ -6,6 +6,31 @@ Companion (Chrome extension) are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 and versions follow [Semantic Versioning](https://semver.org/).
 
+## [0.9.1] — 2026-04-26
+
+Validación contra un export real de cuenta grande (145 conversaciones, 2339 mensajes, 161 multimodal con imágenes) reveló dos cosas que 0.9.0 no manejaba: el formato chunked del export, y varios `content_type` que solo aparecen en cuentas con uso real. Esta versión cubre ambos.
+
+### Fixed
+
+- **Bug bloqueante: import de cuentas grandes de ChatGPT.** OpenAI exporta las conversaciones en archivos `conversations-NNN.json` (chunked) en vez de un solo `conversations.json` cuando la cuenta supera cierto umbral (observado a 145 conversaciones, posiblemente menos). El reader buscaba solo el archivo singular y fallaba con *"missing conversations.json"* en estas cuentas. Ahora detecta ambos layouts: si encuentra `conversations.json` lo usa; si no, busca `conversations-NNN.json`, los ordena por nombre y los concatena. Per-chunk failures generan warning + continúan en lugar de abortar.
+- **Logos de cada proveedor en el panel.** Los placeholders `C`/`G`/`g` (mockup del diseño) reemplazados por los logos reales (Anthropic, OpenAI, Google Gemini), inline como SVG dentro del chip de marca. Paths de Simple Icons (CC0).
+
+### Added
+
+- **Soporte para cinco `content_type` nuevos** observados en exports reales:
+  - **`thoughts`** — reasoning intermedio de modelos tipo o1/o3. Render como `<details><summary>Reasoning</summary>` colapsado por default.
+  - **`reasoning_recap`** — resumen del razonamiento. Render como `> *Reasoning recap.* ...` en italic blockquote.
+  - **`tether_quote`** y **`tether_browsing_display`** — citations de browsing. Render como blockquote con título + link 🔗 + texto citado.
+  - **`system_error`** — errores de tools. Render como warning callout `> ⚠️ \`<error_name>\` ...`.
+- **Multimodal real**: las imágenes uploadeadas (`image_asset_pointer` dentro de `parts[]`) ahora se renderizan como `*[Image: file-XXXX]*` legible en vez del JSON dump anterior. Los archivos físicos siguen viviendo dentro del ZIP del export — exponerlos al workspace queda como Tier 3 futuro.
+- **Schema con campos nuevos** observados en `MessageContentSchema`: `url`, `title`, `domain`, `tether_id`, `thoughts`, `summary`, `content`, `name`, `result`, `assets`, `response_format_name`, `source_analysis_msg_id`. Todos opcionales. Backward compat preservado.
+- **Tests nuevos** (221 totales, +11): 6 tests para el reader chunked (single, chunked, mixed, empty, partial parse failure, all-bad), 5 tests para los nuevos content_type handlers + multimodal.
+
+### Notes
+
+- Tu cuenta grande de ChatGPT con 145 conversaciones / 2339 mensajes ahora importa. El shape report mostró que ~95% de los mensajes ahora se renderean con handler dedicado (vs ~82% en 0.9.0); el 5% restante (recipients raros tipo plugins de terceros o `t2uay3k.sj1i4kz`) sigue cayendo al fallback genérico — son casos chiquitos y poco frecuentes.
+- **Lo que sigue para 0.10.0** (Tier 3): exponer las imágenes físicas del ZIP al workspace (`<workspace>/.exportal/<title>/file-XXXX.jpeg`) y reescribir las references en el `.md` para apuntar a ellas. Permitirá renderizar imágenes inline en el preview de markdown.
+
 ## [0.9.0] — 2026-04-26
 
 Release grande con dos cambios visibles importantes: **soporte multi-IA** (ChatGPT entra al ecosistema, antes solo claude.ai) y **rediseño de la sidebar tab** (de lista plana a menú direccional con auto-detect de descargas).

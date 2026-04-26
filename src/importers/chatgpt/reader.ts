@@ -10,71 +10,112 @@ import {
 /**
  * Shape of a ChatGPT export ZIP after parsing.
  *
- * The ZIP arrives by email after Settings → Data controls → Export.
- * Top-level layout (observed in mid-2024 exports — re-verify against
- * your real ZIP):
- *   - chat.html              (rendered viewer, ignored)
- *   - conversations.json     (the meat: array of conversations)
- *   - message_feedback.json  (likes/dislikes, ignored for now)
- *   - model_comparisons.json (A/B prompts, ignored)
- *   - user.json              (account email + id)
- *   - shared_conversations.json (links the user shared)
+ * Two ZIP layouts have been observed in the wild:
  *
- * We only need conversations.json for v1 of the importer.
+ * **Small accounts** (single-file form):
+ *   - `chat.html`              (rendered viewer, ignored)
+ *   - `conversations.json`     (top-level array)
+ *   - `message_feedback.json`, `model_comparisons.json`,
+ *     `user.json`, `shared_conversations.json` (auxiliary, ignored)
  *
- * `conversations` is the only required field — the export is useless
- * without it. `warnings` carries non-fatal issues (unrecognised entries,
- * partial parse failures) so the UI can surface them without aborting.
+ * **Big accounts** (chunked form, observed at 145 conversations):
+ *   - `chat.html`
+ *   - `conversations-000.json`, `conversations-001.json`, ... (split
+ *     by size; each chunk is itself an array of conversations)
+ *   - `export_manifest.json`   (lists `export_files` + `logical_files`)
+ *   - `file-<id>-<name>.{jpeg,png,...}` (multimodal uploads)
+ *
+ * We merge the chunked form transparently — callers see a single flat
+ * `conversations` array regardless of how the export was split.
+ *
+ * `warnings` carries non-fatal issues (e.g. one chunk failed to parse
+ * but others succeeded) so the UI can surface them without aborting.
  */
 export interface ChatGptExport {
   readonly conversations: readonly ChatGptConversation[];
   readonly warnings: readonly string[];
 }
 
-const CONVERSATIONS_ENTRY = 'conversations.json';
+const SINGLE_FILE = 'conversations.json';
+const CHUNK_PATTERN = /^conversations-\d+\.json$/i;
 
 /**
  * Open a ChatGPT export ZIP and return the parsed conversations.
  *
- * Strategy mirrors the claude.ai reader:
- *  - `conversations.json` missing or invalid → throw. Nothing
- *    downstream works without it.
- *  - Unrecognised entries → silently ignored (auxiliary files like
- *    `chat.html` are not interesting to us).
+ * Strategy:
+ *  1. Look for `conversations.json` (small-account form). If present,
+ *     parse it and we're done.
+ *  2. Otherwise, look for `conversations-NNN.json` chunks (big-account
+ *     form). Sort by name and concatenate.
+ *  3. If neither exists → throw with a clear message.
  *
- * The ZIP is loaded fully in memory. ChatGPT exports can be larger
- * than claude.ai's (years of history, no per-folder split), so this
- * may need streaming once we hit a real-world ceiling. Defer the
- * optimization until we see it.
+ * Per-chunk parse failures are non-fatal: the bad chunk is recorded
+ * as a warning and the rest of the export still loads. A malformed
+ * export with zero parseable chunks throws.
+ *
+ * The ZIP is loaded fully in memory. Big exports can hit hundreds of
+ * MB; defer streaming until we see real-world OOMs.
  */
 export async function readChatGptExport(zipPath: string): Promise<ChatGptExport> {
   const buf = await readFile(zipPath);
   const zip = await JSZip.loadAsync(buf);
 
-  const conversationsFile = findEntry(zip, CONVERSATIONS_ENTRY);
-  if (conversationsFile === undefined) {
+  const dataFiles = findConversationFiles(zip);
+  if (dataFiles.length === 0) {
     throw new Error(
-      `ChatGPT export is missing ${CONVERSATIONS_ENTRY} — is this the right ZIP?`,
+      `ChatGPT export is missing ${SINGLE_FILE} (or conversations-NNN.json chunks) — is this the right ZIP?`,
     );
   }
 
-  const rawText = await conversationsFile.async('string');
-  let raw: unknown;
-  try {
-    raw = JSON.parse(rawText);
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    throw new Error(`${CONVERSATIONS_ENTRY} is not valid JSON: ${message}`);
+  const conversations: ChatGptConversation[] = [];
+  const warnings: string[] = [];
+  for (const file of dataFiles) {
+    let raw: unknown;
+    try {
+      const text = await file.async('string');
+      raw = JSON.parse(text);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      warnings.push(`Failed to parse ${file.name}: ${message}`);
+      continue;
+    }
+    const parsed = parseConversations(raw);
+    if (parsed === null) {
+      warnings.push(`${file.name} did not match the expected ChatGPT shape; skipped.`);
+      continue;
+    }
+    conversations.push(...parsed);
   }
 
-  const conversations = parseConversations(raw);
-  if (conversations === null) {
+  if (conversations.length === 0) {
     throw new Error(
-      `${CONVERSATIONS_ENTRY} did not match the expected ChatGPT export shape.`,
+      `Could not parse any conversations from the export. ${warnings.join(' / ')}`,
     );
   }
 
-  return { conversations, warnings: [] };
+  return { conversations, warnings };
+}
+
+/**
+ * Resolve which JSON file(s) inside the zip carry the conversation
+ * data. Returns `[]` when neither single-file nor chunked layouts
+ * are present.
+ */
+function findConversationFiles(zip: JSZip): JSZip.JSZipObject[] {
+  const single = findEntry(zip, SINGLE_FILE);
+  if (single !== undefined) return [single];
+  const chunks: JSZip.JSZipObject[] = [];
+  for (const [path, entry] of Object.entries(zip.files)) {
+    if (entry.dir) continue;
+    const last = path.split('/').pop();
+    if (last !== undefined && CHUNK_PATTERN.test(last)) {
+      chunks.push(entry);
+    }
+  }
+  // Sort by full path so `conversations-000.json` comes before
+  // `conversations-001.json`, preserving the original split order.
+  chunks.sort((a, b) => a.name.localeCompare(b.name));
+  return chunks;
 }
 
 /**

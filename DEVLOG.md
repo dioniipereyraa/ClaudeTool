@@ -2480,3 +2480,155 @@ que terminaron en el release `0.9.0`:
   visible. Si querés que VS Code te avise apenas detecta una
   descarga (incluso con el panel cerrado), eso es una feature
   separada. Más invasiva, evaluamos si llega feedback pidiéndola.
+
+---
+
+## 2026-04-26 — v0.9.1 · ChatGPT validado contra cuenta real
+
+### Qué hicimos
+
+Llegó el ZIP de export de la cuenta principal de ChatGPT (queued
+~12h antes, OpenAI tomó su tiempo). Antes de pegar el archivo
+al chat, escribí un script local
+(`scripts/chatgpt-shape-report.mjs`) que escanea el ZIP y produce
+un **shape report**: counts de `content_type`, roles, recipients,
+keys observados — todo metadata, cero contenido. Eso reveló
+dos problemas serios que 0.9.0 no manejaba:
+
+**1. Format chunked no soportado.** Cuentas grandes (145+
+conversaciones en este caso) no tienen `conversations.json`
+singular sino `conversations-000.json`, `conversations-001.json`,
+etc., más un `export_manifest.json` nuevo. Nuestro reader
+buscaba solo el archivo singular y fallaba con
+*"missing conversations.json — is this the right ZIP?"*. **Bug
+bloqueante: cuentas grandes no podían importar nada.**
+
+**2. Cinco `content_type` nuevos** que no estaban en docs públicas:
+- `thoughts` (39 msgs en la cuenta del user) — reasoning intermedio
+  de modelos tipo o1/o3
+- `reasoning_recap` (32 msgs) — resumen del razonamiento
+- `tether_quote` (10) y `tether_browsing_display` (10) — citations
+  de browsing
+- `system_error` (8) — errores de tools
+
+Más:
+- **161 mensajes con multimodal real** (`image_asset_pointer`
+  objetos dentro de `parts[]`) que renderizábamos como JSON dump
+  ilegible
+- **149 mensajes con `attachments[]`** en metadata
+- Recipients nuevos vistos: `bio` (memory), `web.run`/`web.search`
+  (browsing), `dalle.text2im` (image gen), `canmore.create_textdoc`/
+  `update_textdoc` (Canvas), un plugin de terceros
+  (`t2uay3k.sj1i4kz`)
+
+### Implementación
+
+**Reader (Tier 1)**: `findConversationFiles()` busca primero
+`conversations.json` (small accounts); si no, escanea por
+`conversations-NNN.json`, los ordena alfabéticamente
+(`localeCompare` — funciona porque OpenAI usa zero-padding) y los
+concatena. Per-chunk JSON parse failures generan warnings y
+continúan en lugar de abortar — un chunk corrupto no rompe el
+import del resto. Throw solo si zero conversations parsean exitosamente.
+
+**Schema (Tier 2)**: 12 campos opcionales nuevos en
+`MessageContentSchema` — `url`, `title`, `domain`, `tether_id`,
+`thoughts`, `summary`, `content`, `name`, `result`, `assets`,
+`response_format_name`, `source_analysis_msg_id`. Todos optional,
+backward compat preservado.
+
+**Formatter (Tier 2)**: 5 nuevos handlers en `renderBody()`:
+- `thoughts` → `<details><summary>Reasoning</summary>` con cada
+  thought como `**summary**\n\ncontent`. Colapsado por default.
+- `reasoning_recap` → `> *Reasoning recap.* <text>`. Italic
+  blockquote, una línea.
+- `tether_quote` / `tether_browsing_display` → blockquote con
+  emoji 🔗, link al título, dominio si no hay URL, texto citado
+  como blockquote continuation.
+- `system_error` → warning callout con emoji ⚠️ y código del
+  error name + texto.
+- `multimodal_text` → `*[Image: file-XXX]*` para
+  `image_asset_pointer` objects, `*[<content_type>]*` para otros
+  attachments desconocidos. Strings se concatenan como párrafos.
+
+Refactor menor: extraje `maybeRedact` como closure local en
+`renderBody` para no repetir el ternary `shouldRedact ? redact(...)
+: ...` en cada case.
+
+**Tests (11 nuevos, 221 totales)**:
+- `tests/importers/chatgpt/reader.test.ts` (nuevo): 6 tests cubren
+  single-file, chunked-merge-en-orden, mixed (singular gana),
+  empty, partial-parse-failure (warning + continúa),
+  all-chunks-fail (throw).
+- `tests/formatters/chatgpt-markdown.test.ts`: 5 tests nuevos para
+  los content_types nuevos + multimodal real. Updated el viejo
+  test que asumía `tether_browsing_display` como fallback (ahora
+  tiene handler dedicado, ese test ahora prueba un type
+  genuinamente desconocido `'something_brand_new'`).
+
+### Decisiones clave y por qué
+
+- **Sort de chunks por `localeCompare`** y no parseando el número:
+  más simple, funciona porque OpenAI usa zero-padding consistente
+  (`-000`, `-001`). Si en algún momento rompen la convención (ej.
+  `-1`, `-2`, `-10`), el sort se confunde — defendible si pasa,
+  pero por ahora es robusto.
+- **Per-chunk parse fallback con warning** en vez de aborto:
+  preferimos importar el 90% de las conversaciones y avisar del
+  10% perdido que perder todo por un chunk corrupto. Los warnings
+  hoy van a console (via toast), con espacio para mejor UX
+  futura (mostrar lista detallada en el panel).
+- **Ningún `passthrough()` en el schema** — sigo el principio de
+  v0.8.2: campos optional explícitos, lo demás se descarta. Los
+  campos descartados que vimos (`atlas_mode_enabled`,
+  `is_starred`, `default_model_slug`, etc.) no los necesitamos
+  para renderizar — si en algún momento sí, los agregamos al
+  schema y aparecen automáticamente.
+- **`renderTetherCitation` muestra el dominio solo cuando NO hay
+  URL**: si la URL está, ya contiene el dominio implícitamente —
+  redundancia visual. Solo cuando el citation viene sin URL
+  explícita (raro pero observado) mostramos el dominio para que
+  el reader sepa de dónde vino.
+- **Rendering de imágenes como `*[Image: file-XXX]*`** sin
+  linkear al archivo físico: el ZIP contiene los files
+  (`file-XXX.jpeg`), pero exponerlos al workspace requiere copiar
+  los binarios al `.exportal/<title>/` y reescribir las
+  references en el `.md`. Ese trabajo es Tier 3 — el marker
+  legible alcanza por ahora para que el usuario sepa que hubo una
+  imagen.
+- **`system` role sigue skippeado** (316 mensajes en la cuenta
+  del user) — son model conditioning, no contenido user-visible.
+  Si en algún momento descubrimos que algunos system messages SON
+  contenido (ej. "Memory updated" notifications), podemos hacer
+  el skip más selectivo.
+
+### Verificación
+
+- `npm run ci` → verde. 24 test files, 221 tests passan
+  (210 → 221, +11 nuevos).
+- `npm run package:all` → vsix de ~234 KB con todo incluido.
+- **Smoke test pendiente del user**: usar el panel para importar
+  el ZIP grande. Debería ya funcionar end-to-end y producir un
+  `.md` con renderings sensatos para todos los content_types
+  observados.
+
+### Lo que NO entra en v0.9.1
+
+- **Tier 3 — imágenes inline**: copiar los `file-XXX.jpeg` del
+  ZIP al `<workspace>/.exportal/<title>/` y reescribir las
+  references como `![](./file-XXX.jpeg)` para que el preview de
+  markdown muestre las imágenes. Trabajo más grande, va a 0.10.0.
+- **Auto-attribution de attachments[] en metadata** (149 msgs):
+  los `metadata.attachments[]` también describen archivos
+  uploadeados pero por un canal distinto al multimodal_text.
+  Renderizarlos requiere mirar la shape exacta primero —
+  pendiente para cuando aparezca un caso visible que se note como
+  contenido perdido.
+- **Detección/handling especial para tools tipo `bio`,
+  `canmore.*`, `dalle.*`**: hoy todos caen como tool calls
+  genéricos con el recipient como label. Suficiente para
+  identificar qué pasó; mejor handling (ej. icono distinto para
+  Memory vs Canvas) es polish futuro.
+- **Refactor del shape report script** a un comando del CLI o
+  webview command. Hoy queda como `scripts/` para casos como este
+  (debug rápido contra exports reales).

@@ -183,7 +183,7 @@ describe('formatChatGptConversation', () => {
     expect(markdown).not.toContain('tool_use');
   });
 
-  it('falls back to a [type] marker for unknown content_type, never silently drops', () => {
+  it('falls back to a [type] marker for genuinely unknown content_type', () => {
     const conv = makeConversation(
       'Unknown content',
       {
@@ -191,15 +191,132 @@ describe('formatChatGptConversation', () => {
         a1: node('a1', 'root', [], {
           id: 'a1',
           author: { role: 'assistant' },
-          content: { content_type: 'tether_browsing_display', parts: [{ url: 'x.com' }] },
+          content: { content_type: 'something_brand_new', parts: [{ x: 1 }] },
         }),
       },
       'a1',
     );
     const { markdown } = formatChatGptConversation(conv, { redact: false });
-    expect(markdown).toContain('[tether_browsing_display]');
-    expect(markdown).toContain('"url":');
-    expect(markdown).toContain('x.com');
+    expect(markdown).toContain('[something_brand_new]');
+    expect(markdown).toContain('"x": 1');
+  });
+
+  it('renders thoughts as a collapsible Reasoning block', () => {
+    const conv = makeConversation(
+      'Reasoning chat',
+      {
+        root: node('root', null, ['a1'], null),
+        a1: node('a1', 'root', [], {
+          id: 'a1',
+          author: { role: 'assistant' },
+          content: {
+            content_type: 'thoughts',
+            thoughts: [
+              { summary: 'Step 1', content: 'I need to consider the inputs.' },
+              { summary: 'Step 2', content: 'Then combine them.' },
+            ],
+          },
+        }),
+      },
+      'a1',
+    );
+    const { markdown } = formatChatGptConversation(conv, { redact: false });
+    expect(markdown).toContain('<details><summary><em>Reasoning</em></summary>');
+    expect(markdown).toContain('**Step 1**');
+    expect(markdown).toContain('I need to consider the inputs.');
+    expect(markdown).toContain('**Step 2**');
+  });
+
+  it('renders reasoning_recap as an italic blockquote', () => {
+    const conv = makeConversation(
+      'Recap chat',
+      {
+        root: node('root', null, ['a1'], null),
+        a1: node('a1', 'root', [], {
+          id: 'a1',
+          author: { role: 'assistant' },
+          content: {
+            content_type: 'reasoning_recap',
+            content: 'Decided to fetch the data first.',
+          },
+        }),
+      },
+      'a1',
+    );
+    const { markdown } = formatChatGptConversation(conv, { redact: false });
+    expect(markdown).toContain('> *Reasoning recap.* Decided to fetch the data first.');
+  });
+
+  it('renders tether_quote as a citation blockquote with title and url', () => {
+    const conv = makeConversation(
+      'Browsing chat',
+      {
+        root: node('root', null, ['a1'], null),
+        a1: node('a1', 'root', [], {
+          id: 'a1',
+          author: { role: 'assistant' },
+          content: {
+            content_type: 'tether_quote',
+            title: 'Wikipedia',
+            url: 'https://en.wikipedia.org/wiki/Cat',
+            text: 'Cats are domestic animals.',
+          },
+        }),
+      },
+      'a1',
+    );
+    const { markdown } = formatChatGptConversation(conv, { redact: false });
+    expect(markdown).toContain('> 🔗 [Wikipedia](https://en.wikipedia.org/wiki/Cat)');
+    expect(markdown).toContain('> Cats are domestic animals.');
+  });
+
+  it('renders system_error as a warning callout', () => {
+    const conv = makeConversation(
+      'Error chat',
+      {
+        root: node('root', null, ['t1'], null),
+        t1: node('t1', 'root', [], {
+          id: 't1',
+          author: { role: 'tool' },
+          content: {
+            content_type: 'system_error',
+            name: 'tool_timeout',
+            text: 'Web search timed out after 30s.',
+          },
+        }),
+      },
+      't1',
+    );
+    const { markdown } = formatChatGptConversation(conv, { redact: false });
+    expect(markdown).toContain('⚠️');
+    expect(markdown).toContain('`tool_timeout`');
+    expect(markdown).toContain('Web search timed out after 30s.');
+  });
+
+  it('renders multimodal_text mixing strings and image asset pointers', () => {
+    const conv = makeConversation(
+      'Multimodal chat',
+      {
+        root: node('root', null, ['u1'], null),
+        u1: node('u1', 'root', [], {
+          id: 'u1',
+          author: { role: 'user' },
+          content: {
+            content_type: 'multimodal_text',
+            parts: [
+              'What is in this image?',
+              { content_type: 'image_asset_pointer', asset_pointer: 'file-abc123' },
+            ],
+          },
+        }),
+      },
+      'u1',
+    );
+    const { markdown } = formatChatGptConversation(conv, { redact: false });
+    expect(markdown).toContain('What is in this image?');
+    expect(markdown).toContain('*[Image: file-abc123]*');
+    // No raw JSON dump anymore.
+    expect(markdown).not.toContain('"asset_pointer"');
   });
 
   it('follows only the active branch (regenerated reply scenario)', () => {
