@@ -2254,3 +2254,73 @@ para que el usuario continúe el chat literal.
 - **Status pill del bridge** (acumula desde 0.8.1): todavía pendiente
   porque el tip quedó ocupando ese real estate visual; volveremos a
   esto cuando pensemos un header más chico o un segundo slot.
+
+---
+
+## 2026-04-25 — Mejoras al send-to-claude-ai + planning de menú jerárquico
+
+### Qué hicimos
+- **`sendSessionToClaudeAi` mejorado en dos frentes** (commit `a77c103`):
+  1. **QuickPick identificable**: el reader ahora reconoce los event
+     types `ai-title`, `custom-title` y `last-prompt` que Claude Code
+     escribe como sidecar metadata (antes los descartábamos como
+     "unmodeled"). La QuickPick prioriza `customTitle ?? aiTitle ??
+     firstUserText` para el label, suma git branch + cwd basename al
+     detail line, y ordena por `lastActiveAt` (file mtime) en vez de
+     `startedAt` para que la sesión más reciente quede arriba.
+  2. **Drag-and-drop fallback**: claude.ai trunca silenciosamente
+     pastes >100K chars; las sesiones largas nunca llegaban completas.
+     Ahora siempre guardamos el `.md` a `.exportal/<timestamp>-<slug>-cc-export.md`
+     (reusando `persistAndOpenMarkdown` del path de import) además de
+     copiar al portapapeles. La notification ofrece botón "Reveal file"
+     para que el usuario arrastre el `.md` a claude.ai. Eliminamos el
+     modal warning bloqueante a 150KB — ahora es un mensaje inline en
+     la notification post-acción.
+
+### Decisiones clave y por qué
+- **Reconocer los metadata events en el schema principal vs un parser
+  separado**: agregar `AiTitleEventSchema` etc. al `EventSchema`
+  discriminado significa que `readJsonl` ahora los devuelve junto al
+  resto. Los consumidores existentes (formatters, compact detector)
+  ya hacen `event.type === 'user' / 'assistant' / 'system'` así que
+  ignoran los nuevos sin rompimiento. Hubiera sido más complicado
+  agregar un parse path paralelo (lectura doble del archivo o
+  refactor de `readJsonl`).
+- **mtime como `lastActiveAt`** en lugar de scanear todos los eventos
+  buscando el max timestamp: cualquier append al `.jsonl` actualiza
+  mtime, incluyendo eventos que no modelamos. Es más barato (un
+  `stat`) y más correcto (capta actividad de cualquier event type).
+- **Eliminar el modal warning a 150KB**: el modal era un dead-end
+  ("Copy anyway" igual fallaba en claude.ai). Reemplazarlo por un
+  fallback real (el .md guardado para drag-drop) hace que la
+  experiencia sea continua en lugar de cortarse con una decisión
+  binaria que no resuelve nada.
+
+### Verificación
+- `npm run ci` → verde. 23 test files, 210 tests passan (208 previos
+  + 2 nuevos sobre ai-title/custom-title/lastActiveAt en describeSession).
+- Reader test count actualizado (4 → 6 events) por los dos eventos
+  nuevos en `minimal.jsonl`.
+
+### Planificación: menú jerárquico en sidebar tab (Hito 29 en ROADMAP)
+
+El usuario pidió rediseñar la sidebar tab de flat list a menú jerárquico
+con grupos lógicos (Settings, Importar de…, Exportar a…, Utilidades).
+Esto habilita una feature simétrica nueva — **enviar sesión de Claude
+Code a ChatGPT** — que es el mirror exacto del envío a claude.ai
+(formatter común, distinto endpoint de browser).
+
+Bloqueado por diseño visual: el usuario está consultando con Claude
+Design el layout (accordion / dropdowns / botones agrupados con
+headers — TBD). Implementación arranca cuando llegue el diseño.
+
+Mientras tanto, el ROADMAP captura el scope detallado en Hito 29
+(qué refactorear, qué decisiones quedan abiertas, qué queda fuera
+de scope). Sin código nuevo hasta entonces.
+
+### Lo que NO entra en este checkpoint
+- **El comando `exportal.sendSessionToChatGpt`**: parte del Hito 29,
+  espera diseño visual del menú porque la lista de comandos depende
+  de cómo termine quedando la UI agrupada.
+- **Refactor de `control-panel.ts` a estructura data-driven con
+  PROVIDERS array**: parte del Hito 29.

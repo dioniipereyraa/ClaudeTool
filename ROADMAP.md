@@ -18,6 +18,54 @@ Items concretos y cerrados se mueven al `DEVLOG.md`. Releases formales al
 El orden acá es deliberado: lo de arriba arranca antes que lo de
 abajo. Cambios al orden se discuten explícitamente.
 
+### Hito 29 — Menú jerárquico en la sidebar tab (UI redesign + send-to-ChatGPT)
+
+**Motivación**: la sidebar tab actual es una lista flat de 6 items
+(2 toggles + 4 botones de acción). Con cada nuevo proveedor (ChatGPT
+acaba de entrar, Gemini eventualmente) la lista crece y se vuelve
+ilegible. El usuario tiene que pasar por `Ctrl+Shift+P` para muchas
+operaciones que deberían ser visualmente discoverable desde el panel.
+
+**Scope**:
+- Reorganizar `src/extension/control-panel.ts` en grupos jerárquicos:
+  - **Settings**: los toggles existentes (autoAttach, alsoWriteJsonl).
+  - **Importar de…**: selector de proveedor (claude.ai, ChatGPT, …).
+  - **Exportar a…**: selector de proveedor (claude.ai, ChatGPT, …).
+  - **Utilidades**: token de pairing, eventualmente status del bridge.
+- **Feature nueva habilitada por la simetría**: enviar sesión de
+  Claude Code a ChatGPT. Mirror exacto del flow `sendSessionToClaudeAi`
+  (formatter → .exportal/.md → clipboard → abrir browser). Cambia
+  solo la URL destino (`chatgpt.com/c/new` o similar — verificar el
+  endpoint que abre un chat nuevo aceptando paste).
+- Refactor de `control-panel.ts` para que la lista de proveedores sea
+  data-driven (`PROVIDERS` array con `id`, `label`, `importCmd`,
+  `exportCmd`), así Gemini y futuros se agregan en una línea.
+- i18n: nuevas strings ("Importar de…", "Exportar a…", "Enviar a
+  ChatGPT"). Las strings actuales ("Import claude.ai .zip", etc.)
+  pueden seguir vivas si las dejamos en el palette de comandos.
+
+**Bloqueado por**: diseño visual del menú. El usuario está consultando
+con Claude Design el layout (¿accordion? ¿dropdowns? ¿botones
+agrupados con headers?). Implementación arranca cuando llega el diseño.
+
+**Decisiones a tomar cuando arranque la implementación**:
+- ¿Eliminamos el botón del status bar? Hoy hace `import .zip`;
+  cuando la sidebar sea el centro discoverable, puede quedar
+  redundante. O lo dejamos como atajo rápido.
+- ¿Mantenemos los comandos individuales en `Ctrl+Shift+P`
+  (`exportal.importFromZip`, `exportal.importFromChatGptZip`)?
+  Sí — son la vía rápida para power users; el menú es para
+  discoverability, no reemplazo.
+- ¿Cómo se ve "selector de proveedor" cuando hay solo dos
+  opciones (claude/ChatGPT) vs cuando agreguemos Gemini? La UI
+  tiene que escalar bien a 1, 2, 3+ providers sin redesign.
+
+**Out of scope para este hito**:
+- Auto-detection de exports recientes de ChatGPT (ya es backlog
+  separado dentro de Hito 21).
+- One-click export desde el companion para ChatGPT (Hito 23,
+  popover multi-IA).
+
 ### Hitos 20-23 — Soporte multi-IA
 
 Bloque de hitos que se habilitan mutuamente. Orden interno:
