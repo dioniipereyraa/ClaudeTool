@@ -36,7 +36,8 @@ import {
 interface Provider {
   readonly id: string;
   readonly label: string;
-  readonly glyph: string;
+  /** SVG `<path d="...">` for the brand mark, sized to a 24×24 viewBox. */
+  readonly iconPath: string;
   readonly color: string;
   readonly importCmd?: string;
   readonly exportCmd?: string;
@@ -44,11 +45,21 @@ interface Provider {
   readonly disabledHint?: string;
 }
 
+// Brand marks. Paths sourced from Simple Icons (CC0). Trademarks belong
+// to their respective owners — used here as identifiers for the
+// destination AI, no endorsement implied.
+const CLAUDE_ICON =
+  'M4.709 15.955l4.72-2.647.08-.23-.08-.128H9.2l-.79-.048-2.698-.073-2.339-.097-2.266-.122-.571-.121L0 11.8l.055-.352.48-.321.686.06 1.52.103 2.278.158 1.652.097 2.449.255h.389l.055-.157-.134-.098-.103-.097-2.358-1.596-2.552-1.688-1.336-.972-.724-.491-.364-.462-.158-1.008.656-.722.881.06.225.061.893.686 1.908 1.476 2.491 1.833.365.304.146-.103.018-.073-.164-.274-1.355-2.45-1.446-2.49-.644-1.032-.17-.619a2.97 2.97 0 0 1-.104-.729L6.215.134 6.62 0l.978.134.41.357.607 1.388.984 2.19 1.525 2.974.446.881.237.815.09.25h.152V8.66l.123-1.566.228-1.924.222-2.476.078-.696.37-.898.732-.482.572.274.469.67-.066.434-.282 1.83-.555 2.882-.362 1.928h.21l.24-.24.97-1.287 1.628-2.035.717-.808.838-.892.539-.426h1.018l.749 1.116-.336 1.153-1.05 1.33-.872 1.128-1.25 1.68-.78 1.347.072.108.187-.018 2.835-.602 1.531-.278 1.827-.314.828.388.09.394-.327.806-1.964.484-2.305.464-3.435.811-.042.03.049.061 1.547.146.66.038h1.617l3.012.225.787.522.474.638-.078.484-1.214.62-1.638-.39-3.823-.91-1.31-.327h-.18v.108l1.092 1.067 2.001 1.807 2.504 2.328.127.578-.32.452-.34-.049-2.207-1.66-.851-.747-1.929-1.622h-.127v.169l.444.65 2.345 3.52.122 1.08-.17.353-.608.213-.667-.122-1.37-1.92-1.41-2.16-1.139-1.94-.139.08-.673 7.245-.316.37-.728.279-.605-.461-.32-.745.32-1.469.39-1.918.317-1.524.288-1.894.17-.628-.012-.042-.139.018-1.422 1.953-2.161 2.916-1.71 1.83-.41.163-.711-.367.066-.658.397-.586 2.359-3.001 1.421-1.857.918-1.074-.006-.157h-.054L4.502 18.62l-1.124.146-.483-.452.06-.741.228-.243z';
+const CHATGPT_ICON =
+  'M22.2819 9.8211a5.9847 5.9847 0 0 0-.5157-4.9108 6.0462 6.0462 0 0 0-6.5098-2.9A6.0651 6.0651 0 0 0 4.9807 4.1818a5.9847 5.9847 0 0 0-3.9977 2.9 6.0462 6.0462 0 0 0 .7427 7.0966 5.98 5.98 0 0 0 .511 4.9107 6.051 6.051 0 0 0 6.5146 2.9001A5.9847 5.9847 0 0 0 13.2599 24a6.0557 6.0557 0 0 0 5.7718-4.2058 5.9894 5.9894 0 0 0 3.9977-2.9001 6.0557 6.0557 0 0 0-.7475-7.0729zm-9.022 12.6081a4.4755 4.4755 0 0 1-2.8764-1.0408l.1419-.0804 4.7783-2.7582a.7948.7948 0 0 0 .3927-.6813v-6.7369l2.02 1.1686a.071.071 0 0 1 .038.052v5.5826a4.504 4.504 0 0 1-4.4945 4.4944zm-9.6607-4.1254a4.4708 4.4708 0 0 1-.5346-3.0137l.142.0852 4.783 2.7582a.7712.7712 0 0 0 .7806 0l5.8428-3.3685v2.3324a.0804.0804 0 0 1-.0332.0615L9.74 19.9502a4.4992 4.4992 0 0 1-6.1408-1.6464zM2.3408 7.8956a4.485 4.485 0 0 1 2.3655-1.9728V11.6a.7664.7664 0 0 0 .3879.6765l5.8144 3.3543-2.0201 1.1685a.0757.0757 0 0 1-.071 0l-4.8303-2.7865A4.504 4.504 0 0 1 2.3408 7.872zm16.5963 3.8558L13.1038 8.364 15.1192 7.2a.0757.0757 0 0 1 .071 0l4.8303 2.7913a4.4944 4.4944 0 0 1-.6765 8.1042v-5.6772a.79.79 0 0 0-.407-.667zm2.0107-3.0231l-.142-.0852-4.7735-2.7818a.7759.7759 0 0 0-.7854 0L9.409 9.2297V6.8974a.0662.0662 0 0 1 .0284-.0615l4.8303-2.7866a4.4992 4.4992 0 0 1 6.6802 4.66zM8.3065 12.863l-2.02-1.1638a.0804.0804 0 0 1-.038-.0567V6.0742a4.4992 4.4992 0 0 1 7.3757-3.4537l-.142.0805L8.704 5.459a.7948.7948 0 0 0-.3927.6813zm1.0976-2.3654l2.602-1.4998 2.6069 1.4998v2.9994l-2.5974 1.5093-2.6067-1.4997Z';
+const GEMINI_ICON =
+  'M11.04 19.32Q12 17.4 13.5 16.05t3.42-2.16q-1.92-.84-3.42-2.16T12 9.6q-.96 1.92-2.46 3.27t-3.42 2.16q1.92.84 3.42 2.16T11.04 19.32M12 24q-.96-3.36-2.46-5.94t-3.96-4.32q-2.46-1.74-5.58-2.7 3.12-.96 5.58-2.7t3.96-4.32T12 0q.96 3.36 2.46 5.94t3.96 4.32q2.46 1.74 5.58 2.7-3.12.96-5.58 2.7T14.46 18.06 12 24';
+
 const PROVIDERS: readonly Provider[] = [
   {
     id: 'claude',
     label: 'claude.ai',
-    glyph: 'C',
+    iconPath: CLAUDE_ICON,
     color: '#C96442',
     importCmd: 'exportal.importFromZip',
     exportCmd: 'exportal.sendSessionToClaudeAi',
@@ -56,7 +67,7 @@ const PROVIDERS: readonly Provider[] = [
   {
     id: 'chatgpt',
     label: 'ChatGPT',
-    glyph: 'G',
+    iconPath: CHATGPT_ICON,
     color: '#10A37F',
     importCmd: 'exportal.importFromChatGptZip',
     exportCmd: 'exportal.sendSessionToChatGpt',
@@ -64,7 +75,7 @@ const PROVIDERS: readonly Provider[] = [
   {
     id: 'gemini',
     label: 'Gemini',
-    glyph: 'g',
+    iconPath: GEMINI_ICON,
     color: '#4285F4',
     disabled: true,
     disabledHint: 'En camino · Q3 2026',
@@ -512,11 +523,7 @@ export class ExportalControlPanelProvider implements vscode.WebviewViewProvider 
     align-items: center;
     justify-content: center;
     color: #FFFFFF;
-    font-size: 12px;
-    font-weight: 700;
-    letter-spacing: -0.04em;
     flex-shrink: 0;
-    font-family: 'Inter Tight', system-ui, sans-serif;
   }
   .row .body { flex: 1; min-width: 0; }
   .row .name {
@@ -929,7 +936,9 @@ function providerRowHtml(p: Provider, direction: 'in' | 'out', defaultHint: stri
   return `
     <div class="row" data-disabled="${disabled ? 'true' : 'false'}"${cmdAttr}${directionAttr}${providerAttr}${tabindex} role="button">
       <span class="shimmer"></span>
-      <div class="mark" style="background:${p.color}">${escapeHtml(p.glyph)}</div>
+      <div class="mark" style="background:${p.color}">
+        <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor" aria-hidden="true"><path d="${p.iconPath}"/></svg>
+      </div>
       <div class="body">
         <div class="name">${escapeHtml(p.label)}</div>
         <div class="hint">${escapeHtml(hint)}</div>
