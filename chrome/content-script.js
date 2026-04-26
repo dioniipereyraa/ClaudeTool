@@ -594,7 +594,9 @@ async function runSecondaryAction(id) {
 async function sendInline(conversation, assets, provider, labelEl) {
   const message = { type: 'exportal:sendInline', conversation, provider };
   if (Array.isArray(assets) && assets.length > 0) message.assets = assets;
+  const t0 = performance.now();
   const response = await chrome.runtime.sendMessage(message);
+  console.info('[Exportal] first sendInline:', Math.round(performance.now() - t0), 'ms, response:', response);
   if (response?.ok === true) return;
   // Cold-start recovery: when the bridge isn't listening on any of
   // our ports, try waking VS Code via the `vscode://` URI handler
@@ -612,9 +614,17 @@ async function sendInline(conversation, assets, provider, labelEl) {
       labelEl.textContent = chrome.i18n.getMessage('feedbackOpeningVsCode');
     }
     triggerVsCodeWake();
-    const ready = await waitForBridge(20000);
+    const tWake = performance.now();
+    // 60s budget: VS Code cold start is typically 5-15s but extension
+    // activation (esp. with many extensions) can push it past 30s
+    // on some setups. 60s gives a comfortable margin without holding
+    // the FAB hostage indefinitely.
+    const ready = await waitForBridge(60000);
+    console.info('[Exportal] waitForBridge:', Math.round(performance.now() - tWake), 'ms, ready:', ready);
     if (ready) {
+      const tRetry = performance.now();
       const retry = await chrome.runtime.sendMessage(message);
+      console.info('[Exportal] retry sendInline:', Math.round(performance.now() - tRetry), 'ms, response:', retry);
       if (retry?.ok === true) return;
       throw new Error(retry?.error ?? 'unknown');
     }

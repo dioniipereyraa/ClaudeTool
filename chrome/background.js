@@ -271,6 +271,16 @@ async function forwardInlineConversation(conversation, assets, provider) {
     await setBadge('SET', '#ca8a04');
     return { ok: false, error: 'no_token' };
   }
+  // Quick reachability probe BEFORE serializing + uploading the
+  // (potentially many-MB) conversation body. Without this we'd send
+  // the full payload to every port in the range and only learn the
+  // bridge is offline after each transmission completes. With it,
+  // the offline-detection latency drops from "depends on payload
+  // size + N ports" to "10 instant ECONNREFUSED responses" (~50ms).
+  if (!(await isBridgeReachable())) {
+    await setBadge('OFF', '#dc2626');
+    return { ok: false, error: 'bridge_offline' };
+  }
   // Bundle the assets into the JSON body only when present — keeps
   // chat exports byte-identical to before this change. Provider tag
   // is sent only when set; absent means the bridge defaults to claude.
