@@ -44,6 +44,48 @@ abajo. Cambios al orden se discuten explícitamente.
 - Bloqueado por: Hitos 21 y 22 al menos parcialmente (Claude Design
   ya queda cubierto si cerramos Hito 27 antes).
 
+**Hito 24 — `.jsonl` para `/resume` desde imports de ChatGPT**
+
+Hoy el setting `exportal.alsoWriteJsonl` solo aplica a imports de
+claude.ai. Para ChatGPT escribimos solo `.md` — el CHANGELOG de
+0.10.0 lo dejó marcado explícitamente: *"la envelope Anthropic
+asume claude shapes ... no maneja la estructura de mapping/branching
+de ChatGPT directamente. Para v1 solo `.md`."*
+
+**Scope**: traducir el mapping/branching de ChatGPT a la shape
+`.jsonl` que Claude Code consume en `/resume` — eventos
+`user`/`assistant` encadenados por `uuid`/`parentUuid`, bloques
+`thinking`/`text`/`tool_use` shaped como Anthropic los emite.
+
+Subtareas:
+- Mapeo de `content_type` → bloques Anthropic: `text` → `text`
+  directo; `thoughts` → `thinking` (semánticamente cercano,
+  puede perder fidelidad); `multimodal_text` con `image_asset_pointer`
+  → `image` blocks (requiere base64, ya hay path desde Tier 3 del
+  Hito 21 si se cierra antes); `tool_use` con `recipient: 'browser'`
+  / `python` → `tool_use` blocks (mapeo de IDs sintético, no
+  reusable cross-session).
+- Generación de UUIDs sintéticos para `parentUuid`/`uuid` que sigan
+  la shape RFC-4122 que Claude Code valida.
+- Decidir el `model` field — placeholder tipo `'gpt-4o (imported)'`
+  o un valor que Claude Code tolere sin especular.
+- Sidecar metadata (`ai-title`, `custom-title`, `last-prompt`) para
+  que la conversación importada aparezca con título correcto en
+  `/resume`.
+- **Warning explícito al user**: el formato `.jsonl` ya está marcado
+  experimental (es ingeniería inversa). Sumar otra capa de
+  translation entre ChatGPT shapes y Anthropic shapes multiplica la
+  fragilidad — toast "experimental, may break across Claude Code
+  versions" cuando el feature se activa.
+
+**Risk**: el feature parece nativo de Claude Code y silenciosamente
+podría fallar tras un release que cambie shapes. Mitigación:
+warning + setting opt-in separado (`exportal.alsoWriteJsonlChatGpt`)
+para que el user que prefiera evitar el riesgo no se vea forzado.
+
+**Disparador**: Hito 22 (Gemini import) cerrado o avanzado, así el
+trabajo de mapping cubre dos providers de una.
+
 ## Backlog
 
 Tier más abajo — útiles pero no en la cola activa.

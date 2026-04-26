@@ -142,6 +142,45 @@ var ExportalPure = (function () {
   // routeFromPath, and add a fetch* function in content-script.js.
   const KNOWN_ROUTE_KINDS = ['chat', 'design', 'chatgpt'];
 
+  // Builds the filename for the "Download JSON" action on chatgpt.com.
+  // Pattern: `chatgpt-<slug>-<short-id>.json` when the title slugifies
+  // to something useful, `chatgpt-<id>.json` as fallback. The short id
+  // suffix disambiguates two chats with the same title without putting
+  // a 36-char UUID in every filename. Pure: no DOM, no Date.now().
+  function chatGptJsonFilename(conversation, conversationId) {
+    const title =
+      conversation !== null
+      && typeof conversation === 'object'
+      && typeof conversation.title === 'string'
+        ? conversation.title
+        : '';
+    const slug = slugifyForFilename(title);
+    const id = typeof conversationId === 'string' ? conversationId : '';
+    if (slug.length > 0) {
+      const suffix = id.length >= 8 ? id.slice(0, 8) : id;
+      return suffix.length > 0 ? `chatgpt-${slug}-${suffix}.json` : `chatgpt-${slug}.json`;
+    }
+    return id.length > 0 ? `chatgpt-${id}.json` : 'chatgpt-conversation.json';
+  }
+
+  function slugifyForFilename(input) {
+    // NFKD decomposes accented chars (á → a + U+0301 combining acute);
+    // the [a-z 0-9 \s -] whitelist below then keeps the base ASCII
+    // letter and drops the combining mark in one pass, so accented
+    // titles still round-trip readably. Same whitelist also strips
+    // emoji / kanji / punctuation — anything not safe in a filename.
+    if (typeof input !== 'string') return '';
+    return input
+      .toLowerCase()
+      .normalize('NFKD')
+      .replace(/[^a-z0-9\s-]/g, '')
+      .trim()
+      .replace(/\s+/g, '-')
+      .replace(/-+/g, '-')
+      .slice(0, 60)
+      .replace(/^-+|-+$/g, '');
+  }
+
   return {
     UUID_PATTERN,
     FILENAME_PATTERN,
@@ -157,6 +196,7 @@ var ExportalPure = (function () {
     extractOrgIds,
     parseBridgeErrorCode,
     explainError,
+    chatGptJsonFilename,
   };
 })();
 

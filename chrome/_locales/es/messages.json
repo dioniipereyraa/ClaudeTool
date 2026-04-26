@@ -80,8 +80,14 @@
   "btnPrepareOfficial": {
     "message": "Preparar export oficial"
   },
+  "btnDownloadJson": {
+    "message": "Descargar JSON"
+  },
   "feedbackOfficialPrepared": {
     "message": "Listo — dispará el export oficial"
+  },
+  "feedbackJsonDownloaded": {
+    "message": "Descargado"
   },
   "feedbackError": {
     "message": "Error — ver consola"

@@ -6,6 +6,52 @@ Companion (Chrome extension) are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 and versions follow [Semantic Versioning](https://semver.org/).
 
+## [0.11.0] — 2026-04-26
+
+Bump minor: el FAB de Exportal en chatgpt.com gana un botón
+secundario **"Download JSON"** (en el idioma del navegador). Click
+→ baja la conversación cruda al folder de Downloads, sin pasar por
+VS Code. Útil para auditoría, pipelines propios, o cuando la
+extensión de VS Code no está corriendo. Cierra el bucle del
+"power-user path" de imports de ChatGPT.
+
+### Added
+
+- **Botón "Download JSON" en el FAB de chatgpt.com**:
+  - Solo aparece en `chatgpt.com/c/<id>` (en claude.ai sigue
+    apareciendo "Prepare official export"; en Claude Design no hay
+    secundario).
+  - Reusa el mismo fetch a `/api/auth/session` + `/backend-api/conversation/<id>`
+    que el primary "Export this chat" — el JSON descargado es
+    exactamente el payload que el bridge transformaría a Markdown.
+  - Filename pattern: `chatgpt-<slug>-<short-id>.json` cuando el
+    título existe (`Mi Conversación` → `chatgpt-mi-conversacion-0f1e2d3c.json`,
+    los acentos se descomponen vía NFKD para que el slug quede
+    ASCII puro). Sin título → `chatgpt-<full-uuid>.json`.
+  - Implementado puramente client-side (Blob + anchor click + revoke
+    URL); no requiere el bridge ni nuevos permisos en el manifest.
+- **i18n**: nuevos strings `btnDownloadJson` y `feedbackJsonDownloaded`
+  en `_locales/en` y `_locales/es`. Como cualquier string del
+  companion, el botón se renderiza en el idioma del navegador.
+- **`chrome/pure.js`**: nueva función `chatGptJsonFilename(conversation, id)`
+  pura/testeable, exportada en `ExportalPure`. La normalización del
+  título (NFKD → strip non-ASCII → kebab-case → clamp 60 chars)
+  vive ahí para que `tests/chrome/pure.test.ts` la cubra sin tocar
+  DOM.
+- **7 tests nuevos** (242 totales, +7): cubren títulos normales,
+  acentos en español, fallbacks (sin título, emoji-only, sin id),
+  clamp del slug largo, y collapsing de espacios/puntuación.
+
+### Notes
+
+- El download es siempre el JSON crudo de OpenAI, no el adaptado a
+  Anthropic shapes — eso queda para **Hito 24** (`.jsonl` para
+  `/resume` desde imports de ChatGPT), anotado en ROADMAP.
+- En claude.ai no agregamos un equivalente todavía: el flujo del
+  primary button + auto-attach a Claude Code ya cubre la mayoría
+  de casos. Si llega un pedido concreto, escala fácil (mismo helper
+  + un branch más en el `else if`).
+
 ## [0.10.2] — 2026-04-26
 
 Patch cosmético: el formatter de imports de ChatGPT ya no produce

@@ -36,6 +36,7 @@ interface Pure {
   extractOrgIds(data: unknown): string[];
   parseBridgeErrorCode(body: unknown): string | undefined;
   explainError(msgOrError: unknown): string;
+  chatGptJsonFilename(conversation: unknown, conversationId: unknown): string;
 }
 
 function loadPure(): Pure {
@@ -391,5 +392,54 @@ describe('ExportalPure.routeFromPath — multi-host dispatch', () => {
   it('returns undefined for unrecognized chatgpt.com paths', () => {
     expect(pure.routeFromPath('/', 'chatgpt.com')).toBeUndefined();
     expect(pure.routeFromPath('/settings', 'chatgpt.com')).toBeUndefined();
+  });
+});
+
+describe('ExportalPure.chatGptJsonFilename', () => {
+  const id = '0f1e2d3c-4b5a-6978-8796-a5b4c3d2e1f0';
+
+  it('builds chatgpt-<slug>-<short-id>.json from a normal title', () => {
+    expect(pure.chatGptJsonFilename({ title: 'My Chat About Cats' }, id))
+      .toBe('chatgpt-my-chat-about-cats-0f1e2d3c.json');
+  });
+
+  it('strips accents via NFKD decomposition (Spanish titles stay readable)', () => {
+    expect(pure.chatGptJsonFilename({ title: 'Mi Conversación' }, id))
+      .toBe('chatgpt-mi-conversacion-0f1e2d3c.json');
+  });
+
+  it('falls back to chatgpt-<id>.json when title is missing or empty', () => {
+    expect(pure.chatGptJsonFilename({ title: '' }, id))
+      .toBe(`chatgpt-${id}.json`);
+    expect(pure.chatGptJsonFilename({ title: null }, id))
+      .toBe(`chatgpt-${id}.json`);
+    expect(pure.chatGptJsonFilename({}, id))
+      .toBe(`chatgpt-${id}.json`);
+    expect(pure.chatGptJsonFilename(null, id))
+      .toBe(`chatgpt-${id}.json`);
+  });
+
+  it('falls back to chatgpt-<id>.json when title slugifies to empty (emoji-only)', () => {
+    expect(pure.chatGptJsonFilename({ title: '🐈🚀' }, id))
+      .toBe(`chatgpt-${id}.json`);
+  });
+
+  it('strips punctuation and collapses whitespace into single dashes', () => {
+    expect(pure.chatGptJsonFilename({ title: 'Hello!  World??' }, id))
+      .toBe('chatgpt-hello-world-0f1e2d3c.json');
+  });
+
+  it('clamps slugs longer than 60 chars (no leading/trailing dashes)', () => {
+    const long = 'x'.repeat(80);
+    const out = pure.chatGptJsonFilename({ title: long }, id);
+    // 'chatgpt-' (8) + slug (≤60) + '-' (1) + short id (8) + '.json' (5)
+    expect(out.length).toBeLessThanOrEqual(8 + 60 + 1 + 8 + 5);
+    expect(out.startsWith('chatgpt-xxx')).toBe(true);
+    expect(out.endsWith('.json')).toBe(true);
+  });
+
+  it('returns chatgpt-conversation.json when both title and id are unusable', () => {
+    expect(pure.chatGptJsonFilename(null, '')).toBe('chatgpt-conversation.json');
+    expect(pure.chatGptJsonFilename({}, undefined)).toBe('chatgpt-conversation.json');
   });
 });

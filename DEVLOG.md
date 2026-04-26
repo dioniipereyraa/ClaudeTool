@@ -3058,3 +3058,114 @@ que ensuciaban el `.md` sin aportar nada (visto en
   lo decida (auto-recovery del pairing token, imágenes inline de
   ChatGPT).
 
+---
+
+## 2026-04-26 — Botón "Download JSON" en el FAB de chatgpt.com (v0.11.0)
+
+### Qué hicimos
+Power-user feature pedida por el user en la misma sesión que cerró
+0.10.2: el FAB en `chatgpt.com/c/<id>` ahora tiene un botón
+secundario **"Download JSON"** (i18n, se ve "Descargar JSON" en
+español). Click → baja la conversación cruda al folder de Downloads,
+sin tocar el bridge ni VS Code. Reusa la misma cadena de fetch que
+el primary `"Export this chat"` (NextAuth session + Bearer al
+`/backend-api/conversation/<id>`), pero en vez de mandarlo al
+bridge, escribe el JSON puro a disco vía Blob + anchor click.
+
+Discusión previa al hito: el user planteó dos caminos —
+**(A)** adaptar el JSON de ChatGPT al `.jsonl` para `/resume` con
+warning de experimental, vs **(B)** download crudo del JSON.
+Decisión: arrancar por B (~30 min, bajo riesgo, no compromete el
+flujo `/resume`), y A queda como **Hito 24** en ROADMAP con scope
+detallado (mapping de content_types, UUIDs sintéticos, decisión del
+`model` field, sidecar metadata, warning explícito).
+
+**`chrome/pure.js`:**
+- Nueva función `chatGptJsonFilename(conversation, conversationId)`
+  pura. Construye `chatgpt-<slug>-<short-id>.json` con el título
+  slugifiado (NFKD → strip non-ASCII → kebab-case → clamp 60
+  chars), o `chatgpt-<full-uuid>.json` cuando el título es vacío /
+  emoji-only / null. Vive en `pure.js` (no en content-script.js)
+  para que sea testeable en isolation.
+
+**`tests/chrome/pure.test.ts`:**
+- 7 tests nuevos para `chatGptJsonFilename`: título normal, acentos
+  españoles (`Mi Conversación` → `mi-conversacion`), fallback a UUID
+  cuando título es vacío/null/emoji, clamp de slugs largos,
+  collapsing de puntuación. Total subió de 50 a 57 en
+  `pure.test.ts` y de 235 a 242 en el suite.
+
+**`chrome/content-script.js`:**
+- `buildPopover` ahora tiene un `else if (route.kind === 'chatgpt')`
+  que monta el secondary con label `btnDownloadJson` y handler
+  `handleDownloadJsonClick`.
+- Nuevo handler `handleDownloadJsonClick` que:
+  1. Valida la ruta (early return + console.warn si no aplica —
+     mismo patrón defensivo que ganamos en 0.10.1).
+  2. Muestra `feedbackSearching` durante el fetch (chatgpt suele
+     responder en sub-2s pero el feedback evita la sensación de
+     click muerto).
+  3. Reusa `fetchChatGptConversation(route.id)` directamente — no
+     hace falta pasar por `fetchByRoute` porque no construimos el
+     payload del bridge.
+  4. Triggerea download con `triggerJsonDownload(json, filename)`.
+  5. Flash `feedbackJsonDownloaded` en éxito o `explainError(err)`
+     en fallo.
+- Nuevo helper `triggerJsonDownload(data, filename)`: idiom estándar
+  de Blob + anchor.click() + URL.revokeObjectURL en setTimeout(1s).
+  Sin permisos nuevos en el manifest — `<a download>` ya está
+  habilitado por el host_permissions existente.
+
+**i18n (`_locales/en` + `_locales/es`):**
+- `btnDownloadJson`: "Download JSON" / "Descargar JSON".
+- `feedbackJsonDownloaded`: "Downloaded" / "Descargado".
+
+### Decisiones técnicas
+- **Helper en `pure.js`, no en content-script**: la lógica de
+  slugify es donde más probable se cuelan bugs (caracteres unicode,
+  edge cases). Vive con tests reales en vez de smoke-test manual.
+  El content-script sigue siendo solo plumbing DOM.
+- **Slugify ASCII-only via la whitelist final `[^a-z0-9\s-]`**:
+  tras NFKD, `á → a + U+0301`. Un primer intento metió un strip
+  intermedio de combining marks via `[^\x00-\x7f]`, pero ESLint
+  lo flageó por control chars y el strip era redundante con la
+  whitelist final que ya filtra todo lo no-ASCII en una sola pasada.
+- **Sin shortcut de teclado para el download**: ChatGPT solo tiene
+  `Alt+Shift+E` para el primary. Agregar `Alt+Shift+O` (o `D` por
+  Download) sería evento futuro; el botón en el FAB es suficiente
+  para validar el feature.
+- **Descarga puramente client-side**: la alternativa era pasar el
+  JSON al bridge y dejar que VS Code lo escriba en `.exportal/`.
+  Descartado: rompe el caso "quiero el JSON aunque VS Code no esté
+  corriendo" que es exactamente para qué pidieron este botón.
+- **Release como minor (0.11.0)**, no patch (0.10.3): es una nueva
+  capability visible al user, SemVer minor.
+
+### Verificación
+- `npm run ci` — lint ✓, typecheck ✓, **242/242 tests ✓** (+7
+  nuevos), build ✓.
+- Smoke test browser-real: el user instaló el vsix 0.11.0 +
+  unpacked del companion, exportó una conversación real de
+  chatgpt.com — `.md` se ve bien (sin bloques huecos de
+  `model_editable_context`, validando además 0.10.2 end-to-end), y
+  el botón "Download JSON" baja correctamente el `.json` crudo a
+  Downloads.
+
+### Release
+- **v0.11.0** publicada. `package.json` y `chrome/manifest.json`
+  bumpeados de `0.10.2` a `0.11.0`. CHANGELOG entry siguiendo
+  formato Keep a Changelog. `package-lock.json` mantenido en 0.9.1
+  (mismo patrón histórico que vienen acumulando los últimos seis
+  releases). README sin cambios.
+
+### Próximo paso
+- Hito 24 (jsonl para `/resume` desde ChatGPT) anotado en ROADMAP
+  con scope detallado — disparador: cuando el user decida
+  arrancarlo, probablemente después de Hito 22 (Gemini import)
+  para que el mapping cubra dos providers de una.
+- Observación menor del smoke test: las citations de browsing de
+  ChatGPT (`citeturn0search8`, etc.) pasan literal al `.md` porque
+  son tokens inline dentro del `text` content_type, no un type
+  separado. Si molesta, sumar un post-process al texto que las
+  reemplace por footnotes — hito chico aparte, no bloqueante.
+

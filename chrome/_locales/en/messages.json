@@ -107,9 +107,17 @@
     "message": "Prepare official export",
     "description": "Secondary button — stores the conversation UUID for matching the eventual Takeout ZIP."
   },
+  "btnDownloadJson": {
+    "message": "Download JSON",
+    "description": "Secondary button on chatgpt.com — downloads the raw conversation JSON to the user's Downloads folder."
+  },
   "feedbackOfficialPrepared": {
     "message": "Done — now trigger the official export",
     "description": "Confirmation after the secondary action succeeds."
+  },
+  "feedbackJsonDownloaded": {
+    "message": "Downloaded",
+    "description": "Confirmation flashed on the secondary button after the JSON file is sent to the browser's download manager."
   },
   "feedbackError": {
     "message": "Error — see console",

@@ -246,6 +246,18 @@ function buildPopover(route) {
       onClick: handleSecondaryClick,
     });
     popover.appendChild(secondary);
+  } else if (route.kind === 'chatgpt') {
+    // chatgpt.com has no equivalent of "Prepare official export" (the
+    // ZIP path requires manual navigation to Settings → Data controls
+    // → Export). Instead we offer "Download JSON" — same fetch as the
+    // primary action, but the raw conversation JSON saves to the
+    // user's Downloads folder so it can feed any tool, not just VS Code.
+    const secondary = makeSecondaryButton({
+      id: SECONDARY_BTN_ID,
+      label: chrome.i18n.getMessage('btnDownloadJson'),
+      onClick: handleDownloadJsonClick,
+    });
+    popover.appendChild(secondary);
   }
 
   popover.appendChild(buildKbdRow(route));
@@ -417,6 +429,59 @@ async function handleSecondaryClick(btn) {
     console.warn('Exportal: could not save pending conversation.', err);
     flash(btn, chrome.i18n.getMessage('feedbackError'), 'err');
   }
+}
+
+// chatgpt.com only — fetches the conversation through the same path
+// as the primary export, but instead of POSTing to the bridge it
+// triggers a browser download of the raw JSON. Useful when the user
+// wants the unprocessed payload for their own tooling, or when VS
+// Code isn't running.
+async function handleDownloadJsonClick(btn) {
+  const route = panelRoute();
+  if (route === undefined || route.kind !== 'chatgpt') {
+    console.warn('Exportal: handleDownloadJsonClick — no chatgpt route, ignoring click.', {
+      panel: document.getElementById(PANEL_ID),
+      pathname: window.location.pathname,
+      host: window.location.host,
+    });
+    return;
+  }
+  const originalLabel = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = chrome.i18n.getMessage('feedbackSearching');
+  try {
+    const conversation = await fetchChatGptConversation(route.id);
+    const filename = ExportalPure.chatGptJsonFilename(conversation, route.id);
+    triggerJsonDownload(conversation, filename);
+    btn.textContent = originalLabel;
+    btn.disabled = false;
+    flash(btn, chrome.i18n.getMessage('feedbackJsonDownloaded'), 'ok');
+  } catch (err) {
+    console.warn('Exportal: download JSON failed.', err);
+    btn.textContent = originalLabel;
+    btn.disabled = false;
+    flash(btn, explainError(err), 'err');
+  }
+}
+
+function triggerJsonDownload(data, filename) {
+  // Blob + anchor click is the standard browser idiom for triggering
+  // a download from a content script. Stays entirely in-page — no
+  // round-trip through the bridge — so the user gets the raw JSON
+  // regardless of whether VS Code is running.
+  const json = JSON.stringify(data, null, 2);
+  const blob = new Blob([json], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.style.display = 'none';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  // Free the blob URL once the click is queued. 1s is generous —
+  // Chrome's download manager has already snapshotted the bytes.
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
 async function handlePrimaryClick(btn) {
