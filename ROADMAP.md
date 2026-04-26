@@ -48,25 +48,6 @@ abajo. Cambios al orden se discuten explícitamente.
 
 Tier más abajo — útiles pero no en la cola activa.
 
-### Skip de content_types internos en imports de ChatGPT
-
-Observado en exports reales (v0.10.1 smoke test): algunos mensajes
-con `author.role: 'assistant'` y `recipient: 'all'` traen
-`content.content_type: 'model_editable_context'` (configuración del
-sistema sobre el modelo, no contenido visible al user). Hoy nuestro
-fallback los renderiza como `## Assistant\n\n[model_editable_context]\n\n...`
-— bloques huecos que ensucian el `.md` sin agregar info.
-
-**Scope**: lista de content_types "internos" que el formatter saltea
-silenciosamente (mismo patrón que skipea `system` role hoy).
-Candidatos confirmados:
-- `model_editable_context`
-- Otros que vayan apareciendo en exports reales
-
-**Por qué no es urgente**: noise visual, no rompe el import. Al
-user le sobran 2-3 bloques huecos en un `.md` largo, no es
-bloqueante.
-
 ### Auto-recovery del pairing token cuando el Companion lo pierde
 
 Si el user reinstala el Chrome companion (loadear como unpacked,

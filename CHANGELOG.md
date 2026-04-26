@@ -6,6 +6,35 @@ Companion (Chrome extension) are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 and versions follow [Semantic Versioning](https://semver.org/).
 
+## [0.10.2] — 2026-04-26
+
+Patch cosmético: el formatter de imports de ChatGPT ya no produce
+bloques `## Assistant` huecos cuando el message trae
+`content.content_type: 'model_editable_context'` (configuración
+interna del modelo, no contenido visible al user). Cierra el item
+del backlog dejado pendiente al cierre de 0.10.1.
+
+### Fixed
+
+- **Skip silencioso de content_types internos en imports de ChatGPT.**
+  Mensajes con `author.role: 'assistant'` + `recipient: 'all'` cuyo
+  `content_type` es `model_editable_context` ahora se descartan
+  antes del switch de render — paralelo al skip que ya existía
+  para `role === 'system'`. Antes caían al fallback genérico y se
+  pintaban como `## Assistant\n\n[model_editable_context]\n\n{...}`,
+  ensuciando el `.md` sin agregar info. La lista de "internos"
+  (nuevo `INTERNAL_CONTENT_TYPES`) está en `chatgpt-markdown.ts` y
+  es trivial extender cuando aparezcan otros casos en exports
+  reales.
+
+### Notes
+
+- 235 tests (+1 nuevo): regression test que combina un message
+  `model_editable_context` con un assistant de texto real y verifica
+  que el `.md` solo emita un único `## Assistant` heading.
+- 0.10.1 sigue funcionando — el bug solo afectaba la legibilidad
+  del `.md` exportado, no el flujo de import en sí.
+
 ## [0.10.1] — 2026-04-26
 
 Hot-fix sobre 0.10.0: el FAB en chatgpt.com aparecía OK pero el click

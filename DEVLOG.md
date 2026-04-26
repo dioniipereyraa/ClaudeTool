@@ -2976,3 +2976,85 @@ similares).
   storage se borra (caso del user con companion reinstalado), el
   FAB falla silenciosamente con `no_token`. Detectarlo y guiar al
   user al re-pairing flow sería UX polish.
+
+---
+
+## 2026-04-26 — Skip de `model_editable_context` en imports de ChatGPT (v0.10.2)
+
+### Qué hicimos
+Fix puntual del item del backlog dejado pendiente al cierre de
+0.10.1. En exports reales, ChatGPT emite mensajes con
+`author.role: 'assistant'` + `recipient: 'all'` cuyo
+`content.content_type` es `'model_editable_context'` — son
+configuración del modelo sobre sí mismo, no parte de la conversación
+visible. El fallback genérico de `renderBody` los pintaba como
+bloques `## Assistant\n\n\`[model_editable_context]\`\n\n{json}`
+que ensuciaban el `.md` sin aportar nada (visto en
+`.exportal/2026-04-26-1610-problema-exportacion-de-chats.md`).
+
+**`src/formatters/chatgpt-markdown.ts`:**
+- Nueva constante `INTERNAL_CONTENT_TYPES: ReadonlySet<string>` con
+  un único valor por ahora (`'model_editable_context'`).
+- Guard nuevo en `renderMessage`, justo después del skip de
+  `role === 'system'`: si el `content.content_type` está en el set,
+  el message entero se descarta (return undefined).
+
+**`tests/formatters/chatgpt-markdown.test.ts`:**
+- Test nuevo `'skips internal content_types like model_editable_context'`:
+  fixture con un assistant `model_editable_context` seguido de un
+  assistant de texto real. Verifica que el `.md` no menciona
+  `model_editable_context`, sí muestra el reply real, y que solo
+  hay un único `## Assistant` heading (regression contra el bloque
+  hueco que aparecía antes).
+
+### Decisiones técnicas
+- **Skip por content_type al lado del skip por role, no dentro de
+  `renderBody`**: el patrón existente para `role === 'system'` ya
+  vive en `renderMessage` y devuelve `undefined` para que el caller
+  no agregue separador. Hacer lo mismo por content_type mantiene
+  los dos skips uniformes y no requiere tocar el fallback genérico
+  del switch (que queremos preservar para content_types nuevos
+  desconocidos — esos sí se loguean con marker para no perderlos
+  silenciosamente).
+- **`ReadonlySet<string>` sobre array literal**: la lookup es
+  O(1), y la lista va a crecer a medida que aparezcan otros
+  content_types internos en exports reales. El set es la estructura
+  correcta desde el día uno.
+- **Test de invariante "una sola heading Assistant"**: además de
+  verificar que el string no aparece, contamos los `## Assistant`
+  para evitar el caso falso-positivo donde el formatter emitiera un
+  heading vacío. La regression del bug original era exactamente esa
+  forma.
+
+### Verificación
+- `npm run ci` — lint ✓, typecheck ✓, 235/235 tests ✓ (+1 nuevo),
+  build ✓.
+- Flake intermitente (documentado en ROADMAP) reapareció en la
+  primera corrida con el patrón típico: 24 test files con
+  `TypeError: Cannot read properties of undefined (reading 'config')`,
+  duration 1.76s (vs ~4s normal). El cwd reportado fue
+  `d:/Dionisio/ClaudeTool` (minúscula). Borrar `node_modules/.vite`
+  + `node_modules/.cache` y reintentar → corrida limpia con cwd en
+  mayúscula `D:/Dionisio/ClaudeTool`. **Refuerza la hipótesis del
+  Hito 4** sobre la correlación entre el casing del drive y el
+  flake — la pista del path con drive en minúscula vs mayúscula
+  vuelve a aparecer 9 días después del primer reporte.
+
+### Release
+- **v0.10.2** publicada. `package.json` y `chrome/manifest.json`
+  bumpeados; entrada en `CHANGELOG.md` siguiendo el formato Keep a
+  Changelog (Fixed + Notes). El `package-lock.json` se mantuvo en
+  0.9.1 como en 0.9.2 / 0.10.0 / 0.10.1 — el lock viene
+  desincronizado del bump manual desde hace cinco releases; tocarlo
+  acá rompería el patrón sin beneficio para este patch.
+- README sin cambios: no menciona versión, los enlaces al
+  Marketplace y Chrome Web Store son siempre a la última.
+
+### Próximo paso
+- Si aparecen nuevos content_types internos en exports reales,
+  agregarlos a `INTERNAL_CONTENT_TYPES` (cambio de una línea + un
+  test).
+- Pendiente seguir limpiando el backlog del ROADMAP cuando el user
+  lo decida (auto-recovery del pairing token, imágenes inline de
+  ChatGPT).
+

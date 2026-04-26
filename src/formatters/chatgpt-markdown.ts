@@ -7,6 +7,14 @@ import { emptyReport, redact, type RedactionReport } from '../redactors/index.js
 
 import { fenceCode, stringifyJson } from './markdown-shared.js';
 
+// content_types that are model conditioning / metadata, not visible
+// conversation. ChatGPT emits these on `assistant` + `recipient: 'all'`
+// messages, so they slip past the role/recipient guards and would
+// otherwise render as empty `## Assistant\n\n[type]\n\n{...}` blocks.
+const INTERNAL_CONTENT_TYPES: ReadonlySet<string> = new Set([
+  'model_editable_context',
+]);
+
 export interface ChatGptFormatOptions {
   readonly redact: boolean;
   readonly includeTools?: boolean;
@@ -63,6 +71,8 @@ function renderMessage(
   // System messages are model conditioning, not part of the visible
   // conversation — skipping them keeps the export readable.
   if (role === 'system') return undefined;
+
+  if (INTERNAL_CONTENT_TYPES.has(message.content.content_type)) return undefined;
 
   if (role === 'tool') {
     if (!includeTools) return undefined;

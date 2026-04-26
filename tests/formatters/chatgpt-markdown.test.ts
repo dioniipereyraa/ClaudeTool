@@ -183,6 +183,28 @@ describe('formatChatGptConversation', () => {
     expect(markdown).not.toContain('tool_use');
   });
 
+  it('skips internal content_types like model_editable_context (not user-visible)', () => {
+    const conv = makeConversation(
+      'With internal config',
+      {
+        root: node('root', null, ['a1'], null),
+        a1: node('a1', 'root', ['a2'], {
+          id: 'a1',
+          author: { role: 'assistant' },
+          content: { content_type: 'model_editable_context' },
+        }),
+        a2: node('a2', 'a1', [], textMessage('a2', 'assistant', 'Real reply')),
+      },
+      'a2',
+    );
+    const { markdown } = formatChatGptConversation(conv, { redact: false });
+    expect(markdown).not.toContain('model_editable_context');
+    expect(markdown).toContain('Real reply');
+    // Only one Assistant heading — the internal config block was skipped.
+    const assistantCount = markdown.match(/## Assistant/g)?.length ?? 0;
+    expect(assistantCount).toBe(1);
+  });
+
   it('falls back to a [type] marker for genuinely unknown content_type', () => {
     const conv = makeConversation(
       'Unknown content',
