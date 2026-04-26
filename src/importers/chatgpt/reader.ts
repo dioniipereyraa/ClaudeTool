@@ -3,7 +3,7 @@ import { readFile } from 'node:fs/promises';
 import JSZip from 'jszip';
 
 import {
-  parseConversations,
+  parseConversationOrIssues,
   type ChatGptConversation,
 } from './schema.js';
 
@@ -69,6 +69,7 @@ export async function readChatGptExport(zipPath: string): Promise<ChatGptExport>
 
   const conversations: ChatGptConversation[] = [];
   const warnings: string[] = [];
+  let skippedConversations = 0;
   for (const file of dataFiles) {
     let raw: unknown;
     try {
@@ -79,17 +80,32 @@ export async function readChatGptExport(zipPath: string): Promise<ChatGptExport>
       warnings.push(`Failed to parse ${file.name}: ${message}`);
       continue;
     }
-    const parsed = parseConversations(raw);
-    if (parsed === null) {
-      warnings.push(`${file.name} did not match the expected ChatGPT shape; skipped.`);
+    if (!Array.isArray(raw)) {
+      warnings.push(`${file.name} top-level was ${typeof raw}, expected array; skipped.`);
       continue;
     }
-    conversations.push(...parsed);
+    // Parse each conversation independently — one bad shape can't
+    // tank the chunk. Schema is a moving target (OpenAI changes
+    // fields silently), so partial wins beat all-or-nothing.
+    for (const item of raw) {
+      const result = parseConversationOrIssues(item);
+      if (result.ok) {
+        conversations.push(result.value);
+      } else {
+        skippedConversations++;
+      }
+    }
+  }
+
+  if (skippedConversations > 0) {
+    warnings.push(
+      `Skipped ${skippedConversations} conversation(s) that didn't match the expected shape — they may use a newer ChatGPT format. The rest imported OK.`,
+    );
   }
 
   if (conversations.length === 0) {
     throw new Error(
-      `Could not parse any conversations from the export. ${warnings.join(' / ')}`,
+      `Could not parse any conversations from the export.${warnings.length > 0 ? ' ' + warnings.join(' / ') : ''}`,
     );
   }
 

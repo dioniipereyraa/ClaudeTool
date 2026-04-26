@@ -31,27 +31,32 @@ const AuthorSchema = z.object({
   metadata: z.unknown().optional(),
 });
 
+// Every optional field is also `.nullable()` — OpenAI explicitly
+// sends `null` (not omits) for fields that don't apply to a given
+// content_type. Without this, real exports fail validation on
+// `tether_id`, `assets`, `response_format_name` etc. (~30% of
+// messages in observed accounts).
 const MessageContentSchema = z.object({
   content_type: z.string(),
   // Common to text/multimodal_text/code/execution_output
-  parts: z.array(z.unknown()).optional(),
-  text: z.string().optional(),
-  language: z.string().optional(),
+  parts: z.array(z.unknown()).nullable().optional(),
+  text: z.string().nullable().optional(),
+  language: z.string().nullable().optional(),
   // Browsing citations (tether_quote, tether_browsing_display)
-  url: z.string().optional(),
-  title: z.string().optional(),
-  domain: z.string().optional(),
-  tether_id: z.string().optional(),
+  url: z.string().nullable().optional(),
+  title: z.string().nullable().optional(),
+  domain: z.string().nullable().optional(),
+  tether_id: z.string().nullable().optional(),
   // Reasoning surfaces (thoughts, reasoning_recap)
-  thoughts: z.array(z.unknown()).optional(),
-  summary: z.string().optional(),
-  content: z.string().optional(),
+  thoughts: z.array(z.unknown()).nullable().optional(),
+  summary: z.string().nullable().optional(),
+  content: z.string().nullable().optional(),
   // Tool/code interpreter outputs and misc
-  name: z.string().optional(),
+  name: z.string().nullable().optional(),
   result: z.unknown().optional(),
-  assets: z.array(z.unknown()).optional(),
-  response_format_name: z.string().optional(),
-  source_analysis_msg_id: z.string().optional(),
+  assets: z.array(z.unknown()).nullable().optional(),
+  response_format_name: z.string().nullable().optional(),
+  source_analysis_msg_id: z.string().nullable().optional(),
 });
 
 const MessageSchema = z.object({
@@ -92,6 +97,20 @@ const ConversationSchema = z.object({
 
 export const ConversationsFileSchema = z.array(ConversationSchema);
 export const SingleConversationSchema = ConversationSchema;
+
+/**
+ * Per-conversation safe parser. Used by the reader so a single
+ * malformed conversation doesn't tank the entire array (which
+ * `parseConversations` would do — z.array bails on first failure).
+ * Returns the parsed conversation or `null` with the issue list.
+ */
+export function parseConversationOrIssues(
+  raw: unknown,
+): { ok: true; value: ChatGptConversation } | { ok: false; issues: readonly z.core.$ZodIssue[] } {
+  const result = ConversationSchema.safeParse(raw);
+  if (result.success) return { ok: true, value: result.data };
+  return { ok: false, issues: result.error.issues };
+}
 
 export type ChatGptAuthor = z.infer<typeof AuthorSchema>;
 export type ChatGptMessageContent = z.infer<typeof MessageContentSchema>;

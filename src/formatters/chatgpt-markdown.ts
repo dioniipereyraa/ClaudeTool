@@ -122,7 +122,7 @@ function renderBody(
 
     case 'code': {
       const text = content.text ?? '';
-      return fenceCode(maybeRedact(text), content.language);
+      return fenceCode(maybeRedact(text), content.language ?? undefined);
     }
 
     case 'execution_output': {
@@ -234,10 +234,12 @@ function renderTetherCitation(
   content: ChatGptMessage['content'],
   maybeRedact: (s: string) => string,
 ): string {
-  const title = content.title;
-  const url = content.url;
-  const domain = content.domain;
-  const text = content.text;
+  // Fields here are `string | null | undefined` — coerce null to
+  // undefined upfront so the downstream checks read uniformly.
+  const title = content.title ?? undefined;
+  const url = content.url ?? undefined;
+  const domain = content.domain ?? undefined;
+  const text = content.text ?? undefined;
 
   const lines: string[] = [];
   if (title !== undefined && url !== undefined) {

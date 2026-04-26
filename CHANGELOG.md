@@ -6,6 +6,54 @@ Companion (Chrome extension) are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 and versions follow [Semantic Versioning](https://semver.org/).
 
+## [0.9.2] — 2026-04-26
+
+Hot-fix sobre 0.9.1: el import del export grande del usuario validaba en
+0.9.1 (chunked reader funciona) pero después fallaba 30% de las
+conversaciones porque OpenAI manda `null` (no missing) en varios fields
+opcionales — y nuestro Zod rechazaba el null como "expected string,
+received null".
+
+### Fixed
+
+- **Schema `MessageContentSchema`**: todos los `.optional()` ahora son
+  `.nullable().optional()`. OpenAI manda `null` (no omitted) para
+  fields que no aplican al `content_type` actual. Sin esto, ~30% de los
+  mensajes de cuentas reales fallaban validación por
+  `tether_id: null`, `assets: null` o `response_format_name: null`.
+- **Reader: parsing per-conversation**. Antes usábamos
+  `parseConversations(raw)` que delegaba a `z.array(...).safeParse`,
+  el cual aborta el array completo si una sola conversación falla. Ahora
+  cada conversación se parsea individualmente — las malas se skipean
+  con warning, las buenas se importan. Robustez sobre strictness.
+- **Formatter `renderTetherCitation`**: coerce explícito de
+  `string | null | undefined` a `string | undefined` con `?? undefined`.
+  Antes los checks `!== undefined` trataban `null` como "valor presente",
+  rompiendo la lógica de fallback.
+- **Formatter `case 'code'`**: pasa `content.language ?? undefined` a
+  `fenceCode` (que espera `string | undefined`, no nullable).
+
+### Added
+
+- **`scripts/chatgpt-validate.mjs`**: utility local de diagnóstico que
+  corre el schema de Zod contra cada conversación del export y reporta
+  cuántas fallan + agrupado por path + error code, sin leak de
+  contenido. Útil para futuros bugs de schema sin pedirle al user
+  compartir el zip.
+- **2 tests nuevos** (219 totales): uno cubre `null` en
+  `tether_id`/`assets`/`response_format_name`/`url`/`title`, otro
+  cubre el skip de una conversación mal formada en el medio del array
+  (las otras se importan).
+
+### Notes
+
+- 0.9.1 sigue importando cuentas chicas/medianas correctamente — la
+  regression solo afecta cuentas con uso intenso de browsing/code
+  interpreter (donde aparecen los `tether_id: null` y similares).
+- Cuando aparezca el próximo bug del schema, correr
+  `scripts/chatgpt-validate.mjs <zip>` da el output exacto sin pedir
+  al user que comparta el archivo.
+
 ## [0.9.1] — 2026-04-26
 
 Validación contra un export real de cuenta grande (145 conversaciones, 2339 mensajes, 161 multimodal con imágenes) reveló dos cosas que 0.9.0 no manejaba: el formato chunked del export, y varios `content_type` que solo aparecen en cuentas con uso real. Esta versión cubre ambos.

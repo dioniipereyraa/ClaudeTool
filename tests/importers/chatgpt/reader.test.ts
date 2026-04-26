@@ -120,4 +120,56 @@ describe('readChatGptExport', () => {
     });
     await expect(readChatGptExport(zipPath)).rejects.toThrow(/Could not parse/);
   });
+
+  it('accepts conversations whose message.content has nullable fields', async () => {
+    // Real OpenAI exports send `null` (not absent) for content fields
+    // that don't apply to the current `content_type`. We saw this on
+    // `tether_id`, `assets`, `response_format_name` in 30% of messages
+    // of one real account. The schema must treat null and undefined
+    // as semantically equivalent.
+    const convWithNulls = {
+      conversation_id: 'c-nullable',
+      title: 'Has nullable fields',
+      create_time: 1_700_000_000,
+      current_node: 'a1',
+      mapping: {
+        a1: {
+          id: 'a1',
+          parent: null,
+          children: [],
+          message: {
+            id: 'a1',
+            author: { role: 'assistant' },
+            content: {
+              content_type: 'text',
+              parts: ['hello'],
+              tether_id: null,
+              assets: null,
+              response_format_name: null,
+              url: null,
+              title: null,
+            },
+          },
+        },
+      },
+    };
+    const zipPath = await writeZip('nullable.zip', {
+      'conversations.json': JSON.stringify([convWithNulls]),
+    });
+    const out = await readChatGptExport(zipPath);
+    expect(out.conversations).toHaveLength(1);
+    expect(out.conversations[0]?.title).toBe('Has nullable fields');
+  });
+
+  it('skips one bad conversation but keeps the rest in the same chunk', async () => {
+    const goodConv = { ...sampleConversation, conversation_id: 'good', title: 'Good' };
+    const badConv = { ...sampleConversation, current_node: 12345 }; // wrong type
+    const zipPath = await writeZip('partial-conv.zip', {
+      'conversations.json': JSON.stringify([goodConv, badConv]),
+    });
+    const out = await readChatGptExport(zipPath);
+    expect(out.conversations).toHaveLength(1);
+    expect(out.conversations[0]?.title).toBe('Good');
+    expect(out.warnings.some((w) => w.includes('Skipped 1'))).toBe(true);
+  });
 });

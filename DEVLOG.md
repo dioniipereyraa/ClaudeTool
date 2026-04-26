@@ -2632,3 +2632,109 @@ Refactor menor: extraje `maybeRedact` como closure local en
 - **Refactor del shape report script** a un comando del CLI o
   webview command. Hoy queda como `scripts/` para casos como este
   (debug rápido contra exports reales).
+
+---
+
+## 2026-04-26 — v0.9.2 · Hot-fix: nullable fields + per-conversation parsing
+
+### Qué hicimos
+
+0.9.1 shippeó con el chunked reader funcionando (parseaba los dos
+`conversations-NNN.json`) pero al rato del release el user reportó
+*"could not read the ZIP. Could not parse any conversations from the
+export. conversations-000.json did not match the expected ChatGPT
+shape; skipped."*
+
+Diagnostiqué con un script nuevo (`scripts/chatgpt-validate.mjs`) que
+corre el schema contra cada conversación y reporta los errores sin
+filtrar contenido. Output: **102/145 OK, 43/145 fallan** — todas por
+la misma razón: tres fields que declaramos como `.optional()` pero
+OpenAI manda como `null`. Zod hace diferencia entre missing
+(satisfies optional) y null (rejects unless `.nullable()`).
+
+Los fields culpables:
+- `content.tether_id: null`
+- `content.assets: null`
+- `content.response_format_name: null`
+
+Y por defensividad asumí que cualquier optional puede venir null en
+futuro (es claramente el patrón de OpenAI: "no aplica" lo expresan
+con explicit null).
+
+### Implementación
+
+**Schema**: cambié todos los `.optional()` en `MessageContentSchema`
+a `.nullable().optional()`. Doce fields. Cero breaking changes
+downstream porque los lectores ya usaban `??` (que coalesce null y
+undefined igual).
+
+**Reader**: cambié de `parseConversations(raw)` (que delega a
+`z.array(...).safeParse` y aborta TODO si una conversación falla) a
+parsear cada conversación individualmente con `parseConversationOrIssues`
+(nuevo helper en schema.ts). Las que fallan se skipean con warning,
+las buenas se importan. Robustez sobre strictness.
+
+**Formatter**: dos lugares necesitaron coerce explícito porque ahora
+los fields son `string | null | undefined` en vez de `string | undefined`:
+- `renderTetherCitation`: los checks `!== undefined` trataban `null`
+  como "definido", rompiendo la lógica. Convertí los reads a
+  `??  undefined` upfront — el resto del código sigue chequeando
+  contra undefined uniformemente.
+- `case 'code'`: `fenceCode` espera `string | undefined` para el
+  language tag. Pasamos `content.language ?? undefined` para coercer
+  null.
+
+**Diagnóstico**: nuevo `scripts/chatgpt-validate.mjs`. Carga el zip,
+corre el schema contra cada conversación, reporta cuántas pasan y
+agrupa los errores por path. La primera conversación que falla muestra
+los keys que tiene + cada error con el tipo del valor problemático
+(no el valor en sí). Diseñado para que futuros bugs del schema se
+diagnostiquen sin pedir al user que comparta el zip.
+
+**Tests**: dos nuevos en `tests/importers/chatgpt/reader.test.ts`:
+- "accepts conversations whose message.content has nullable fields":
+  fixture con `tether_id: null`, `assets: null`, etc. Antes del fix
+  fallaba; ahora pasa.
+- "skips one bad conversation but keeps the rest in the same chunk":
+  array de [good, bad] — antes el array entero se descartaba; ahora
+  el good se importa con warning sobre el bad.
+
+### Decisiones clave y por qué
+
+- **Loosen ALL optionals a nullable, no solo los tres confirmados**:
+  el patrón de OpenAI es claro ("no aplica" = explicit null), y
+  agregar `.nullable()` es zero-cost en runtime y mejora la
+  resilencia futura. Cualquier field optional nuevo que aparezca
+  con null no nos va a romper.
+- **Per-conversation parsing en lugar de array-level**: cuando el
+  array es grande (cientos de conversations), una sola con shape
+  ligeramente distinta tiraba todas. Ahora la unidad de fallo es la
+  conversación individual — losses pequeñas en vez de losses
+  totales. Para shapes evolving este patrón es necesario.
+- **Coerce `?? undefined` upfront** en vez de cambiar todos los
+  checks a `!= null` (loose equality): mantiene los downstream
+  uniformes con strict equality, sin sembrar `!= null` por todo el
+  código que confunde a future-readers.
+- **Script de diagnóstico como sidecar, no integrado al CLI**:
+  para que sea trivial de actualizar cuando aparece el próximo
+  bug. Si lo hago un comando del CLI, requiere bumpear el extension,
+  recompilar, redistribuir. Como `.mjs` standalone se modifica y
+  se corre en seconds.
+
+### Verificación
+- `npm run ci` → verde. 24 test files, 219 tests passan
+  (217 → 219, +2 nuevos).
+- `npm run package:vsix` → ~234 KB con todo incluido.
+- **Smoke test del user pendiente**: reinstalar 0.9.2, importar el
+  zip grande otra vez. Ahora deberían entrar 145/145 conversaciones
+  (las 102 que ya pasaban + las 43 que fallaban por null fields).
+
+### Lo que NO entra en v0.9.2
+- **Shape inspector más profundo** que reporte fields no observados
+  en el schema actual (sería útil para el próximo "OpenAI agregó X
+  field"). Pendiente — el script actual solo reporta failures, no
+  silently-stripped fields.
+- **Refactor del schema a un esquema canónico para multi-IA** (Hito
+  20 del ROADMAP): seguimos con dos importers paralelos por ahora,
+  sin abstracción común. Vale revisar cuando entre el tercer
+  proveedor (Gemini).
