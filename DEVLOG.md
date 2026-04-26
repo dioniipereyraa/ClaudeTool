@@ -3451,3 +3451,110 @@ fallback al mismo `bridge_offline` que antes — sin regression.
   origin (claude.ai / chatgpt.com), así que después del primer OK
   no debería volver a aparecer.
 
+---
+
+## 2026-04-26 — Iteración del auto-wake hasta que funciona instantáneo (silent patches sobre v0.11.2)
+
+### Qué hicimos
+La primera versión del auto-wake (entry anterior, commit `fd2cf6c`)
+no funcionaba: el `chrome.tabs.create({ url: 'vscode://' })` desde
+el service worker no abría VS Code, y el polling moría en el primer
+sleep por eviction del SW. Lo que siguió fueron 8 commits
+incrementales hasta llegar a un flow que el user verificó como
+"INSTANTANEO" end-to-end.
+
+Toda la iteración se hizo como **silent patches sobre v0.11.2**
+— sin bumpear versión, sin entries en CHANGELOG, sin release.
+Cuando se publique el próximo bump (0.11.3 o 0.12.0), todo este
+trabajo viaja consolidado en un solo bullet de release notes.
+
+### Commits del silent patch (cronológico)
+1. `fd2cf6c` — Primera versión: wake desde el SW con
+   `chrome.tabs.create`. **No funcionó** (sin user gesture context
+   + SW eviction durante polling).
+2. `bddadc5` — Cambia URL de bare `vscode://` a
+   `vscode://dioniipereyraa.exportal/wake` + logging diagnóstico.
+   Sigue sin funcionar pero los logs dejaron rastro.
+3. `16edc47` — **Refactor mayor**: wake + polling se mueven al
+   content-script. Iframe oculto preserva user gesture; polling
+   en page context no se evicta. Wake **abre VS Code** por
+   primera vez, pero el feature todavía es lento.
+4. `7718af6` — Detección rápida de offline (quick `isBridgeReachable`
+   antes del POST grande) + wake budget 20s → 60s.
+5. `cd002df` — Single-payload export flow: ping pre-check + wake +
+   un único POST en vez del antiguo "POST fail → wake → POST otra
+   vez". Polling 800ms → 400ms.
+6. `cc86bfc` — **Defeat tab throttling**: el polling se mueve de
+   nuevo al SW pero esta vez vía Port persistente (`chrome.runtime.connect`
+   → `pollBridgeReady`). El Port keep-alive previene eviction;
+   y el SW no se throttla por tab visibility (cuando el user
+   cambiaba de pestaña, el polling se congelaba en page context).
+7. `071912f` — `onUri` activation event en la VS Code extension
+   + UriHandler no-op + paralelizar fetch chat con
+   `ensureBridgeReady` + polling 100ms → 50ms.
+8. `6568ef0` — **El que finalmente lo arregló**: los logs del
+   user mostraron `pingBridge: 20165ms` — totalmente fuera de lo
+   esperado. Causa: `isBridgeReachable` iteraba 10 ports en
+   serie, y en máquinas con firewall estricto (Windows con AV)
+   los fetches a ports cerrados esperan TCP timeout (~2s c/u)
+   en vez de ECONNREFUSED instantáneo. 10 × 2s = 20s. Fix:
+   `Promise.allSettled` para correr los 10 probes en paralelo
+   + `AbortController` con 500ms timeout por probe. Worst case
+   ahora: ~500ms total.
+
+### Decisiones técnicas (consolidadas)
+- **Iframe wake desde el content-script, no SW**: dos razones
+  ortogonales — (a) custom-scheme dispatch necesita user gesture
+  recent, que vive en la página y se pierde al pasar por
+  `chrome.runtime.sendMessage`; (b) el iframe permite no abrir una
+  pestaña visible (vs `chrome.tabs.create` que crea una tab que
+  hay que cerrar después).
+- **Polling en SW vía Port persistente**: el Port keep-alive
+  previene MV3 SW eviction durante long polling, Y el SW no está
+  sujeto al throttling de background tabs que afecta al
+  `setTimeout` del page context. Mejor de los dos mundos: SW
+  estable + cadencia rápida (50ms).
+- **`onUri` activation event**: la extensión Exportal se activa
+  específicamente cuando llega `vscode://dioniipereyraa.exportal/wake`,
+  ahead of `onStartupFinished`. UriHandler es no-op — el activate
+  itself es el punto. Probable ahorro: 5-15s en setups con muchas
+  extensions.
+- **Parallel + timeboxed probes**: el bug del 20s revela que
+  asumir "ECONNREFUSED es instantáneo en localhost" no aplica con
+  firewalls estrictos. Paralelizar + timeout por probe es
+  defensive enough para no asumir nada del entorno del user.
+- **No GUI feedback durante el cold start**: el FAB cambia el label
+  a "Abriendo VS Code…" durante el wait. Sin progress bar ni
+  spinner extra — es suficiente para que el user sepa que estamos
+  esperando, no colgados.
+
+### Verificación final
+Logs del user en la última iteración (post-`6568ef0`):
+- `pingBridge: ~500ms ok: false` (vs 20165ms antes — fix del firewall).
+- `Launched external handler for 'vscode://dioniipereyraa.exportal/wake'`.
+- `waitForBridge: ~5s ready: true` (cold start real de VS Code, sin
+  bug del firewall añadiendo 20s).
+- `sendInline: ~700ms response: { ok: true }`.
+- SW: `bridge ready after 2 attempts` (polling encuentra el bridge
+  casi al instante una vez VS Code arranca).
+- Total end-to-end: ~6-8s (vs 40s+ con el bug).
+- Quote del user: "Hermoso! Ahora si funciona INSTANTANEO."
+
+### Release / distribución
+- **Sin bump**: silent patch acumulado en `main`. Cuando salga el
+  próximo release oficial (probably 0.11.3 o 0.12.0), todos estos
+  cambios viajan consolidados.
+- **Vsix nuevo**: rebuilt como `exportal-0.11.2.vsix` (mismo
+  número, contenido distinto) para que el user pueda testearlo
+  con `code --install-extension exportal-0.11.2.vsix --force`.
+- **No se publican releases**: el feature está en main pero no
+  taggeado ni anunciado.
+
+### Próximo paso
+- Cuando se haga el próximo release oficial, agregar al CHANGELOG
+  un bullet consolidado: *"Auto-wake VS Code: el FAB ahora abre
+  VS Code automáticamente si está cerrado, conversación se importa
+  sin intervención manual"*.
+- README + README.vsix actualizados en este commit con el feature
+  visible al user.
+

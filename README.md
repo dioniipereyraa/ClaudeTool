@@ -17,6 +17,8 @@ Con las dos extensiones instaladas y emparejadas:
 2. Click en el botón flotante de Exportal (esquina inferior derecha) → **Exportar este chat**.
 3. VS Code guarda la conversación en `<workspace>/.exportal/<timestamp>-<slug>.md`, abre el archivo, **y automáticamente abre el panel de Claude Code con el Markdown adjunto como `@-mention`**. Solo escribís tu prompt y listo.
 
+> **¿VS Code cerrado?** No problem — el FAB lo detecta y lo abre solo via `vscode://`. La conversación se importa en cuanto el bridge arranca, sin que tengas que tocar nada. La primera vez tu navegador puede pedirte confirmar *"¿Abrir esto con Visual Studio Code?"* — clickeá *"Recordar"* y desaparece para siempre.
+
 En proyectos de **Claude Design**, además del chat se descargan los archivos generados (HTML, JSX, JSON, etc.) a `<workspace>/.exportal/<timestamp>-<slug>/` (carpeta hermana del `.md`). El `.md` arranca con un encabezado *"Generated assets"* listando los archivos para que Claude Code los vea.
 
 O con atajo de teclado (sin abrir el panel):
