@@ -503,8 +503,13 @@ async function handlePrimaryClick(btn) {
   const t0 = performance.now();
   try {
     const { conversation, assets, provider } = await fetchByRoute(route);
+    // Wake VS Code BEFORE the (potentially many-MB) payload upload —
+    // sending the body twice (once to detect offline, then again on
+    // retry) was a measurable waste in the previous version. Quick
+    // ping check first; only block on the cold-start path if offline.
+    await ensureBridgeReady(labelEl);
     if (labelEl !== null) labelEl.textContent = chrome.i18n.getMessage('feedbackSending');
-    await sendInline(conversation, assets, provider, labelEl);
+    await sendInline(conversation, assets, provider);
     const ms = Math.round(performance.now() - t0);
     const messages = countMessages(conversation);
     if (labelEl !== null) labelEl.textContent = originalLabel;
@@ -552,6 +557,7 @@ async function runPrimaryFromShortcut() {
   const t0 = performance.now();
   try {
     const { conversation, assets, provider } = await fetchByRoute(route);
+    await ensureBridgeReady(undefined);
     await sendInline(conversation, assets, provider);
     const ms = Math.round(performance.now() - t0);
     const messages = countMessages(conversation);
@@ -591,45 +597,49 @@ async function runSecondaryAction(id) {
   if (response?.ok !== true) throw new Error(response?.error ?? 'unknown');
 }
 
-async function sendInline(conversation, assets, provider, labelEl) {
+async function sendInline(conversation, assets, provider) {
   const message = { type: 'exportal:sendInline', conversation, provider };
   if (Array.isArray(assets) && assets.length > 0) message.assets = assets;
   const t0 = performance.now();
   const response = await chrome.runtime.sendMessage(message);
-  console.info('[Exportal] first sendInline:', Math.round(performance.now() - t0), 'ms, response:', response);
+  console.info('[Exportal] sendInline:', Math.round(performance.now() - t0), 'ms, response:', response);
   if (response?.ok === true) return;
-  // Cold-start recovery: when the bridge isn't listening on any of
-  // our ports, try waking VS Code via the `vscode://` URI handler
-  // and retry once it answers. Doing this from the content script
-  // (rather than the background SW) is intentional:
-  //   1. The page context preserves the user gesture from the FAB
-  //      click, which makes Chrome reliably hand `vscode://` off to
-  //      the OS protocol handler. Bare `vscode://...` from a
-  //      service worker often fails to dispatch.
-  //   2. MV3 service workers get evicted during any `await sleep`,
-  //      which kills a long polling loop after one iteration. The
-  //      content script doesn't have that problem.
-  if (response?.error === 'bridge_offline') {
-    if (labelEl !== undefined && labelEl !== null) {
-      labelEl.textContent = chrome.i18n.getMessage('feedbackOpeningVsCode');
-    }
-    triggerVsCodeWake();
-    const tWake = performance.now();
-    // 60s budget: VS Code cold start is typically 5-15s but extension
-    // activation (esp. with many extensions) can push it past 30s
-    // on some setups. 60s gives a comfortable margin without holding
-    // the FAB hostage indefinitely.
-    const ready = await waitForBridge(60000);
-    console.info('[Exportal] waitForBridge:', Math.round(performance.now() - tWake), 'ms, ready:', ready);
-    if (ready) {
-      const tRetry = performance.now();
-      const retry = await chrome.runtime.sendMessage(message);
-      console.info('[Exportal] retry sendInline:', Math.round(performance.now() - tRetry), 'ms, response:', retry);
-      if (retry?.ok === true) return;
-      throw new Error(retry?.error ?? 'unknown');
-    }
-  }
   throw new Error(response?.error ?? 'unknown');
+}
+
+// Quick reachability check + cold-start recovery, run BEFORE the
+// (potentially many-MB) sendInline POST. Two reasons to do it here
+// instead of inside sendInline:
+//   1. Sends the payload only once — no "POST fails → wake → POST
+//      again" double-upload that the previous version had.
+//   2. Wake (iframe + vscode://) needs to run from the page context
+//      with a recent user gesture for the OS protocol dispatcher to
+//      pick it up reliably. Background SWs lose that gesture and
+//      also get evicted during any sleep loop.
+async function ensureBridgeReady(labelEl) {
+  if (await pingBridge()) return;
+  if (labelEl !== undefined && labelEl !== null) {
+    labelEl.textContent = chrome.i18n.getMessage('feedbackOpeningVsCode');
+  }
+  triggerVsCodeWake();
+  const tWake = performance.now();
+  // 60s budget: VS Code cold start is typically 5-15s but extension
+  // activation (esp. with many extensions) can push it past 30s on
+  // some setups. 60s leaves margin without holding the FAB forever.
+  const ready = await waitForBridge(60000);
+  console.info('[Exportal] waitForBridge:', Math.round(performance.now() - tWake), 'ms, ready:', ready);
+  if (!ready) throw new Error('bridge_offline');
+}
+
+async function pingBridge() {
+  const t0 = performance.now();
+  try {
+    const res = await chrome.runtime.sendMessage({ type: 'exportal:pingBridge' });
+    console.info('[Exportal] pingBridge:', Math.round(performance.now() - t0), 'ms, ok:', res?.ok);
+    return res?.ok === true;
+  } catch {
+    return false;
+  }
 }
 
 // Inject a hidden iframe pointed at `vscode://...`. Browsers treat
@@ -655,11 +665,12 @@ function triggerVsCodeWake() {
 }
 
 // Polls the background for bridge reachability. Cadence: probe
-// immediately, then every 800ms. Cap at maxMs (~20s by default —
-// covers VS Code cold-start on slow machines without leaving the
-// FAB frozen forever).
+// immediately, then every 400ms. Cap at maxMs (~60s) — covers
+// VS Code cold-start on slow machines without leaving the FAB
+// frozen forever. 400ms is responsive enough that the user sees
+// the success pulse within ~half a second of VS Code being ready.
 async function waitForBridge(maxMs) {
-  const POLL_INTERVAL_MS = 800;
+  const POLL_INTERVAL_MS = 400;
   const deadline = Date.now() + maxMs;
   while (Date.now() < deadline) {
     try {
