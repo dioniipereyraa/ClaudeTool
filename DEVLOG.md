@@ -2871,3 +2871,108 @@ ROADMAP completo, end-to-end, en una pasada.
 - **Indicador visual del provider en el popover**: hoy el FAB se ve
   igual en los dos sites. Sumar un chip "ChatGPT" o "claude.ai"
   ayudaría discoverability cuando el user tiene los dos abiertos.
+
+---
+
+## 2026-04-26 — v0.10.1 · Hot-fix Hito 30 + smoke test end-to-end OK
+
+### Qué hicimos
+
+Smoke test de v0.10.0 reveló un bug: el FAB renderizaba bien en
+chatgpt.com, el click se registraba (con animación de hover-clicked),
+pero **nada visible sucedía después**. Cero entradas en console, cero
+requests en Network. Click silenciosamente perdido.
+
+### Diagnóstico
+
+Agregué un `console.warn` en el silent-return path de `handlePrimaryClick`
+(`Exportal: ... ignoring click`). Reinstalación del companion + retry
+mostró el log:
+
+> `Exportal: handlePrimaryClick — panel has no route, ignoring click.`
+
+Pero el eval `document.getElementById('exportal-panel')?.dataset.routeKind`
+devolvía `'chatgpt'` correctamente. Contradicción aparente.
+
+**Root cause**: `panelRoute()` en `chrome/content-script.js` tenía
+una whitelist hardcoded `kind !== 'chat' && kind !== 'design'` que
+**no incluía la kind nueva `'chatgpt'`**. Cuando agregué chatgpt al
+`routeFromPath` de `pure.js`, me olvidé de actualizar la whitelist
+del consumidor. El dataset estaba bien, mi check lo rechazaba.
+
+### Fix
+
+- `panelRoute()` ahora lee la whitelist desde un nuevo
+  `ExportalPure.KNOWN_ROUTE_KINDS` (constante en `pure.js`). Single
+  source of truth — agregar un proveedor nuevo es modificar una
+  línea en pure.js y todos los consumidores se actualizan.
+- 2 tests de regresión nuevos en `tests/chrome/pure.test.ts` que
+  verifican que toda kind emitida por `routeFromPath` esté
+  también en `KNOWN_ROUTE_KINDS`. Catch-all para el próximo
+  "agregué un provider y me olvidé de la whitelist".
+- `console.warn` diagnóstico mantenido en el silent-return path
+  (no había antes, ahora cualquier silent fail es de un DevTools
+  away).
+
+### Validación end-to-end
+
+Después del fix, el user importó una conversación real de ChatGPT
+(meta: una conversación que trataba sobre el delay del export por
+mail, que justo era el bug que vimos en sesiones anteriores). Flow
+completo:
+
+1. FAB renderiza en `chatgpt.com/c/<uuid>` ✓
+2. Click → button "Exportar este chat" ✓
+3. `fetchChatGptAccessToken()` (NextAuth `/api/auth/session`)
+   devuelve un JWT con la key `accessToken` ✓ (mi assumption fue
+   correcta, no necesitamos el fallback al webRequest interceptor)
+4. `fetchChatGptConversation(id)` con Bearer header funciona, devuelve
+   la conversation completa ✓
+5. `sendInline()` postea al bridge, **el primer try falló con
+   `no_token`** porque el Companion había perdido el pairing (al
+   reload como unpacked, Chrome resetea `chrome.storage`).
+6. User re-emparejó (palette → "Mostrar token" → copy → paste en
+   options) → reintentó → toast verde + `.md` abierto en VS Code ✓
+
+### Observación menor (no bloqueante, va a backlog)
+
+El `.md` resultante tiene bloques `## Assistant` huecos seguidos de
+markers `[model_editable_context]`. Eso es contenido interno de
+ChatGPT (configuración del modelo) que se filtra como contenido
+visible. El fallback de content_type desconocido lo trata como
+"render con tag y JSON dump", pero estos no aportan nada al lector.
+**Item nuevo en ROADMAP backlog**: skip messages cuyo content_type
+está en una lista conocida de "internal" (`model_editable_context`,
+similares).
+
+### Decisiones clave y por qué
+
+- **Whitelist data-driven en pure.js**: en lugar de fixear el
+  hardcoded check con `|| kind === 'chatgpt'`, refactoreé al
+  pattern de single-source. Costo igual, beneficio futuro. Cuando
+  agreguemos Gemini/Copilot, agregar a `KNOWN_ROUTE_KINDS` y
+  funciona — el check del consumidor no necesita touchearse.
+- **Test de invariante en lugar de test del case específico**:
+  testear "chatgpt está en la whitelist" sería test del fix del
+  ticket. Test de invariante "toda kind emitida por routeFromPath
+  está en la whitelist" cubre TODAS las futuras adiciones, no
+  solo este caso.
+- **Diagnostic logs en silent paths permanentes**: no son polish
+  de debug, son producto. Cualquier silent failure en el panel
+  ahora deja huella en la console del user. Costo trivial,
+  catastrophic prevention.
+
+### Verificación
+- `npm run ci` → verde. 24 test files, 234 tests passan
+  (232 → 234, +2 nuevos invariantes).
+- Smoke test del user end-to-end OK contra una conversación real.
+- Log diagnóstico activo — si reaparece un silent failure, se
+  diagnostica en seconds.
+
+### Lo que NO entra en v0.10.1
+- **Skip de `model_editable_context` y similares**: queda como item
+  en backlog (filtra esos noise blocks del .md).
+- **Auto-recovery del pairing token cuando se pierde**: hoy si el
+  storage se borra (caso del user con companion reinstalado), el
+  FAB falla silenciosamente con `no_token`. Detectarlo y guiar al
+  user al re-pairing flow sería UX polish.

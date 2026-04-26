@@ -48,6 +48,43 @@ abajo. Cambios al orden se discuten explícitamente.
 
 Tier más abajo — útiles pero no en la cola activa.
 
+### Skip de content_types internos en imports de ChatGPT
+
+Observado en exports reales (v0.10.1 smoke test): algunos mensajes
+con `author.role: 'assistant'` y `recipient: 'all'` traen
+`content.content_type: 'model_editable_context'` (configuración del
+sistema sobre el modelo, no contenido visible al user). Hoy nuestro
+fallback los renderiza como `## Assistant\n\n[model_editable_context]\n\n...`
+— bloques huecos que ensucian el `.md` sin agregar info.
+
+**Scope**: lista de content_types "internos" que el formatter saltea
+silenciosamente (mismo patrón que skipea `system` role hoy).
+Candidatos confirmados:
+- `model_editable_context`
+- Otros que vayan apareciendo en exports reales
+
+**Por qué no es urgente**: noise visual, no rompe el import. Al
+user le sobran 2-3 bloques huecos en un `.md` largo, no es
+bloqueante.
+
+### Auto-recovery del pairing token cuando el Companion lo pierde
+
+Si el user reinstala el Chrome companion (loadear como unpacked,
+borrar+reagregar, etc.), `chrome.storage` se resetea y el pairing
+token desaparece. Hoy el FAB en cualquier site falla con
+`no_token` sin guiar al user a la solución.
+
+**Scope**:
+- Detectar el caso `no_token` desde el background script (ya
+  retornamos el código).
+- En lugar de solo flashear el error en el botón, abrir
+  programáticamente la options page del companion (donde el campo
+  de paste del token vive).
+- O mejor: detectar al activar el companion fresh que no hay
+  token Y disparar el flow de pairing automático que ya tenemos
+  (`exportal:openOptionsPage` mensaje + el toast de VS Code que
+  abre el panel de pairing).
+
 ### Imágenes inline del export de ChatGPT (Tier 3 del Hito 21)
 
 Hoy las imágenes uploadeadas en chats de ChatGPT (`image_asset_pointer`
