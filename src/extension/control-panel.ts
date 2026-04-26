@@ -1,4 +1,15 @@
+import { watch, type FSWatcher } from 'node:fs';
+import { homedir } from 'node:os';
+import { join } from 'node:path';
+
 import * as vscode from 'vscode';
+
+import {
+  findRecentExportsByProvider,
+  formatRelativeTime,
+  type ExportCandidate,
+  type ExportProvider,
+} from './zip-finder.js';
 
 /**
  * Side-panel control surface for Exportal (`view: exportal.controlPanel`).
@@ -60,11 +71,26 @@ const PROVIDERS: readonly Provider[] = [
   },
 ];
 
+/**
+ * Callbacks the extension wires when constructing the panel.
+ * Lets the panel kick off imports for dropped ZIPs without
+ * importing extension.ts (would create a cycle).
+ */
+export interface PanelImportHandlers {
+  readonly importClaudeZip: (filePath: string) => Promise<void>;
+  readonly importChatGptZip: (filePath: string) => Promise<void>;
+}
+
 export class ExportalControlPanelProvider implements vscode.WebviewViewProvider {
   private readonly listeners: vscode.Disposable[] = [];
   private webviewView: vscode.WebviewView | undefined;
+  private downloadWatchers: FSWatcher[] = [];
+  private debounceTimer: NodeJS.Timeout | undefined;
 
-  constructor(private readonly context: vscode.ExtensionContext) {
+  constructor(
+    private readonly context: vscode.ExtensionContext,
+    private readonly handlers: PanelImportHandlers,
+  ) {
     this.listeners.push(
       vscode.workspace.onDidChangeConfiguration((e) => {
         if (e.affectsConfiguration('exportal') && this.webviewView !== undefined) {
@@ -75,6 +101,7 @@ export class ExportalControlPanelProvider implements vscode.WebviewViewProvider 
     context.subscriptions.push({
       dispose: () => {
         for (const l of this.listeners) l.dispose();
+        this.stopDownloadWatching();
       },
     });
   }
@@ -90,6 +117,18 @@ export class ExportalControlPanelProvider implements vscode.WebviewViewProvider 
       localResourceRoots: [this.context.extensionUri],
     };
     webviewView.webview.html = this.renderHtml(webviewView.webview);
+    void this.refreshDetectedZips();
+    this.startDownloadWatching();
+    this.listeners.push(
+      webviewView.onDidChangeVisibility(() => {
+        if (webviewView.visible) {
+          this.startDownloadWatching();
+          void this.refreshDetectedZips();
+        } else {
+          this.stopDownloadWatching();
+        }
+      }),
+    );
 
     webviewView.webview.onDidReceiveMessage(async (msg: unknown) => {
       if (msg === null || typeof msg !== 'object') return;
@@ -98,6 +137,8 @@ export class ExportalControlPanelProvider implements vscode.WebviewViewProvider 
         key?: unknown;
         value?: unknown;
         command?: unknown;
+        provider?: unknown;
+        filePath?: unknown;
       };
       if (m.type === 'toggleSetting'
           && typeof m.key === 'string'
@@ -117,8 +158,6 @@ export class ExportalControlPanelProvider implements vscode.WebviewViewProvider 
         }
       } else if (m.type === 'rotateToken') {
         await this.context.globalState.update('exportal.pairingToken', undefined);
-        // Re-render so the new token gets surfaced. The bridge keeps the old
-        // token live until next reload; rotating in-flight is a future feature.
         this.refresh();
         void vscode.window.showInformationMessage(
           vscode.l10n.t(
@@ -127,10 +166,126 @@ export class ExportalControlPanelProvider implements vscode.WebviewViewProvider 
         );
       } else if (m.type === 'openLogs') {
         await vscode.commands.executeCommand('workbench.action.output.toggleOutput');
+      } else if (m.type === 'importDetectedZip'
+          && typeof m.provider === 'string'
+          && typeof m.filePath === 'string') {
+        await this.runDetectedImport(m.provider, m.filePath);
       }
     });
 
-    webviewView.onDidDispose(() => { this.webviewView = undefined; });
+    webviewView.onDidDispose(() => {
+      this.webviewView = undefined;
+      this.stopDownloadWatching();
+    });
+  }
+
+  /**
+   * Start fs.watch on Downloads/Desktop so the panel reflects new ZIPs
+   * the moment they finish downloading. Only runs while the panel is
+   * visible — otherwise we'd burn syscalls watching nothing useful.
+   *
+   * The 1.5s debounce handles two realities: (1) Chrome writes to
+   * `Filename.crdownload` then renames to `.zip` on completion, so
+   * we want to react to the rename, not in-flight writes; (2) fs.watch
+   * on Windows fires multiple events per single write via
+   * ReadDirectoryChangesW. The debounce coalesces both.
+   */
+  private startDownloadWatching(): void {
+    if (this.downloadWatchers.length > 0) return; // already watching
+    const folders = [
+      join(homedir(), 'Downloads'),
+      join(homedir(), 'Desktop'),
+    ];
+    for (const folder of folders) {
+      try {
+        const watcher = watch(folder, (_eventType, filename) => {
+          if (!filename?.toLowerCase().endsWith('.zip')) return;
+          this.scheduleRefresh();
+        });
+        watcher.on('error', () => { /* ignore — folder may be unmounted */ });
+        this.downloadWatchers.push(watcher);
+      } catch {
+        // Folder doesn't exist or no permission — silently skip.
+      }
+    }
+  }
+
+  private stopDownloadWatching(): void {
+    for (const w of this.downloadWatchers) {
+      try { w.close(); } catch { /* already closed */ }
+    }
+    this.downloadWatchers = [];
+    if (this.debounceTimer !== undefined) {
+      clearTimeout(this.debounceTimer);
+      this.debounceTimer = undefined;
+    }
+  }
+
+  private scheduleRefresh(): void {
+    if (this.debounceTimer !== undefined) clearTimeout(this.debounceTimer);
+    this.debounceTimer = setTimeout(() => {
+      this.debounceTimer = undefined;
+      void this.refreshDetectedZips();
+    }, 1500);
+  }
+
+  /**
+   * Dispatches a detected ZIP (auto-found in Downloads/Desktop) to
+   * the right importer and posts row state updates back to the
+   * webview so the row visualises the working/done/error transitions.
+   * Skips the file picker — the path is already known.
+   */
+  private async runDetectedImport(provider: string, filePath: string): Promise<void> {
+    const handler =
+      provider === 'claude' ? this.handlers.importClaudeZip
+      : provider === 'chatgpt' ? this.handlers.importChatGptZip
+      : undefined;
+    if (handler === undefined) return;
+    this.postRowState(provider, 'working');
+    try {
+      await handler(filePath);
+      this.postRowState(provider, 'done');
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      this.postRowState(provider, 'error', message);
+    }
+  }
+
+  private postRowState(provider: string, state: 'idle' | 'working' | 'done' | 'error', message?: string): void {
+    if (this.webviewView === undefined) return;
+    void this.webviewView.webview.postMessage({ type: 'rowState', provider, state, message });
+  }
+
+  /**
+   * Scan Downloads/Desktop for fresh export ZIPs (per provider) and
+   * push the result into the webview. Cheap to call repeatedly: skips
+   * ZIPs above the size cap and only opens those under it.
+   *
+   * Throttled by the caller via onDidChangeVisibility — re-runs only
+   * when the panel becomes visible, so the user sees a fresh list
+   * right when they switch to the tab.
+   */
+  private async refreshDetectedZips(): Promise<void> {
+    if (this.webviewView === undefined) return;
+    let zips: Partial<Record<ExportProvider, ExportCandidate>>;
+    try {
+      zips = await findRecentExportsByProvider();
+    } catch {
+      return;
+    }
+    if (this.webviewView === undefined) return; // disposed mid-scan
+    const payload: Partial<Record<ExportProvider, { filename: string; folder: string; ageLabel: string; path: string }>> = {};
+    for (const provider of Object.keys(zips) as ExportProvider[]) {
+      const c = zips[provider];
+      if (c === undefined) continue;
+      payload[provider] = {
+        filename: c.filename,
+        folder: c.folder,
+        ageLabel: formatRelativeTime(c.mtime),
+        path: c.path,
+      };
+    }
+    void this.webviewView.webview.postMessage({ type: 'detectedZips', zips: payload });
   }
 
   /** Public so extension.ts can nudge the panel after the bridge starts. */
@@ -305,6 +460,51 @@ export class ExportalControlPanelProvider implements vscode.WebviewViewProvider 
     cursor: not-allowed;
     opacity: 0.5;
   }
+
+  /* Async state visuals — set by extension after click triggers an
+   * import. Drag-drop from outside VS Code is structurally blocked by
+   * the workbench eating the events before they reach the webview, so
+   * the import path is always click → file-picker (or detected ZIP). */
+  .row[data-state="working"] {
+    background: color-mix(in srgb, var(--vscode-foreground) 4%, transparent);
+    cursor: wait;
+  }
+  .row[data-state="working"] .shimmer {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: linear-gradient(90deg,
+      transparent,
+      color-mix(in srgb, var(--vscode-focusBorder) 18%, transparent) 50%,
+      transparent);
+    background-size: 200% 100%;
+    animation: panelShimmer 1.4s linear infinite;
+    border-radius: inherit;
+  }
+  .row[data-state="done"] {
+    border: 1px solid color-mix(in srgb, var(--vscode-testing-iconPassed) 50%, transparent);
+    background: color-mix(in srgb, var(--vscode-testing-iconPassed) 10%, transparent);
+  }
+  .row[data-state="error"] {
+    border: 1px solid color-mix(in srgb, var(--vscode-errorForeground) 50%, transparent);
+    background: color-mix(in srgb, var(--vscode-errorForeground) 10%, transparent);
+  }
+  .row .spinner {
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    border: 1.5px solid color-mix(in srgb, var(--vscode-foreground) 25%, transparent);
+    border-top-color: var(--vscode-focusBorder);
+    border-radius: 50%;
+    animation: panelSpin 0.9s linear infinite;
+  }
+  @keyframes panelShimmer {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+  }
+  @keyframes panelSpin {
+    to { transform: rotate(360deg); }
+  }
   .row .mark {
     width: 20px; height: 20px;
     border-radius: 6px;
@@ -339,6 +539,36 @@ export class ExportalControlPanelProvider implements vscode.WebviewViewProvider 
     color: var(--vscode-foreground);
   }
   .row .trail .codicon { font-size: 16px; }
+  /* Detected ZIP sub-hint — appears under the provider label when
+   * we found a fresh export in Downloads/Desktop. Click on the row
+   * imports it directly without opening a file picker. */
+  .row .detected {
+    display: flex;
+    align-items: baseline;
+    gap: 4px;
+    margin-top: 3px;
+    font-size: 10px;
+    font-family: var(--vscode-editor-font-family);
+    color: var(--vscode-testing-iconPassed);
+  }
+  .row .detected-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
+    flex-shrink: 1;
+  }
+  .row .detected-age {
+    opacity: 0.7;
+    flex-shrink: 0;
+  }
+  .row[data-detected-path] {
+    background: color-mix(in srgb, var(--vscode-testing-iconPassed) 5%, transparent);
+  }
+  .row[data-detected-path]:hover {
+    background: color-mix(in srgb, var(--vscode-testing-iconPassed) 12%, transparent);
+  }
+
   .row .soon-badge {
     font-size: 10px;
     color: var(--vscode-descriptionForeground);
@@ -549,6 +779,7 @@ export class ExportalControlPanelProvider implements vscode.WebviewViewProvider 
 
 <script nonce="${nonce}">
   const vscode = acquireVsCodeApi();
+  const panel = document.getElementById('panel');
 
   // Toggles
   for (const el of document.querySelectorAll('.toggle')) {
@@ -565,20 +796,84 @@ export class ExportalControlPanelProvider implements vscode.WebviewViewProvider 
     });
   }
 
-  // Provider rows — both import and export
+  // Provider rows — both import and export. Click/Enter/Space:
+  //   - on an import row WITH a detected zip → import that zip directly
+  //     (no file picker), else fall back to the picker command.
+  //   - on an export row → run the matching send command (always pick
+  //     the most recent session, no UI in the way).
   for (const el of document.querySelectorAll('.row')) {
     if (el.getAttribute('data-disabled') === 'true') continue;
     const cmd = el.getAttribute('data-cmd');
     if (!cmd) continue;
-    const fire = () => vscode.postMessage({ type: 'runCommand', command: cmd });
+    const fire = () => {
+      const detectedPath = el.getAttribute('data-detected-path');
+      const provider = el.getAttribute('data-provider');
+      const direction = el.getAttribute('data-direction');
+      if (direction === 'in' && detectedPath && provider) {
+        vscode.postMessage({ type: 'importDetectedZip', provider, filePath: detectedPath });
+      } else {
+        vscode.postMessage({ type: 'runCommand', command: cmd });
+      }
+    };
     el.addEventListener('click', fire);
     el.addEventListener('keydown', (e) => {
       if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fire(); }
     });
   }
 
+  // Receive row state updates from the extension (working/done/error)
+  // and detected ZIPs (auto-found in Downloads/Desktop).
+  window.addEventListener('message', (e) => {
+    const msg = e.data;
+    if (!msg) return;
+    if (msg.type === 'rowState') {
+      const row = document.querySelector('.row[data-direction="in"][data-provider="' + msg.provider + '"]');
+      if (!row) return;
+      if (msg.state === 'idle') {
+        row.removeAttribute('data-state');
+      } else {
+        row.setAttribute('data-state', msg.state);
+        if (msg.state === 'done' || msg.state === 'error') {
+          const delay = msg.state === 'done' ? 2000 : 4500;
+          setTimeout(() => {
+            if (row.getAttribute('data-state') === msg.state) {
+              row.removeAttribute('data-state');
+            }
+          }, delay);
+        }
+      }
+    } else if (msg.type === 'detectedZips') {
+      // Reset all import rows first so removed providers clear their hints.
+      for (const r of document.querySelectorAll('.row[data-direction="in"]')) {
+        r.removeAttribute('data-detected-path');
+        const det = r.querySelector('.detected');
+        if (det) det.remove();
+      }
+      const zips = msg.zips || {};
+      for (const provider of Object.keys(zips)) {
+        const z = zips[provider];
+        if (!z) continue;
+        const row = document.querySelector('.row[data-direction="in"][data-provider="' + provider + '"]');
+        if (!row || row.getAttribute('data-disabled') === 'true') continue;
+        row.setAttribute('data-detected-path', z.path);
+        const body = row.querySelector('.body');
+        if (!body) continue;
+        const div = document.createElement('div');
+        div.className = 'detected';
+        const filename = document.createElement('span');
+        filename.className = 'detected-name';
+        filename.textContent = z.filename;
+        const age = document.createElement('span');
+        age.className = 'detected-age';
+        age.textContent = '· ' + z.ageLabel;
+        div.appendChild(filename);
+        div.appendChild(age);
+        body.appendChild(div);
+      }
+    }
+  });
+
   // Bridge expand toggle (client-side state)
-  const panel = document.getElementById('panel');
   document.getElementById('bridge-toggle').addEventListener('click', () => {
     const open = panel.getAttribute('data-bridge-open') === 'true';
     panel.setAttribute('data-bridge-open', String(!open));
@@ -623,11 +918,17 @@ function providerRowHtml(p: Provider, direction: 'in' | 'out', defaultHint: stri
   const hint = p.disabledHint ?? defaultHint;
   const trail = disabled
     ? `<span class="soon-badge">soon</span>`
-    : `<i class="codicon codicon-cloud-${direction === 'in' ? 'download' : 'upload'}"></i>`;
+    : `<i class="codicon codicon-cloud-${direction === 'in' ? 'download' : 'upload'} trail-icon"></i>`;
   const cmdAttr = cmd !== undefined ? ` data-cmd="${escapeHtml(cmd)}"` : '';
   const tabindex = disabled ? '' : ' tabindex="0"';
+  // data-direction lets the drag-drop JS quickly filter which rows
+  // accept drops (only `in`). data-provider lets the dispatcher post
+  // back row state to the right element when the import settles.
+  const directionAttr = ` data-direction="${direction}"`;
+  const providerAttr = ` data-provider="${escapeHtml(p.id)}"`;
   return `
-    <div class="row" data-disabled="${disabled ? 'true' : 'false'}"${cmdAttr}${tabindex} role="button">
+    <div class="row" data-disabled="${disabled ? 'true' : 'false'}"${cmdAttr}${directionAttr}${providerAttr}${tabindex} role="button">
+      <span class="shimmer"></span>
       <div class="mark" style="background:${p.color}">${escapeHtml(p.glyph)}</div>
       <div class="body">
         <div class="name">${escapeHtml(p.label)}</div>

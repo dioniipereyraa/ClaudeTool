@@ -170,3 +170,112 @@ async function zipContainsConversationsJson(zipPath: string): Promise<boolean> {
     return false;
   }
 }
+
+// ─── Per-provider detection ─────────────────────────────────────────────────
+
+export type ExportProvider = 'claude' | 'chatgpt';
+
+export interface ExportCandidate extends ClaudeAiZipCandidate {
+  readonly provider: ExportProvider;
+}
+
+/**
+ * Pick the most recent export ZIP per provider out of Downloads/Desktop,
+ * within the last `maxAgeMinutes` window. Used by the sidebar tab to
+ * surface "we noticed a fresh download — click to import" hints next
+ * to each provider row.
+ *
+ * Detection peeks inside each .zip's `conversations.json` to tell
+ * claude.ai (top-level array of objects with `chat_messages`) from
+ * ChatGPT (objects with `mapping` + `current_node`). Filename-based
+ * detection is unreliable for ChatGPT (no canonical pattern) so we
+ * always read content; the per-zip cap (`maxSizeBytes`) keeps us from
+ * paying that cost on accidental huge ZIPs.
+ *
+ * Returns at most one candidate per provider (the most recent by
+ * mtime). Missing providers are simply absent from the result.
+ */
+export async function findRecentExportsByProvider(
+  options: {
+    readonly home?: string;
+    readonly now?: Date;
+    readonly maxAgeMinutes?: number;
+    readonly maxSizeBytes?: number;
+  } = {},
+): Promise<Partial<Record<ExportProvider, ExportCandidate>>> {
+  const home = options.home ?? homedir();
+  const now = options.now ?? new Date();
+  const maxAge = options.maxAgeMinutes ?? 120;
+  const maxSize = options.maxSizeBytes ?? DEFAULT_MAX_CONTENT_SCAN_BYTES;
+  const cutoff = now.getTime() - maxAge * 60 * 1000;
+
+  const folders = [
+    { name: 'Downloads', path: join(home, 'Downloads') },
+    { name: 'Desktop', path: join(home, 'Desktop') },
+  ];
+
+  const all: ExportCandidate[] = [];
+  for (const folder of folders) {
+    let entries: string[];
+    try {
+      entries = await readdir(folder.path);
+    } catch {
+      continue;
+    }
+    for (const entry of entries) {
+      if (!entry.toLowerCase().endsWith('.zip')) continue;
+      const fullPath = join(folder.path, entry);
+      let info;
+      try {
+        info = await stat(fullPath);
+      } catch {
+        continue;
+      }
+      if (!info.isFile()) continue;
+      if (info.mtimeMs < cutoff) continue;
+      if (info.size > maxSize) continue;
+
+      const provider = await detectProviderFromZip(fullPath);
+      if (provider === undefined) continue;
+
+      all.push({
+        path: fullPath,
+        filename: entry,
+        folder: folder.name,
+        mtime: info.mtime,
+        sizeBytes: info.size,
+        provider,
+      });
+    }
+  }
+
+  all.sort((a, b) => b.mtime.getTime() - a.mtime.getTime());
+  const result: Partial<Record<ExportProvider, ExportCandidate>> = {};
+  for (const c of all) {
+    result[c.provider] ??= c;
+  }
+  return result;
+}
+
+async function detectProviderFromZip(zipPath: string): Promise<ExportProvider | undefined> {
+  try {
+    const buffer = await readFile(zipPath);
+    const zip = await JSZip.loadAsync(buffer);
+    const file = zip.file('conversations.json');
+    if (file === null) return undefined;
+    // Read the whole file — JSZip doesn't support partial reads, and
+    // the in-memory hit is bounded by the per-zip size cap upstream.
+    // Sniff the first ~10KB for the distinguishing field name; that's
+    // enough to land within the first conversation object on any real
+    // export, and avoids parsing huge JSON just to identify the shape.
+    const content = await file.async('string');
+    const head = content.slice(0, 10_000);
+    // ChatGPT check first — `mapping` is a strong-enough signal on its
+    // own (claude.ai's schema doesn't carry that field).
+    if (head.includes('"mapping"') && head.includes('"current_node"')) return 'chatgpt';
+    if (head.includes('"chat_messages"')) return 'claude';
+    return undefined;
+  } catch {
+    return undefined;
+  }
+}

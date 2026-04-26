@@ -79,7 +79,10 @@ export function activate(context: vscode.ExtensionContext): void {
   // Activity-bar tab with the toggles + action buttons (hito 19
   // follow-up). Replaces "Preferences UI → search exportal" as the
   // discoverable place to flip settings.
-  const controlPanel = new ExportalControlPanelProvider(context);
+  const controlPanel = new ExportalControlPanelProvider(context, {
+    importClaudeZip: (filePath) => openConversationFromZip(filePath),
+    importChatGptZip: (filePath) => openChatGptConversationFromZip(filePath),
+  });
   context.subscriptions.push(
     vscode.window.registerWebviewViewProvider(
       'exportal.controlPanel',
@@ -618,7 +621,15 @@ async function importFromChatGptZipCommand(): Promise<void> {
   });
   const zipUri = picks?.[0];
   if (zipUri === undefined) return;
+  await openChatGptConversationFromZip(zipUri.fsPath);
+}
 
+/**
+ * Inner half of the ChatGPT import flow. Reads the ZIP, picks a
+ * conversation, formats it, and writes the .md. Used by the
+ * file-picker command and by the panel's drag-drop handler.
+ */
+async function openChatGptConversationFromZip(zipPath: string): Promise<void> {
   let exported: Awaited<ReturnType<typeof readChatGptExport>>;
   try {
     exported = await vscode.window.withProgress(
@@ -627,14 +638,14 @@ async function importFromChatGptZipCommand(): Promise<void> {
         title: vscode.l10n.t('Exportal: reading ZIP...'),
         cancellable: false,
       },
-      async () => readChatGptExport(zipUri.fsPath),
+      async () => readChatGptExport(zipPath),
     );
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     await vscode.window.showErrorMessage(
       vscode.l10n.t('Exportal: could not read the ZIP. {0}', message),
     );
-    return;
+    throw err;
   }
 
   if (exported.conversations.length === 0) {
