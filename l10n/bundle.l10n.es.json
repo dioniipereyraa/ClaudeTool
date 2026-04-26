@@ -65,5 +65,17 @@
   "Open Exportal tab": "Abrir tab de Exportal",
   "Select the ZIP exported from ChatGPT": "Seleccioná el ZIP exportado desde ChatGPT",
   "Exportal: \"{0}\" imported from ChatGPT.": "Exportal: \"{0}\" importado desde ChatGPT.",
-  "Import ChatGPT .zip": "Importar .zip de ChatGPT"
+  "Import ChatGPT .zip": "Importar .zip de ChatGPT",
+  "Import to workspace": "Importar al workspace",
+  "Export current session": "Exportar la sesión actual",
+  "Copy token": "Copiar token",
+  "Rotate token": "Rotar token",
+  "Logs": "Logs",
+  "waiting for companion": "esperando companion",
+  "Exportal: token rotated. Reload window for the bridge to accept the new token.": "Exportal: token rotado. Recargá la ventana para que el bridge acepte el nuevo.",
+  "Exportal: session is {0} KB — paste may truncate. Drag the saved .md into {1} instead.": "Exportal: la sesión pesa {0} KB — el paste puede truncar. Arrastrá el .md guardado a {1} en su lugar.",
+  "Exportal: copied to clipboard and saved. Paste with Ctrl+V into {0}, or drag the .md if the paste fails.": "Exportal: copiado al portapapeles y guardado. Pegá con Ctrl+V en {0}, o arrastrá el .md si el paste falla.",
+  "Reveal file": "Mostrar archivo",
+  "Pick a .zip or drop one": "Elegí un .zip o arrastrá uno",
+  "Opens a new chat in your browser": "Abre un chat nuevo en tu navegador"
 }

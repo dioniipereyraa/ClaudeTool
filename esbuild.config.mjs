@@ -1,4 +1,6 @@
 import { build } from 'esbuild';
+import { copyFile, mkdir } from 'node:fs/promises';
+import { dirname } from 'node:path';
 
 /**
  * Bundle the VS Code extension into a single CommonJS file.
@@ -28,3 +30,20 @@ await build({
   minify: false,
   logLevel: 'info',
 });
+
+/**
+ * Mirror the codicon assets into `assets/codicons/` so the webview
+ * can load them via `webview.asWebviewUri()` at runtime. Shipping
+ * via `assets/` is the reliable path — `.vscodeignore` exceptions
+ * for paths under `node_modules/` are not honored consistently by
+ * vsce, so we copy at build time instead of relying on negation.
+ */
+const codiconFiles = [
+  'node_modules/@vscode/codicons/dist/codicon.css',
+  'node_modules/@vscode/codicons/dist/codicon.ttf',
+];
+for (const src of codiconFiles) {
+  const dst = src.replace('node_modules/@vscode/codicons/dist/', 'assets/codicons/');
+  await mkdir(dirname(dst), { recursive: true });
+  await copyFile(src, dst);
+}

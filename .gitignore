@@ -7,6 +7,9 @@ dist/
 *.vsix
 exportal-companion-*.zip
 
+# Generated assets — copied from node_modules at build time
+assets/codicons/
+
 # Test artifacts
 coverage/
 .vitest-cache/

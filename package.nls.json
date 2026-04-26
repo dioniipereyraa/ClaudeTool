@@ -4,6 +4,7 @@
   "command.showPairingInfo.title": "Exportal: Show bridge pairing token",
   "command.sendSessionToClaudeAi.title": "Exportal: Send Claude Code session to claude.ai",
   "command.importFromChatGptZip.title": "Exportal: Import ChatGPT ZIP",
+  "command.sendSessionToChatGpt.title": "Exportal: Send Claude Code session to ChatGPT",
   "configuration.title": "Exportal",
   "configuration.autoAttachToClaudeCode.description": "After importing a conversation, open the Claude Code panel and attach the exported Markdown as an @-mention. Requires the official Claude Code extension.",
   "configuration.alsoWriteJsonl.description": "Also write a Claude Code-compatible .jsonl alongside the .md so the imported conversation appears in /resume of Claude Code as if it were a local session. Experimental: the .jsonl format is reverse-engineered and may break across Claude Code updates."

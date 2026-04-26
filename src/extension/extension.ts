@@ -69,6 +69,10 @@ export function activate(context: vscode.ExtensionContext): void {
       sendSessionToClaudeAiCommand,
     ),
     vscode.commands.registerCommand(
+      'exportal.sendSessionToChatGpt',
+      sendSessionToChatGptCommand,
+    ),
+    vscode.commands.registerCommand(
       'exportal.importFromChatGptZip',
       importFromChatGptZipCommand,
     ),
@@ -1112,19 +1116,43 @@ async function attachToClaudeCodeIfAvailable(
 
 // claude.ai quietly accepts very large messages but renders them poorly
 // and occasionally rejects them silently. 150 KB is comfortably below
-/**
- * Hito 15 — send a Claude Code session to claude.ai.
- *
- * Lists sessions of the open workspace's cwd, lets the user pick one,
- * renders it as Markdown, saves it to .exportal/, copies to clipboard,
- * and opens claude.ai/new. The user can either paste (works for short
- * sessions) or drag the saved .md file into the new chat (works for
- * long sessions where the textarea silently truncates the paste).
- *
- * claude.ai has no public write API — both surfacing paths are manual
- * by design.
- */
+interface SendSessionTarget {
+  readonly providerLabel: string;
+  readonly newChatUrl: string;
+  readonly fileSuffix: string;
+}
+
+const CLAUDE_AI_TARGET: SendSessionTarget = {
+  providerLabel: 'claude.ai',
+  newChatUrl: 'https://claude.ai/new',
+  fileSuffix: 'cc-export',
+};
+
+const CHATGPT_TARGET: SendSessionTarget = {
+  providerLabel: 'ChatGPT',
+  newChatUrl: 'https://chatgpt.com/',
+  fileSuffix: 'cc-export-chatgpt',
+};
+
 async function sendSessionToClaudeAiCommand(): Promise<void> {
+  await sendSessionTo(CLAUDE_AI_TARGET);
+}
+
+async function sendSessionToChatGptCommand(): Promise<void> {
+  await sendSessionTo(CHATGPT_TARGET);
+}
+
+/**
+ * Shared flow for "send Claude Code session to <web AI>". Lists
+ * sessions in the workspace's project dir, picks one, renders to
+ * Markdown, saves to `.exportal/` (drag-and-drop fallback for the
+ * web AI's textarea paste cap), copies to clipboard, and opens
+ * the target's new-chat URL.
+ *
+ * Both surfaces (paste and drag-drop) are manual: neither claude.ai
+ * nor chatgpt.com have a public write API.
+ */
+async function sendSessionTo(target: SendSessionTarget): Promise<void> {
   const folder = vscode.workspace.workspaceFolders?.[0];
   if (folder === undefined) {
     await vscode.window.showInformationMessage(
@@ -1163,31 +1191,29 @@ async function sendSessionToClaudeAiCommand(): Promise<void> {
     return;
   }
 
-  // Save to .exportal/ as the drag-and-drop fallback for sessions
-  // that exceed claude.ai's textarea paste cap (~100K chars). Reuse
-  // the import path's `persistAndOpenMarkdown` so the file lives in
-  // the same folder as imported chats and gets opened in the editor.
   const sessionTitle =
     metadata.customTitle ??
     metadata.aiTitle ??
     metadata.firstUserText ??
     `cc-session-${metadata.sessionId.slice(0, 8)}`;
-  const baseName = `${buildExportTimestamp()}-${slugify(sessionTitle)}-cc-export`;
+  const baseName = `${buildExportTimestamp()}-${slugify(sessionTitle)}-${target.fileSuffix}`;
   const savedUri = await persistAndOpenMarkdown(sessionTitle, markdown, baseName);
 
   await vscode.env.clipboard.writeText(markdown);
-  await vscode.env.openExternal(vscode.Uri.parse('https://claude.ai/new'));
+  await vscode.env.openExternal(vscode.Uri.parse(target.newChatUrl));
 
   const sizeBytes = Buffer.byteLength(markdown, 'utf8');
   const looksLarge = sizeBytes > 100_000;
   const revealLabel = vscode.l10n.t('Reveal file');
   const message = looksLarge
     ? vscode.l10n.t(
-        'Exportal: session is {0} KB — paste may truncate. Drag the saved .md into claude.ai instead.',
+        'Exportal: session is {0} KB — paste may truncate. Drag the saved .md into {1} instead.',
         (sizeBytes / 1024).toFixed(0),
+        target.providerLabel,
       )
     : vscode.l10n.t(
-        'Exportal: copied to clipboard and saved. Paste with Ctrl+V, or drag the .md if the paste fails.',
+        'Exportal: copied to clipboard and saved. Paste with Ctrl+V into {0}, or drag the .md if the paste fails.',
+        target.providerLabel,
       );
   const action = savedUri !== undefined
     ? await vscode.window.showInformationMessage(message, revealLabel)
