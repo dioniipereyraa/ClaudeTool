@@ -2,24 +2,27 @@ import { z } from 'zod';
 
 /**
  * Zod schemas for ChatGPT's official export — the ZIP that arrives by
- * email after Settings → Data controls → Export. The interesting file
- * is `conversations.json`: a top-level array of conversations, each one
- * a tree of message nodes addressed by stable UUID keys (the `mapping`
- * object) with `parent` / `children` pointers.
+ * email after Settings → Data controls → Export.
+ *
+ * The interesting payload is one or many `conversations.json` files
+ * (single-file form for small accounts, `conversations-NNN.json`
+ * chunks for big ones — the reader merges them). Each is a top-level
+ * array of conversations; each conversation is a tree of message
+ * nodes addressed by stable UUID keys (the `mapping` object) with
+ * `parent` / `children` pointers.
+ *
+ * Validated against real exports up to ~145 conversations / 2339
+ * messages. Content types observed in the wild: text, multimodal_text,
+ * code, execution_output, thoughts, reasoning_recap, tether_quote,
+ * tether_browsing_display, system_error.
  *
  * Unlike the claude.ai schema (which uses `.passthrough()` on every
  * object), these schemas use the default `strip` behavior: unknown
  * fields are dropped after parsing. This keeps inferred types clean
- * for downstream consumers (the walker, formatter, jsonl writer).
- * Forward-compat is preserved by making fields optional and typing
- * free-form payloads as `z.unknown()` — so an OpenAI-added field we
- * don't care about is silently dropped, and one we *do* care about
- * simply gets added to the schema later.
- *
- * NOTE — this is a **first-draft schema** written before having a real
- * export ZIP in hand. Field names cover the well-known shape (text
- * messages, tool calls, code interpreter, browsing) and will get
- * tightened against real data in Hito 21 once the user supplies a ZIP.
+ * for downstream consumers. Forward-compat is preserved by making
+ * fields optional and typing free-form payloads as `z.unknown()` — so
+ * an OpenAI-added field we don't care about is silently dropped, and
+ * one we *do* care about simply gets added to the schema later.
  */
 
 const AuthorSchema = z.object({

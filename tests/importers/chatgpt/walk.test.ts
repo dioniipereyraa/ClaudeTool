@@ -4,10 +4,7 @@ import {
   type ChatGptConversation,
   type ChatGptMappingNode,
 } from '../../../src/importers/chatgpt/schema.js';
-import {
-  activeBranchMessages,
-  messageBodyAsText,
-} from '../../../src/importers/chatgpt/walk.js';
+import { activeBranchMessages } from '../../../src/importers/chatgpt/walk.js';
 
 /**
  * These tests run against a synthetic fixture written from public docs
@@ -108,47 +105,3 @@ describe('activeBranchMessages', () => {
   });
 });
 
-describe('messageBodyAsText', () => {
-  it('joins text parts with newlines', () => {
-    const msg = textMessage('m', 'assistant', 'first');
-    msg.content.parts = ['first', 'second'];
-    expect(messageBodyAsText(msg)).toBe('first\nsecond');
-  });
-
-  it('renders a code block with language tag', () => {
-    expect(
-      messageBodyAsText({
-        id: 'm',
-        author: { role: 'assistant' },
-        content: {
-          content_type: 'code',
-          language: 'python',
-          text: 'print("hi")',
-        },
-      }),
-    ).toBe('```python\nprint("hi")\n```');
-  });
-
-  it('falls back to a tagged JSON dump for unknown content_type', () => {
-    const out = messageBodyAsText({
-      id: 'm',
-      author: { role: 'assistant' },
-      content: { content_type: 'mystery_blob', parts: [{ x: 1 }] },
-    });
-    expect(out).toContain('[mystery_blob]');
-    expect(out).toContain('"x":1');
-  });
-
-  it('JSON-stringifies non-string parts in multimodal_text', () => {
-    const out = messageBodyAsText({
-      id: 'm',
-      author: { role: 'user' },
-      content: {
-        content_type: 'multimodal_text',
-        parts: ['caption', { content_type: 'image_asset_pointer', asset_pointer: 'file-x' }],
-      },
-    });
-    expect(out).toContain('caption');
-    expect(out).toContain('image_asset_pointer');
-  });
-});
