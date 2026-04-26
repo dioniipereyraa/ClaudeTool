@@ -504,7 +504,7 @@ async function handlePrimaryClick(btn) {
   try {
     const { conversation, assets, provider } = await fetchByRoute(route);
     if (labelEl !== null) labelEl.textContent = chrome.i18n.getMessage('feedbackSending');
-    await sendInline(conversation, assets, provider);
+    await sendInline(conversation, assets, provider, labelEl);
     const ms = Math.round(performance.now() - t0);
     const messages = countMessages(conversation);
     if (labelEl !== null) labelEl.textContent = originalLabel;
@@ -591,11 +591,76 @@ async function runSecondaryAction(id) {
   if (response?.ok !== true) throw new Error(response?.error ?? 'unknown');
 }
 
-async function sendInline(conversation, assets, provider) {
+async function sendInline(conversation, assets, provider, labelEl) {
   const message = { type: 'exportal:sendInline', conversation, provider };
   if (Array.isArray(assets) && assets.length > 0) message.assets = assets;
   const response = await chrome.runtime.sendMessage(message);
-  if (response?.ok !== true) throw new Error(response?.error ?? 'unknown');
+  if (response?.ok === true) return;
+  // Cold-start recovery: when the bridge isn't listening on any of
+  // our ports, try waking VS Code via the `vscode://` URI handler
+  // and retry once it answers. Doing this from the content script
+  // (rather than the background SW) is intentional:
+  //   1. The page context preserves the user gesture from the FAB
+  //      click, which makes Chrome reliably hand `vscode://` off to
+  //      the OS protocol handler. Bare `vscode://...` from a
+  //      service worker often fails to dispatch.
+  //   2. MV3 service workers get evicted during any `await sleep`,
+  //      which kills a long polling loop after one iteration. The
+  //      content script doesn't have that problem.
+  if (response?.error === 'bridge_offline') {
+    if (labelEl !== undefined && labelEl !== null) {
+      labelEl.textContent = chrome.i18n.getMessage('feedbackOpeningVsCode');
+    }
+    triggerVsCodeWake();
+    const ready = await waitForBridge(20000);
+    if (ready) {
+      const retry = await chrome.runtime.sendMessage(message);
+      if (retry?.ok === true) return;
+      throw new Error(retry?.error ?? 'unknown');
+    }
+  }
+  throw new Error(response?.error ?? 'unknown');
+}
+
+// Inject a hidden iframe pointed at `vscode://...`. Browsers treat
+// custom-scheme src as a navigation request and hand off to the OS
+// protocol dispatcher — but only when the request originates in the
+// page (with a recent user gesture). The path on the URL is
+// meaningless to our extension; what matters is that VS Code
+// launches and our `onStartupFinished` activation fires the bridge.
+//
+// The iframe is removed in 500ms; by then Chrome has already
+// initiated the protocol launch (or shown the user the "Open with
+// Visual Studio Code?" confirmation dialog the first time).
+function triggerVsCodeWake() {
+  try {
+    const iframe = document.createElement('iframe');
+    iframe.style.display = 'none';
+    iframe.src = 'vscode://dioniipereyraa.exportal/wake';
+    document.body.appendChild(iframe);
+    setTimeout(() => { iframe.remove(); }, 500);
+  } catch (err) {
+    console.warn('[Exportal] could not trigger vscode:// wake', err);
+  }
+}
+
+// Polls the background for bridge reachability. Cadence: probe
+// immediately, then every 800ms. Cap at maxMs (~20s by default —
+// covers VS Code cold-start on slow machines without leaving the
+// FAB frozen forever).
+async function waitForBridge(maxMs) {
+  const POLL_INTERVAL_MS = 800;
+  const deadline = Date.now() + maxMs;
+  while (Date.now() < deadline) {
+    try {
+      const res = await chrome.runtime.sendMessage({ type: 'exportal:pingBridge' });
+      if (res?.ok === true) return true;
+    } catch {
+      // SW could be momentarily down between probes; ignore and retry.
+    }
+    await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
+  }
+  return false;
 }
 
 function explainError(err) {

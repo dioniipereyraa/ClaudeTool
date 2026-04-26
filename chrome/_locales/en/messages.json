@@ -131,6 +131,10 @@
     "message": "Sending to VS Code…",
     "description": "Button text while POSTing to the local bridge."
   },
+  "feedbackOpeningVsCode": {
+    "message": "Opening VS Code…",
+    "description": "Button text while waiting for VS Code to launch via the vscode:// URI handler after detecting the bridge is offline."
+  },
   "feedbackOpenedInVsCode": {
     "message": "Opened in VS Code",
     "description": "Confirmation after a successful inline export."

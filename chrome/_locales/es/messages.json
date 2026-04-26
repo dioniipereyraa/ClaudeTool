@@ -98,6 +98,9 @@
   "feedbackSending": {
     "message": "Enviando a VS Code…"
   },
+  "feedbackOpeningVsCode": {
+    "message": "Abriendo VS Code…"
+  },
   "feedbackOpenedInVsCode": {
     "message": "Abierto en VS Code"
   },

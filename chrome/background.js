@@ -138,6 +138,19 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
+  if (message?.type === 'exportal:pingBridge') {
+    // One-shot probe driven by the content-script's wake-and-retry
+    // loop. We answer fast (no work besides a few fetches that
+    // either ECONNREFUSED quickly or return 200/401). The content
+    // script polls this on a timer it controls — that timer lives
+    // in the page context, where MV3 SW eviction can't kill it
+    // mid-loop.
+    isBridgeReachable()
+      .then((ok) => sendResponse({ ok }))
+      .catch(() => sendResponse({ ok: false }));
+    return true;
+  }
+
   if (message?.type === 'exportal:openOptionsPage') {
     // Content-script requests this right after a successful auto-pair
     // so the user lands on the brand UI (the three-state
@@ -265,21 +278,12 @@ async function forwardInlineConversation(conversation, assets, provider) {
   if (Array.isArray(assets) && assets.length > 0) payload.assets = assets;
   if (provider !== undefined) payload.provider = provider;
   const body = JSON.stringify(payload);
-
-  let result = await tryAllPortsForInline(body, token);
-
-  // Cold-start helper: when the bridge isn't listening on any of our
-  // ports, it usually means VS Code itself is closed. Ask the OS to
-  // wake it via the `vscode://` URI handler, then retry the POST once
-  // VS Code has had a chance to come up. If the user doesn't have
-  // VS Code installed (or has Cursor / Insiders / etc), the wake does
-  // nothing visible and we fall back to the original `bridge_offline`
-  // error path.
-  if (result.kind === 'offline') {
-    await wakeVsCodeAndPoll(token);
-    result = await tryAllPortsForInline(body, token);
-  }
-
+  // Cold-start (wake VS Code + retry) is handled in the content
+  // script, not here. MV3 service workers get evicted during the
+  // long polling loop — moving the wait loop into the page context
+  // sidesteps that. Background just answers a one-shot ping check
+  // (`exportal:pingBridge`) when the content script asks.
+  const result = await tryAllPortsForInline(body, token);
   return finalizeForwardResult(result);
 }
 
@@ -354,66 +358,13 @@ async function finalizeForwardResult(result) {
   return { ok: false, error: 'bridge_offline' };
 }
 
-// Triggers a `vscode://` URI so the OS launches VS Code if it isn't
-// already running, then polls /ping until the bridge answers or the
-// timeout elapses. Best-effort: if the browser refuses to open
-// custom-scheme URLs from a service worker, or the user has no
-// VS Code installed, the polling just times out and the caller falls
-// back to the normal `bridge_offline` error.
-//
-// URL strategy: we hit `vscode://dioniipereyraa.exportal/wake`
-// instead of bare `vscode://`. Bare schemes sometimes fail to
-// hand-off in Chrome (the URL is malformed enough that the
-// custom-protocol dispatcher skips it); a path that targets a
-// known extension reliably triggers the OS handler. The path
-// itself is meaningless to our extension — VS Code will route it
-// to a UriHandler if registered, or ignore the routing failure
-// gracefully. Either way, VS Code itself launches and our
-// activationEvents (onStartupFinished) bring the bridge up.
-//
-// Polling cadence: probe immediately and then every ~800ms — VS Code
-// cold start is typically 3-8s, so polling-based is fine without push
-// notifications from the extension side. Total budget 20s covers slow
-// machines without leaving the user staring at a frozen FAB forever.
-async function wakeVsCodeAndPoll(token) {
-  const WAKE_URL = 'vscode://dioniipereyraa.exportal/wake';
-  const MAX_WAIT_MS = 20000;
-  const POLL_INTERVAL_MS = 800;
-  console.info('[Exportal] bridge offline, attempting wake via', WAKE_URL);
-  let transientTabId;
-  try {
-    const tab = await chrome.tabs.create({ url: WAKE_URL, active: false });
-    transientTabId = tab?.id;
-    console.info('[Exportal] wake tab created (id=', transientTabId, ')');
-  } catch (err) {
-    // Browser blocked the custom-scheme open — log and bail out. The
-    // caller will surface the original bridge_offline.
-    console.warn('[Exportal] wake tab create failed', err);
-    return;
-  }
-  // The tab is just a vehicle for the OS hand-off; the page never
-  // really renders. Close it eagerly so the user doesn't notice it
-  // flashing in the tab bar. Errors here are non-fatal.
-  if (typeof transientTabId === 'number') {
-    setTimeout(() => {
-      chrome.tabs.remove(transientTabId).catch(() => {});
-    }, 250);
-  }
-  const deadline = Date.now() + MAX_WAIT_MS;
-  let attempt = 0;
-  while (Date.now() < deadline) {
-    attempt += 1;
-    if (await isBridgeReachable(token)) {
-      console.info('[Exportal] bridge reachable after wake (attempt', attempt, ')');
-      return;
-    }
-    await sleep(POLL_INTERVAL_MS);
-  }
-  console.warn('[Exportal] wake timeout after', attempt, 'attempts; falling back to bridge_offline');
-}
-
-async function isBridgeReachable(token) {
-  if (typeof token !== 'string' || token.length === 0) return false;
+// One-shot probe used by the content-script's wake-and-retry loop.
+// We can't run the loop in the background (MV3 evicts the SW during
+// any `await sleep(N)`), so the loop lives in the page context and
+// just calls back here for each probe.
+async function isBridgeReachable() {
+  const token = await getToken();
+  if (token === undefined) return false;
   const ports = await buildPortOrder();
   for (const port of ports) {
     try {
@@ -431,10 +382,6 @@ async function isBridgeReachable(token) {
     }
   }
   return false;
-}
-
-function sleep(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 async function readErrorCode(res) {
