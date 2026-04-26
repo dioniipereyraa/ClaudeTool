@@ -14,10 +14,13 @@ describe('readJsonl', () => {
     const types = events.map((e) => e.type);
     expect(types).toContain('user');
     expect(types).toContain('assistant');
+    expect(types).toContain('ai-title');
+    expect(types).toContain('custom-title');
     // queue-operation is not part of our discriminated union → dropped.
     expect(types).not.toContain('queue-operation' as unknown as (typeof types)[number]);
-    // 2 users + 2 assistants in the fixture, malformed line and queue-operation discarded.
-    expect(events.length).toBe(4);
+    // 2 users + 2 assistants + 1 ai-title + 1 custom-title; malformed
+    // line and queue-operation discarded.
+    expect(events.length).toBe(6);
   });
 
   it('returns an empty array when the file is empty', async () => {

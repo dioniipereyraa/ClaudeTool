@@ -101,10 +101,42 @@ const SystemEventSchema = z
   })
   .passthrough();
 
+// Sidecar metadata events that Claude Code writes alongside the
+// content events in the .jsonl. They carry no message body — just
+// session-level metadata that the UI uses to label and sort sessions.
+// Prior to recognising these here, the reader silently dropped them.
+
+const AiTitleEventSchema = z
+  .object({
+    type: z.literal('ai-title'),
+    sessionId: z.string(),
+    aiTitle: z.string(),
+  })
+  .passthrough();
+
+const CustomTitleEventSchema = z
+  .object({
+    type: z.literal('custom-title'),
+    sessionId: z.string(),
+    customTitle: z.string(),
+  })
+  .passthrough();
+
+const LastPromptEventSchema = z
+  .object({
+    type: z.literal('last-prompt'),
+    sessionId: z.string(),
+    lastPrompt: z.string(),
+  })
+  .passthrough();
+
 const EventSchema = z.discriminatedUnion('type', [
   UserEventSchema,
   AssistantEventSchema,
   SystemEventSchema,
+  AiTitleEventSchema,
+  CustomTitleEventSchema,
+  LastPromptEventSchema,
 ]);
 
 export type TextBlock = z.infer<typeof TextBlockSchema>;
@@ -116,6 +148,9 @@ export type ContentBlock = z.infer<typeof ContentBlockSchema>;
 export type UserEvent = z.infer<typeof UserEventSchema>;
 export type AssistantEvent = z.infer<typeof AssistantEventSchema>;
 export type SystemEvent = z.infer<typeof SystemEventSchema>;
+export type AiTitleEvent = z.infer<typeof AiTitleEventSchema>;
+export type CustomTitleEvent = z.infer<typeof CustomTitleEventSchema>;
+export type LastPromptEvent = z.infer<typeof LastPromptEventSchema>;
 export type Event = z.infer<typeof EventSchema>;
 
 export type CompactBoundary = SystemEvent & { subtype: 'compact_boundary' };

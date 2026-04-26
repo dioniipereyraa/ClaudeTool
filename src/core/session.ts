@@ -1,4 +1,4 @@
-import { readdir } from 'node:fs/promises';
+import { readdir, stat } from 'node:fs/promises';
 import { basename, join } from 'node:path';
 
 import { isCompactBoundary, isCompactSummaryUser } from './compact.js';
@@ -34,6 +34,8 @@ export async function describeSession(filePath: string): Promise<SessionMetadata
   let model: string | undefined;
   let gitBranch: string | undefined;
   let firstUserText: string | undefined;
+  let aiTitle: string | undefined;
+  let customTitle: string | undefined;
   let turnCount = 0;
   let compactCount = 0;
 
@@ -49,9 +51,27 @@ export async function describeSession(filePath: string): Promise<SessionMetadata
       firstUserText ??= firstText(event.message.content);
     } else if (event.type === 'assistant') {
       model ??= event.message.model;
+    } else if (event.type === 'ai-title') {
+      // Claude Code may emit several `ai-title` events as the chat
+      // grows (the auto-generated title is refined over time). Keep
+      // the latest one — that's what Claude Code's own UI shows.
+      aiTitle = event.aiTitle;
+    } else if (event.type === 'custom-title') {
+      customTitle = event.customTitle;
     } else if (isCompactBoundary(event)) {
       compactCount += 1;
     }
+  }
+
+  // mtime as a proxy for "last activity" — every appended event bumps
+  // it. Cheaper than scanning every event for the max timestamp and
+  // works even on event types we don't model.
+  let lastActiveAt: Date | undefined;
+  try {
+    const stats = await stat(filePath);
+    lastActiveAt = stats.mtime;
+  } catch {
+    lastActiveAt = undefined;
   }
 
   return {
@@ -59,10 +79,13 @@ export async function describeSession(filePath: string): Promise<SessionMetadata
     filePath,
     ...(cwd !== undefined && { cwd }),
     ...(startedAt !== undefined && { startedAt }),
+    ...(lastActiveAt !== undefined && { lastActiveAt }),
     ...(model !== undefined && { model }),
     ...(gitBranch !== undefined && { gitBranch }),
     turnCount,
     ...(firstUserText !== undefined && { firstUserText }),
+    ...(customTitle !== undefined && { customTitle }),
+    ...(aiTitle !== undefined && { aiTitle }),
     compactCount,
   };
 }

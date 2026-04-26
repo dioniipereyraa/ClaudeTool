@@ -19,4 +19,17 @@ describe('describeSession', () => {
     expect(meta.firstUserText).toContain('Hola');
     expect(meta.compactCount).toBe(0);
   });
+
+  it('picks up ai-title and custom-title events', async () => {
+    const meta = await describeSession(FIXTURE);
+    expect(meta.aiTitle).toBe('Test session for the fixture suite');
+    expect(meta.customTitle).toBe('My fixture chat');
+  });
+
+  it('reports lastActiveAt from file mtime', async () => {
+    const meta = await describeSession(FIXTURE);
+    expect(meta.lastActiveAt).toBeInstanceOf(Date);
+    // Sanity: mtime must not be in the future.
+    expect(meta.lastActiveAt!.getTime()).toBeLessThanOrEqual(Date.now());
+  });
 });

@@ -5,3 +5,5 @@
 {"type":"assistant","uuid":"a2","parentUuid":"u2","timestamp":"2026-04-15T10:00:04.000Z","sessionId":"fixture-0001","message":{"role":"assistant","model":"claude-opus-4-7","content":[{"type":"thinking","thinking":"interno"},{"type":"tool_use","id":"tu1","name":"Read","input":{"file_path":"x"}},{"type":"text","text":"Listo."}]}}
 not valid json at all
 {"type":"queue-operation","operation":"dequeue","timestamp":"2026-04-15T10:00:05.000Z"}
+{"type":"ai-title","sessionId":"fixture-0001","aiTitle":"Test session for the fixture suite"}
+{"type":"custom-title","sessionId":"fixture-0001","customTitle":"My fixture chat"}

@@ -1,3 +1,5 @@
+import { basename } from 'node:path';
+
 import * as vscode from 'vscode';
 
 import { encodeProjectDir, PROJECTS_DIR } from '../core/paths.js';
@@ -1110,17 +1112,17 @@ async function attachToClaudeCodeIfAvailable(
 
 // claude.ai quietly accepts very large messages but renders them poorly
 // and occasionally rejects them silently. 150 KB is comfortably below
-// that ceiling; above it, we warn the user before copying.
-const CLAUDE_AI_SIZE_WARN_BYTES = 150_000;
-
 /**
  * Hito 15 — send a Claude Code session to claude.ai.
  *
  * Lists sessions of the open workspace's cwd, lets the user pick one,
- * renders it as Markdown (redaction on, tool/thinking blocks off for
- * a pasteable payload), copies it to the clipboard and opens
- * claude.ai/new. The paste itself is manual because claude.ai has no
- * public write API — anything else would be lying to the user.
+ * renders it as Markdown, saves it to .exportal/, copies to clipboard,
+ * and opens claude.ai/new. The user can either paste (works for short
+ * sessions) or drag the saved .md file into the new chat (works for
+ * long sessions where the textarea silently truncates the paste).
+ *
+ * claude.ai has no public write API — both surfacing paths are manual
+ * by design.
  */
 async function sendSessionToClaudeAiCommand(): Promise<void> {
   const folder = vscode.workspace.workspaceFolders?.[0];
@@ -1161,28 +1163,38 @@ async function sendSessionToClaudeAiCommand(): Promise<void> {
     return;
   }
 
-  const sizeBytes = Buffer.byteLength(markdown, 'utf8');
-  if (sizeBytes > CLAUDE_AI_SIZE_WARN_BYTES) {
-    const kb = (sizeBytes / 1024).toFixed(0);
-    const copyAnywayLabel = vscode.l10n.t('Copy anyway');
-    const proceed = await vscode.window.showWarningMessage(
-      vscode.l10n.t(
-        'Exportal: session size is {0} KB. Very long messages may be rejected or only partially rendered in claude.ai.',
-        kb,
-      ),
-      { modal: true },
-      copyAnywayLabel,
-    );
-    if (proceed !== copyAnywayLabel) return;
-  }
+  // Save to .exportal/ as the drag-and-drop fallback for sessions
+  // that exceed claude.ai's textarea paste cap (~100K chars). Reuse
+  // the import path's `persistAndOpenMarkdown` so the file lives in
+  // the same folder as imported chats and gets opened in the editor.
+  const sessionTitle =
+    metadata.customTitle ??
+    metadata.aiTitle ??
+    metadata.firstUserText ??
+    `cc-session-${metadata.sessionId.slice(0, 8)}`;
+  const baseName = `${buildExportTimestamp()}-${slugify(sessionTitle)}-cc-export`;
+  const savedUri = await persistAndOpenMarkdown(sessionTitle, markdown, baseName);
 
   await vscode.env.clipboard.writeText(markdown);
   await vscode.env.openExternal(vscode.Uri.parse('https://claude.ai/new'));
-  void vscode.window.showInformationMessage(
-    vscode.l10n.t(
-      'Exportal: Markdown copied. Paste it with Ctrl+V into the new chat on claude.ai.',
-    ),
-  );
+
+  const sizeBytes = Buffer.byteLength(markdown, 'utf8');
+  const looksLarge = sizeBytes > 100_000;
+  const revealLabel = vscode.l10n.t('Reveal file');
+  const message = looksLarge
+    ? vscode.l10n.t(
+        'Exportal: session is {0} KB — paste may truncate. Drag the saved .md into claude.ai instead.',
+        (sizeBytes / 1024).toFixed(0),
+      )
+    : vscode.l10n.t(
+        'Exportal: copied to clipboard and saved. Paste with Ctrl+V, or drag the .md if the paste fails.',
+      );
+  const action = savedUri !== undefined
+    ? await vscode.window.showInformationMessage(message, revealLabel)
+    : await vscode.window.showInformationMessage(message);
+  if (action === revealLabel && savedUri !== undefined) {
+    await vscode.commands.executeCommand('revealFileInOS', savedUri);
+  }
 }
 
 interface SessionQuickPickItem extends vscode.QuickPickItem {
@@ -1192,13 +1204,33 @@ interface SessionQuickPickItem extends vscode.QuickPickItem {
 async function pickSession(
   metas: readonly SessionMetadata[],
 ): Promise<SessionMetadata | undefined> {
-  const sorted = [...metas].sort(compareSessionsByStartedDesc);
-  const items: SessionQuickPickItem[] = sorted.map((m) => ({
-    label: m.firstUserText ?? vscode.l10n.t('(session with no user messages)'),
-    description: m.startedAt?.slice(0, 10) ?? '????-??-??',
-    detail: vscode.l10n.t('{0} turns · {1}', String(m.turnCount), m.sessionId.slice(0, 8)),
-    metadata: m,
-  }));
+  const sorted = [...metas].sort(compareSessionsByLastActiveDesc);
+  const items: SessionQuickPickItem[] = sorted.map((m) => {
+    // Title precedence: user override > Claude Code auto-title > first
+    // user message. The first user message is usually generic ("hola",
+    // "ayudame con esto") so it's the worst-quality option.
+    const label =
+      m.customTitle ??
+      m.aiTitle ??
+      m.firstUserText ??
+      vscode.l10n.t('(session with no user messages)');
+    const description =
+      m.lastActiveAt !== undefined
+        ? formatRelativeTime(m.lastActiveAt)
+        : (m.startedAt?.slice(0, 10) ?? '');
+    const detailParts = [
+      vscode.l10n.t('{0} turns', String(m.turnCount)),
+      m.gitBranch,
+      m.cwd !== undefined ? basename(m.cwd) : undefined,
+      m.sessionId.slice(0, 8),
+    ].filter((p): p is string => p !== undefined && p.length > 0);
+    return {
+      label,
+      description,
+      detail: detailParts.join(' · '),
+      metadata: m,
+    };
+  });
   const selected = await vscode.window.showQuickPick(items, {
     title: vscode.l10n.t('Exportal — {0} Claude Code sessions', String(metas.length)),
     placeHolder: vscode.l10n.t('Pick a session to send to claude.ai'),
@@ -1208,9 +1240,11 @@ async function pickSession(
   return selected?.metadata;
 }
 
-function compareSessionsByStartedDesc(a: SessionMetadata, b: SessionMetadata): number {
-  const ax = a.startedAt ?? '';
-  const bx = b.startedAt ?? '';
+function compareSessionsByLastActiveDesc(a: SessionMetadata, b: SessionMetadata): number {
+  // Fall back to startedAt when lastActiveAt is missing (very fresh
+  // sessions just created may not have a stat result yet).
+  const ax = a.lastActiveAt?.getTime() ?? new Date(a.startedAt ?? 0).getTime();
+  const bx = b.lastActiveAt?.getTime() ?? new Date(b.startedAt ?? 0).getTime();
   if (ax === bx) return 0;
   return ax < bx ? 1 : -1;
 }
