@@ -23,6 +23,7 @@ interface Pure {
   readonly FILENAME_PATTERN: RegExp;
   readonly PORT_RANGE_START: number;
   readonly PORT_RANGE_END: number;
+  readonly KNOWN_ROUTE_KINDS: readonly string[];
   extractConversationIdFromPath(pathname: unknown): string | undefined;
   extractDesignProjectIdFromPath(pathname: unknown): string | undefined;
   extractChatGptConversationIdFromPath(pathname: unknown): string | undefined;
@@ -322,6 +323,37 @@ describe('ExportalPure.extractChatGptConversationIdFromPath', () => {
   it('rejects non-string inputs defensively', () => {
     expect(pure.extractChatGptConversationIdFromPath(undefined)).toBeUndefined();
     expect(pure.extractChatGptConversationIdFromPath(null)).toBeUndefined();
+  });
+});
+
+describe('ExportalPure.KNOWN_ROUTE_KINDS', () => {
+  // Regression guard for the bug that shipped in v0.10.0: panelRoute
+  // in content-script.js had a hardcoded `kind !== 'chat' && kind !==
+  // 'design'` whitelist that didn't include 'chatgpt', so every click
+  // on chatgpt.com silently returned undefined. The fix routes the
+  // whitelist through this single constant — these assertions catch
+  // the next "added a kind in routeFromPath but forgot the whitelist"
+  // mistake before users see it.
+  it('is a non-empty array of strings', () => {
+    expect(Array.isArray(pure.KNOWN_ROUTE_KINDS)).toBe(true);
+    expect(pure.KNOWN_ROUTE_KINDS.length).toBeGreaterThan(0);
+    for (const k of pure.KNOWN_ROUTE_KINDS) {
+      expect(typeof k).toBe('string');
+    }
+  });
+
+  it('includes every kind that routeFromPath can emit', () => {
+    const claudeUuid = '0f1e2d3c-4b5a-6978-8796-a5b4c3d2e1f0';
+    const observed = new Set<string>();
+    const samples = [
+      pure.routeFromPath(`/chat/${claudeUuid}`),
+      pure.routeFromPath(`/design/p/${claudeUuid}`),
+      pure.routeFromPath(`/c/${claudeUuid}`, 'chatgpt.com'),
+    ];
+    for (const r of samples) if (r !== undefined) observed.add(r.kind);
+    for (const kind of observed) {
+      expect(pure.KNOWN_ROUTE_KINDS).toContain(kind);
+    }
   });
 });
 

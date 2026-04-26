@@ -6,6 +6,37 @@ Companion (Chrome extension) are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 and versions follow [Semantic Versioning](https://semver.org/).
 
+## [0.10.1] — 2026-04-26
+
+Hot-fix sobre 0.10.0: el FAB en chatgpt.com aparecía OK pero el click
+hacía nada visible. Bug mío al implementar Hito 30 — la guarda
+`panelRoute()` en `chrome/content-script.js` tenía whitelist hardcoded
+`kind !== 'chat' && kind !== 'design'` que NO incluía la kind nueva
+`'chatgpt'`, así que cada click era silenciosamente descartado antes
+de hacer cualquier cosa.
+
+### Fixed
+
+- **Click en FAB de chatgpt.com ahora dispara la export.** `panelRoute`
+  ya no rechaza `kind === 'chatgpt'`. La whitelist pasa a leerse desde
+  un nuevo constante `KNOWN_ROUTE_KINDS` exportado por `pure.js` —
+  source-of-truth única para que agregar un proveedor nuevo al
+  `routeFromPath` sin sumarlo a la whitelist no rompa el panel
+  silenciosamente. Test de regresión incluido.
+- **Diagnostic logging** agregado a los silent returns de
+  `handlePrimaryClick` y `runPrimaryFromShortcut`. Antes un click
+  fallido era invisible en console; ahora dice `Exportal: ... ignoring
+  click` con detalles del estado al diagnóstico.
+
+### Notes
+
+- 0.10.0 sigue OK en claude.ai (el bug solo afectaba chatgpt.com,
+  por la whitelist desactualizada). Si tu Companion sigue en 0.10.0
+  no rompe nada — solo no funciona ChatGPT.
+- 234 tests (+2 nuevos): tests de invariante para
+  `KNOWN_ROUTE_KINDS` que aseguran que cualquier kind emitido por
+  `routeFromPath` también esté en la whitelist.
+
 ## [0.10.0] — 2026-04-26
 
 Bump minor: el FAB flotante de Exportal ahora aparece también en

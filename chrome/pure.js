@@ -135,11 +135,19 @@ var ExportalPure = (function () {
     return 'errGeneric';
   }
 
+  // Source of truth for which route kinds the panel knows how to
+  // dispatch. Keep in sync with the kinds emitted by routeFromPath
+  // and consumed by content-script.js's panelRoute / fetchByRoute.
+  // Adding a new provider means: emit a new kind here, handle it in
+  // routeFromPath, and add a fetch* function in content-script.js.
+  const KNOWN_ROUTE_KINDS = ['chat', 'design', 'chatgpt'];
+
   return {
     UUID_PATTERN,
     FILENAME_PATTERN,
     PORT_RANGE_START,
     PORT_RANGE_END,
+    KNOWN_ROUTE_KINDS,
     extractConversationIdFromPath,
     extractDesignProjectIdFromPath,
     extractChatGptConversationIdFromPath,

@@ -421,7 +421,16 @@ async function handleSecondaryClick(btn) {
 
 async function handlePrimaryClick(btn) {
   const route = panelRoute();
-  if (route === undefined) return;
+  if (route === undefined) {
+    // Silent no-op was a debugging black hole — at minimum log so a
+    // user with DevTools open sees why the click did nothing.
+    console.warn('Exportal: handlePrimaryClick — panel has no route, ignoring click.', {
+      panel: document.getElementById(PANEL_ID),
+      pathname: window.location.pathname,
+      host: window.location.host,
+    });
+    return;
+  }
   const labelEl = btn.querySelector('[data-exp-label]');
   const originalLabel = labelEl?.textContent ?? '';
   btn.disabled = true;
@@ -469,7 +478,10 @@ async function fetchByRoute(route) {
 async function runPrimaryFromShortcut() {
   if (actionInFlight) return;
   const route = currentRoute();
-  if (route === undefined) return;
+  if (route === undefined) {
+    console.warn('Exportal: shortcut — no recognized route for', window.location.href);
+    return;
+  }
   actionInFlight = true;
   showToast(chrome.i18n.getMessage('toastExporting'), 'info');
   const t0 = performance.now();
@@ -834,9 +846,14 @@ function panelRoute() {
   const panel = document.getElementById(PANEL_ID);
   const kind = panel?.dataset.routeKind;
   const id = panel?.dataset.routeId;
-  if ((kind !== 'chat' && kind !== 'design') || typeof id !== 'string' || id.length === 0) {
+  // Whitelist sourced from pure.js so adding a provider only needs
+  // one update (KNOWN_ROUTE_KINDS in pure.js). Forgetting either side
+  // used to silently drop the click — that's how Hito 30's chatgpt
+  // route initially shipped broken.
+  if (typeof kind !== 'string' || !ExportalPure.KNOWN_ROUTE_KINDS.includes(kind)) {
     return undefined;
   }
+  if (typeof id !== 'string' || id.length === 0) return undefined;
   return { kind, id };
 }
 
