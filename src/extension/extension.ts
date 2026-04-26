@@ -154,6 +154,26 @@ export function activate(context: vscode.ExtensionContext): void {
       'exportal.importFromChatGptZip',
       importFromChatGptZipCommand,
     ),
+    // Cold-start accelerator: when the Chrome companion fires
+    // `vscode://dioniipereyraa.exportal/wake` (because the bridge
+    // didn't answer), VS Code dispatches the URI here. The act of
+    // dispatching activates this extension specifically, ahead of
+    // the broader `onStartupFinished` cascade that waits for every
+    // installed extension to register. By the time `handleUri` runs
+    // we've already executed `activate` (this function) — so the
+    // HTTP bridge below is listening, the companion's poll detects
+    // it on the next tick, and the export proceeds without waiting
+    // for the rest of the IDE to finish loading.
+    vscode.window.registerUriHandler({
+      handleUri(uri) {
+        // No-op: the activation is the whole point. Logging the URI
+        // helps if a future companion build expects a richer payload
+        // here (e.g. carry the conversation id to skip the second
+        // round-trip), but for now `/wake` is meaningless and that's
+        // by design — keeps the protocol asymmetric and simple.
+        console.log('Exportal: URI handler invoked', uri.toString());
+      },
+    }),
     vscode.commands.registerCommand('exportal.switchPairingProvider', async () => {
       // Clears the saved provider so the next pair-and-open call
       // shows the QuickPick again. Useful when the user switches

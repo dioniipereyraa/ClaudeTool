@@ -502,12 +502,16 @@ async function handlePrimaryClick(btn) {
   if (labelEl !== null) labelEl.textContent = chrome.i18n.getMessage('feedbackSearching');
   const t0 = performance.now();
   try {
-    const { conversation, assets, provider } = await fetchByRoute(route);
-    // Wake VS Code BEFORE the (potentially many-MB) payload upload —
-    // sending the body twice (once to detect offline, then again on
-    // retry) was a measurable waste in the previous version. Quick
-    // ping check first; only block on the cold-start path if offline.
-    await ensureBridgeReady(labelEl);
+    // Parallel kick-off: start the chat fetch AND the bridge readiness
+    // check at the same time. When VS Code is closed, the wake +
+    // cold-start runs concurrently with the chatgpt.com API fetch
+    // — we no longer pay both costs back-to-back. Promise.all
+    // rejects on the first failure, so a wake timeout doesn't have
+    // to wait for the fetch to complete before surfacing the error.
+    const [{ conversation, assets, provider }] = await Promise.all([
+      fetchByRoute(route),
+      ensureBridgeReady(labelEl),
+    ]);
     if (labelEl !== null) labelEl.textContent = chrome.i18n.getMessage('feedbackSending');
     await sendInline(conversation, assets, provider);
     const ms = Math.round(performance.now() - t0);
@@ -556,8 +560,12 @@ async function runPrimaryFromShortcut() {
   showToast(chrome.i18n.getMessage('toastExporting'), 'info');
   const t0 = performance.now();
   try {
-    const { conversation, assets, provider } = await fetchByRoute(route);
-    await ensureBridgeReady(undefined);
+    // Same parallel kick-off as the FAB click path — see
+    // handlePrimaryClick for rationale.
+    const [{ conversation, assets, provider }] = await Promise.all([
+      fetchByRoute(route),
+      ensureBridgeReady(undefined),
+    ]);
     await sendInline(conversation, assets, provider);
     const ms = Math.round(performance.now() - t0);
     const messages = countMessages(conversation);

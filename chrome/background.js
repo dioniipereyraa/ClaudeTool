@@ -390,7 +390,12 @@ chrome.runtime.onConnect.addListener((port) => {
 
 async function runBridgePollLoop(port, isCancelled) {
   const MAX_WAIT_MS = 60000;
-  const POLL_INTERVAL_MS = 100;
+  // 50ms cadence — the bottleneck is VS Code cold-start + extension
+  // activation, but once the bridge IS up we want to grab the next
+  // probe within a frame's worth of time (not 100ms). Each probe
+  // is ~10 instant ECONNREFUSED calls (~5-10ms total), so CPU at
+  // ~20 polls/sec stays trivial during the wake window.
+  const POLL_INTERVAL_MS = 50;
   const deadline = Date.now() + MAX_WAIT_MS;
   let attempt = 0;
   while (!isCancelled() && Date.now() < deadline) {
