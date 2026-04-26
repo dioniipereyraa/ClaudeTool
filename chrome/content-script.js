@@ -623,10 +623,10 @@ async function ensureBridgeReady(labelEl) {
   }
   triggerVsCodeWake();
   const tWake = performance.now();
-  // 60s budget: VS Code cold start is typically 5-15s but extension
-  // activation (esp. with many extensions) can push it past 30s on
-  // some setups. 60s leaves margin without holding the FAB forever.
-  const ready = await waitForBridge(60000);
+  // The 60s wake budget lives in the background SW now (not a
+  // setTimeout here that the tab throttler would slow down). Page
+  // just awaits the port message.
+  const ready = await waitForBridge();
   console.info('[Exportal] waitForBridge:', Math.round(performance.now() - tWake), 'ms, ready:', ready);
   if (!ready) throw new Error('bridge_offline');
 }
@@ -664,24 +664,42 @@ function triggerVsCodeWake() {
   }
 }
 
-// Polls the background for bridge reachability. Cadence: probe
-// immediately, then every 400ms. Cap at maxMs (~60s) — covers
-// VS Code cold-start on slow machines without leaving the FAB
-// frozen forever. 400ms is responsive enough that the user sees
-// the success pulse within ~half a second of VS Code being ready.
-async function waitForBridge(maxMs) {
-  const POLL_INTERVAL_MS = 400;
-  const deadline = Date.now() + maxMs;
-  while (Date.now() < deadline) {
+// Wait for the bridge to come online via a long-running Port to the
+// background SW. Why not a setTimeout loop in the page?
+//   - Background tabs throttle setTimeout (1+ second between fires
+//     when not focused). The user reported that the export hung
+//     until they re-clicked Chrome — classic background throttle.
+//   - Service worker setTimeout is NOT throttled by tab visibility,
+//     so the loop runs at full speed (100ms cadence).
+//   - The active port keeps the SW from being evicted during the
+//     polling — without it, MV3 would kill the SW after one sleep.
+//
+// The background sends `{ ready: true }` as soon as the bridge
+// answers, or `{ ready: false }` after its own 60s timeout. Either
+// way the port disconnects and our promise resolves.
+async function waitForBridge() {
+  return new Promise((resolve) => {
+    let resolved = false;
+    const finish = (value) => {
+      if (resolved) return;
+      resolved = true;
+      resolve(value);
+    };
+    let port;
     try {
-      const res = await chrome.runtime.sendMessage({ type: 'exportal:pingBridge' });
-      if (res?.ok === true) return true;
-    } catch {
-      // SW could be momentarily down between probes; ignore and retry.
+      port = chrome.runtime.connect({ name: 'pollBridgeReady' });
+    } catch (err) {
+      console.warn('[Exportal] waitForBridge: connect failed', err);
+      finish(false);
+      return;
     }
-    await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
-  }
-  return false;
+    port.onMessage.addListener((msg) => {
+      finish(msg?.ready === true);
+    });
+    port.onDisconnect.addListener(() => {
+      finish(false);
+    });
+  });
 }
 
 function explainError(err) {

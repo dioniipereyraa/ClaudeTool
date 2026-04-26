@@ -368,10 +368,60 @@ async function finalizeForwardResult(result) {
   return { ok: false, error: 'bridge_offline' };
 }
 
-// One-shot probe used by the content-script's wake-and-retry loop.
-// We can't run the loop in the background (MV3 evicts the SW during
-// any `await sleep(N)`), so the loop lives in the page context and
-// just calls back here for each probe.
+// Long-running poll port. The content script opens this after firing
+// the `vscode://` wake — the loop runs HERE in the service worker
+// instead of the page so:
+//   1. Background tab throttling doesn't apply (SWs aren't throttled
+//      by tab visibility — only the page's own setTimeout is).
+//   2. The active port keeps the SW alive past its normal eviction
+//      window, so `await sleep(N)` inside the loop actually wakes
+//      back up instead of getting silently dropped.
+//
+// Sleep cadence is tight (100ms) — once VS Code is up, we want to
+// detect it within the next probe window, not wait for the old
+// 400ms / 800ms heartbeat. ECONNREFUSED on localhost is ~1ms per
+// port, so total CPU is negligible during the brief wake window.
+chrome.runtime.onConnect.addListener((port) => {
+  if (port.name !== 'pollBridgeReady') return;
+  let cancelled = false;
+  port.onDisconnect.addListener(() => { cancelled = true; });
+  void runBridgePollLoop(port, () => cancelled);
+});
+
+async function runBridgePollLoop(port, isCancelled) {
+  const MAX_WAIT_MS = 60000;
+  const POLL_INTERVAL_MS = 100;
+  const deadline = Date.now() + MAX_WAIT_MS;
+  let attempt = 0;
+  while (!isCancelled() && Date.now() < deadline) {
+    attempt += 1;
+    if (await isBridgeReachable()) {
+      console.info('[Exportal] poll: bridge ready after', attempt, 'attempts');
+      safePostAndDisconnect(port, { ready: true });
+      return;
+    }
+    await sleep(POLL_INTERVAL_MS);
+  }
+  console.warn('[Exportal] poll: timeout after', attempt, 'attempts');
+  safePostAndDisconnect(port, { ready: false });
+}
+
+function safePostAndDisconnect(port, message) {
+  // Both calls can throw if the content-script tab navigated away
+  // (port already torn down). Either failure means the consumer is
+  // gone; no recovery needed beyond not crashing the loop.
+  try { port.postMessage(message); } catch { /* port gone */ }
+  try { port.disconnect(); } catch { /* port gone */ }
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+// Single-port probe shared by the wake polling loop above and the
+// pre-check called via `exportal:pingBridge` (one-shot from the
+// content script). Returns true iff at least one port answers
+// 200/401 — meaning some VS Code instance is listening.
 async function isBridgeReachable() {
   const token = await getToken();
   if (token === undefined) return false;
