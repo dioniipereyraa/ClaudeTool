@@ -6,6 +6,36 @@ Companion (Chrome extension) are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 and versions follow [Semantic Versioning](https://semver.org/).
 
+## [0.11.1] — 2026-04-26
+
+UX polish: el panel de la sidebar (Bridge status → token block) gana
+un botón **"Copiar y abrir Chrome"** al lado del "Copy token". Antes
+ese flow del auto-pair estaba escondido en el panel que se abre con
+`Ctrl+Shift+P` → *Show pairing token*. Ahora el camino completo
+(copia + abre claude.ai con `#exportal-pair=<hex>` para que el
+Companion auto-paire) está accesible directo desde la tab.
+
+### Added
+
+- **Botón "Pair with Chrome" en el Bridge status del sidebar**:
+  segundo botón al lado del copy-token (codicon
+  `link-external`), comparte estilo y feedback visual (`.copied`
+  flash con check) con el copy. Reusa exactamente el flow
+  `pair-and-open` del panel de Ctrl+Shift+P (clipboard fallback +
+  `vscode.env.openExternal` con el fragment + toast info).
+- **i18n**: reusa el string l10n `Copy and open Chrome` que ya
+  estaba en `bundle.l10n.es.json` ("Copiar y abrir Chrome"). Sin
+  strings nuevos.
+
+### Notes
+
+- El companion no necesita update — el fragment `#exportal-pair=<hex>`
+  ya lo entiende desde el primer release. Solo hay que actualizar
+  el VSIX para ver el botón nuevo.
+- `chrome/manifest.json` se bumpeó por el patrón histórico de
+  versiones sincronizadas, aunque no hay cambios en el companion
+  esta release.
+
 ## [0.11.0] — 2026-04-26
 
 Bump minor: el FAB de Exportal en chatgpt.com gana un botón

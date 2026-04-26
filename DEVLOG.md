@@ -3169,3 +3169,75 @@ detallado (mapping de content_types, UUIDs sintéticos, decisión del
   separado. Si molesta, sumar un post-process al texto que las
   reemplace por footnotes — hito chico aparte, no bloqueante.
 
+---
+
+## 2026-04-26 — Botón "Copiar y abrir Chrome" en el sidebar (v0.11.1)
+
+### Qué hicimos
+UX polish chiquito que cierra una asimetría que el user notó: el
+flow de auto-pair (copia el token + abre `claude.ai` con
+`#exportal-pair=<hex>` para que el Companion lo capture) hasta hoy
+solo vivía en el panel webview que abre `Ctrl+Shift+P` →
+*Exportal: Show pairing token*. La tab del sidebar (Bridge status →
+token block) tenía solo "Copy token" — copiaba, pero después había
+que abrir Chrome a mano y pegar.
+
+Con esta release la tab gana un segundo botón al lado del copy:
+codicon `link-external`, mismo estilo de IconButton, mismo
+`.copied` flash con check al hacer click. Hace exactamente lo que
+hace el `pair-and-open` del Ctrl+Shift+P panel.
+
+**`src/extension/control-panel.ts`:**
+- Nuevo handler `pairAndOpen` en el `webview.onDidReceiveMessage`,
+  paralelo al `copyToken` ya existente. Comentario explica que es
+  espejo del flow del extension.ts y referencia el comment largo
+  donde está la justificación de `Uri.from` over `Uri.parse`.
+- HTML: nuevo `<button id="pair-open-token">` adentro del
+  `.token-block`, hereda CSS de `.token-block button` (incluyendo
+  el `.copied` state). Tooltip via `title` con string l10n.
+- Script del webview: handler de click postMessage `pairAndOpen` +
+  intercambio de codicon `link-external` ↔ `check` por 1.4s para
+  feedback visual (mismo timing que el copy-token actual).
+
+**i18n:**
+- Sin strings nuevos. Reusa `Copy and open Chrome` que ya estaba
+  en `l10n/bundle.l10n.es.json` ("Copiar y abrir Chrome") porque
+  el panel del Ctrl+Shift+P ya lo usaba.
+
+### Decisiones técnicas
+- **Duplicación pragmática del flow** (5 líneas: clipboard +
+  `Uri.from` + `openExternal` + toast) en lugar de extraer una
+  función helper. Sí hay duplicación con `extension.ts`
+  pair-and-open, pero el costo de extraer + importar + tipar es
+  más alto que las 5 líneas hoy. Si aparece un tercer caller (ej:
+  un comando standalone), refactorizar entonces.
+- **Codicon `link-external` para el segundo botón**: el ícono
+  universal de "abrir en otro lado". Alternativas consideradas:
+  `chrome` (no existe en codicons), `globe` (ambiguo), `key`
+  (ya lo usa el Rotate token). `link-external` deja claro que
+  va a salir de VS Code.
+- **Sin tests automatizados**: el cambio es 100% UI del webview,
+  el flow real (clipboard + openExternal) ya está testeado
+  implícitamente vía el panel del Ctrl+Shift+P. Smoke test
+  manual cubre.
+- **Patch (0.11.1)**, no minor: es polish ergonómico de un panel
+  existente, no nueva capability. <30 líneas de código nuevo.
+
+### Verificación
+- `npm run ci` — lint ✓, typecheck ✓, 242/242 tests ✓ (sin tests
+  nuevos), build ✓.
+
+### Release
+- **v0.11.1** publicada. `package.json` y `chrome/manifest.json`
+  bumpeados (manifest sin cambios reales, sigue patrón histórico).
+- Vsix nuevo: `exportal-0.11.1.vsix` armado para smoke test del
+  user.
+- Companion no requiere update — el fragment `#exportal-pair=<hex>`
+  ya lo entendía desde Hito 10.
+
+### Próximo paso
+- Smoke test del user: instalar `exportal-0.11.1.vsix`, abrir la
+  tab de Exportal, expandir Bridge status → ver el segundo botón
+  al lado del copy → click debería abrir claude.ai con el fragment
+  y el companion auto-pairear.
+

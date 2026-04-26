@@ -167,6 +167,30 @@ export class ExportalControlPanelProvider implements vscode.WebviewViewProvider 
             vscode.l10n.t('Exportal: token copied to clipboard.'),
           );
         }
+      } else if (m.type === 'pairAndOpen') {
+        // Mirrors the `pair-and-open` flow from showPairingPanel in
+        // extension.ts: copy as fallback (default browser may not be
+        // Chrome), then launch claude.ai with `#exportal-pair=<hex>`
+        // so the Companion auto-pairs without a manual paste. See the
+        // long comment in extension.ts for the URL construction
+        // rationale (Uri.from over Uri.parse to keep the fragment
+        // intact across VS Code builds).
+        const token = this.readToken();
+        if (token !== undefined) {
+          await vscode.env.clipboard.writeText(token);
+          const pairingUri = vscode.Uri.from({
+            scheme: 'https',
+            authority: 'claude.ai',
+            path: '/',
+            fragment: `exportal-pair=${token}`,
+          });
+          await vscode.env.openExternal(pairingUri);
+          void vscode.window.showInformationMessage(
+            vscode.l10n.t(
+              'Exportal: opened claude.ai in your browser — pairing completes automatically if the Companion is installed.',
+            ),
+          );
+        }
       } else if (m.type === 'rotateToken') {
         await this.context.globalState.update('exportal.pairingToken', undefined);
         this.refresh();
@@ -761,6 +785,9 @@ export class ExportalControlPanelProvider implements vscode.WebviewViewProvider 
         <button id="copy-token" type="button" title="${t('Copy token')}">
           <i class="codicon codicon-copy"></i>
         </button>
+        <button id="pair-open-token" type="button" title="${t('Copy and open Chrome')}">
+          <i class="codicon codicon-link-external"></i>
+        </button>
       </div>
       <div class="actions">
         <button class="small-link" id="rotate-token" type="button">
@@ -898,6 +925,19 @@ export class ExportalControlPanelProvider implements vscode.WebviewViewProvider 
       copyBtn.classList.remove('copied');
       icon.classList.remove('codicon-check');
       icon.classList.add('codicon-copy');
+    }, 1400);
+  });
+  const pairOpenBtn = document.getElementById('pair-open-token');
+  pairOpenBtn.addEventListener('click', () => {
+    vscode.postMessage({ type: 'pairAndOpen' });
+    pairOpenBtn.classList.add('copied');
+    const icon = pairOpenBtn.querySelector('.codicon');
+    icon.classList.remove('codicon-link-external');
+    icon.classList.add('codicon-check');
+    setTimeout(() => {
+      pairOpenBtn.classList.remove('copied');
+      icon.classList.remove('codicon-check');
+      icon.classList.add('codicon-link-external');
     }, 1400);
   });
   document.getElementById('rotate-token').addEventListener('click', () => {
