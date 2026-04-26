@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "__MSG_extName__",
-  "version": "0.9.2",
+  "version": "0.10.0",
   "description": "__MSG_extDescription__",
   "default_locale": "en",
   "minimum_chrome_version": "116",
@@ -23,7 +23,7 @@
   "host_permissions": ["http://127.0.0.1/*"],
   "content_scripts": [
     {
-      "matches": ["https://claude.ai/*"],
+      "matches": ["https://claude.ai/*", "https://chatgpt.com/*"],
       "js": ["pure.js", "content-script.js"],
       "run_at": "document_idle"
     }

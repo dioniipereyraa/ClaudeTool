@@ -40,10 +40,28 @@ var ExportalPure = (function () {
     return UUID_PATTERN.test(id) ? id : undefined;
   }
 
-  // Single entry point for routing the FAB on claude.ai. Returns the
-  // route kind + id when we recognize the page, otherwise undefined.
-  // Tried in priority order: chat first (most common), then design.
-  function routeFromPath(pathname) {
+  // chatgpt.com/c/<UUID> is the conversation surface. Same UUID shape
+  // as claude.ai. Hito 30 — see ROADMAP.
+  function extractChatGptConversationIdFromPath(pathname) {
+    if (typeof pathname !== 'string') return undefined;
+    const match = /^\/c\/([^/?#]+)/.exec(pathname);
+    if (match === null) return undefined;
+    const id = match[1];
+    return UUID_PATTERN.test(id) ? id : undefined;
+  }
+
+  // Single entry point for routing the FAB. Each call site passes its
+  // own pathname AND host so the same function works on both
+  // claude.ai (chat / design) and chatgpt.com. Returns the route
+  // kind + id when we recognize the page, otherwise undefined.
+  function routeFromPath(pathname, host) {
+    if (host === 'chatgpt.com') {
+      const id = extractChatGptConversationIdFromPath(pathname);
+      return id !== undefined ? { kind: 'chatgpt', id } : undefined;
+    }
+    // Default: assume claude.ai (the legacy single-arg call site stays
+    // working — chrome companion content script passes only pathname
+    // when on claude.ai).
     const chatId = extractConversationIdFromPath(pathname);
     if (chatId !== undefined) return { kind: 'chat', id: chatId };
     const designId = extractDesignProjectIdFromPath(pathname);
@@ -124,6 +142,7 @@ var ExportalPure = (function () {
     PORT_RANGE_END,
     extractConversationIdFromPath,
     extractDesignProjectIdFromPath,
+    extractChatGptConversationIdFromPath,
     routeFromPath,
     isClaudeAiExport,
     buildPortOrder,

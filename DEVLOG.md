@@ -2738,3 +2738,136 @@ diagnostiquen sin pedir al user que comparta el zip.
   20 del ROADMAP): seguimos con dos importers paralelos por ahora,
   sin abstracción común. Vale revisar cuando entre el tercer
   proveedor (Gemini).
+
+---
+
+## 2026-04-26 — v0.10.0 · One-click ChatGPT (Hito 30)
+
+### Qué hicimos
+
+El user pidió que el FAB de Exportal aparezca también en chatgpt.com
+para no tener que pasar por el ZIP de export por mail. Hito 30 del
+ROADMAP completo, end-to-end, en una pasada.
+
+**Archivos tocados (orden de las decisiones)**:
+
+1. **`chrome/pure.js`**: nueva función
+   `extractChatGptConversationIdFromPath` (regex idéntica a
+   `/chat/<UUID>` de claude.ai pero para `/c/<UUID>` de chatgpt.com).
+   Cambié `routeFromPath(pathname)` a `routeFromPath(pathname, host)`
+   para dispatchar por host. Si host === 'chatgpt.com' busca solo el
+   pattern de chatgpt; sino fallback a claude.ai (chat / design).
+   El segundo argumento es opcional para mantener backward compat
+   con call sites que solo pasen pathname.
+
+2. **`chrome/manifest.json`**: agregué `"https://chatgpt.com/*"` al
+   `content_scripts[].matches`. Sigue solo `claude.ai` y `chatgpt.com`
+   — no `chat.openai.com` legacy porque ya redirige.
+
+3. **`chrome/content-script.js`**:
+   - `currentRoute()` pasa `window.location.host` además de pathname.
+   - `fetchByRoute(route)` ahora retorna `{ conversation, assets, provider }`
+     y tiene un branch nuevo para `route.kind === 'chatgpt'`.
+   - Nueva función `fetchChatGptConversation(id)` con auth two-step:
+     `/api/auth/session` → leer `accessToken` → pasar como Bearer al
+     `/backend-api/conversation/<id>`. Retry una vez en 401 (token
+     puede haber rotado mid-call). 404 → `not_found`,
+     401/403 final → `session_expired`.
+   - `sendInline()` acepta tercer argumento `provider` y lo
+     incluye en el message al background.
+   - `countMessages()` ahora maneja la shape de ChatGPT (mapping
+     tree de nodes) además de las shapes de claude.ai
+     (chat_messages array).
+   - El secondary button ("Preparar export oficial") y el
+     Alt+Shift+O shortcut siguen siendo no-op en ChatGPT (por la
+     misma lógica que en Design — `route.kind !== 'chat'` early
+     return).
+
+4. **`chrome/background.js`**:
+   - Origin guard ampliado: acepta tabs en
+     `https://chatgpt.com/` además de `https://claude.ai/`.
+   - `forwardInlineConversation()` acepta `provider` y lo incluye
+     en el body al bridge solo cuando está set (absent es backward
+     compatible con bridges pre-Hito-30).
+
+5. **`src/extension/http-server.ts`**: `ImportInlinePayload` gana
+   campo `provider: z.enum(['claude', 'chatgpt']).optional()`.
+   Backward compat: undefined → caller asume claude.
+
+6. **`src/extension/extension.ts`**:
+   - `handleBridgeImportInline()` checkea `payload.provider`. Si es
+     `chatgpt`, dispatcha a `handleChatGptInline`. Sino, mantiene
+     el flow claude.ai original.
+   - `handleChatGptInline()` (nuevo): valida con
+     `parseSingleConversation` del schema chatgpt, formatea con
+     `formatChatGptConversation`, persiste, attach a Claude Code.
+     NO genera `.jsonl` (envelope de Anthropic asume claude shapes).
+
+7. **Tests** (13 nuevos, 232 totales):
+   - `tests/chrome/pure.test.ts`: 10 tests cubren la detección
+     ChatGPT (extract function + routeFromPath multi-host
+     dispatch). El test crítico: `routeFromPath('/c/<uuid>')` SIN
+     host explícito devuelve undefined — para evitar que un path
+     accidental cross-matchee. Solo cuando host === 'chatgpt.com'
+     se reconoce el route.
+   - `tests/extension/http-server.test.ts`: 3 tests cubren el
+     nuevo provider field — un payload válido con provider:'chatgpt'
+     llega al handler con el provider; un provider inválido
+     (`'random_thing'`) tira 400.
+
+### Decisiones clave y por qué
+
+- **Auth strategy = `/api/auth/session` (option A)**: confirmada
+  con el user antes de implementar. Patrón estándar de NextAuth,
+  funciona con la session cookie del user. La alternativa B
+  (webRequest interceptor) requiere `webRequestBlocking` que
+  trae más escrutinio en Chrome Web Store review. A en v1, B
+  como fallback futuro si rompe.
+- **Provider en el payload, no en la URL**: pude hacer
+  `/import-inline-chatgpt` como endpoint separado. Pero un solo
+  endpoint con discriminator es más extensible (Gemini, Copilot,
+  etc. en el futuro) y mantiene el código del background uniforme
+  (un solo POST con un campo extra vs dos handlers paralelos).
+- **`provider: undefined` = claude (no error)**: backward compat
+  con Companion installs pre-Hito-30. Cuando vsce serve 0.10.0 a
+  los users, sus Companions existentes (que no setean el campo)
+  siguen funcionando como antes. El user upgradea Companion en su
+  ritmo.
+- **Retry de 401 en `fetchChatGptConversation`**: ChatGPT tokens
+  son JWTs de vida corta. Si entre el `/session` fetch y el
+  `/conversation` fetch el token expira, reintentamos con un
+  refresh. Limit a UNA sola retry — más probable que sea bug
+  (session realmente expired) que race transient.
+- **Visual del FAB inalterado entre proveedores**: el FAB es
+  Exportal-branded (no provider-branded). Eso lo deja consistente
+  para el user que usa los dos sites. Si en algún momento queremos
+  marcar el provider en el popover (chip pequeño tipo "ChatGPT"
+  o "claude.ai"), es polish futuro.
+- **No abstraje el shared "fetch + post bridge" pattern entre
+  claude y chatgpt**: cada uno tiene su propio fetch (una con
+  cookies, la otra con Bearer JWT) y sus propios códigos de error
+  específicos. La duplicación es chica (~50 LOC c/u), abstraer
+  sería over-engineering.
+
+### Verificación
+- `npm run ci` → verde. 24 test files, 232 tests passan.
+- `npm run package:all` → vsix de ~234 KB + chrome zip de ~30 KB.
+- **Smoke test del user pendiente**: instalar nuevo companion +
+  ir a chatgpt.com/c/<id>, ver el FAB, click, ver el .md en VS Code.
+
+### Lo que NO entra en v0.10.0
+- **Multimodal real (imágenes inline)**: el `/conversation/<id>`
+  devuelve `image_asset_pointer` references pero no los bytes.
+  Para bundlear las imágenes al `.md` necesitaríamos scrapear
+  también `/backend-api/files/<id>/download` y meter los archivos
+  al workspace. Tier 3 del Hito 21 — propio release futuro.
+- **`.jsonl` para `/resume` desde imports de ChatGPT**: el envelope
+  Anthropic asume shapes claude. Para soportarlo necesitaríamos un
+  generador chatgpt → claude-jsonl converter. No urgente.
+- **Detection automática de "no logueado a chatgpt.com"**: si el
+  user no está logueado, el `/api/auth/session` falla con 401 y
+  el toast dice `session_expired` — clear next step (loguearse en
+  chatgpt.com en otra tab). Un check upfront sería polish.
+- **Indicador visual del provider en el popover**: hoy el FAB se ve
+  igual en los dos sites. Sumar un chip "ChatGPT" o "claude.ai"
+  ayudaría discoverability cuando el user tiene los dos abiertos.

@@ -74,12 +74,13 @@ let lastPathname = '';
 let shortcutsInstalled = false;
 let actionInFlight = false;
 
-// What page are we on? Returns `{kind: 'chat'|'design', id}` for any
-// recognized claude.ai surface, or undefined for everything else
-// (login, settings, /design root, etc.). The two kinds share the same
-// FAB UI but route to different fetch pipelines.
+// What page are we on? Returns `{kind, id}` where kind is one of
+// 'chat', 'design' (claude.ai) or 'chatgpt' (chatgpt.com), or
+// undefined for everything else (login, settings, /design root,
+// chatgpt homepage, etc.). All kinds share the same FAB UI but route
+// to different fetch pipelines.
 function currentRoute() {
-  return ExportalPure.routeFromPath(window.location.pathname);
+  return ExportalPure.routeFromPath(window.location.pathname, window.location.host);
 }
 
 function injectStyles() {
@@ -427,9 +428,9 @@ async function handlePrimaryClick(btn) {
   if (labelEl !== null) labelEl.textContent = chrome.i18n.getMessage('feedbackSearching');
   const t0 = performance.now();
   try {
-    const { conversation, assets } = await fetchByRoute(route);
+    const { conversation, assets, provider } = await fetchByRoute(route);
     if (labelEl !== null) labelEl.textContent = chrome.i18n.getMessage('feedbackSending');
-    await sendInline(conversation, assets);
+    await sendInline(conversation, assets, provider);
     const ms = Math.round(performance.now() - t0);
     const messages = countMessages(conversation);
     if (labelEl !== null) labelEl.textContent = originalLabel;
@@ -450,9 +451,16 @@ async function handlePrimaryClick(btn) {
 async function fetchByRoute(route) {
   if (route.kind === 'chat') {
     const conversation = await fetchConversation(route.id);
-    return { conversation, assets: [] };
+    return { conversation, assets: [], provider: 'claude' };
   }
-  if (route.kind === 'design') return fetchDesignProject(route.id);
+  if (route.kind === 'design') {
+    const out = await fetchDesignProject(route.id);
+    return { ...out, provider: 'claude' };
+  }
+  if (route.kind === 'chatgpt') {
+    const conversation = await fetchChatGptConversation(route.id);
+    return { conversation, assets: [], provider: 'chatgpt' };
+  }
   throw new Error('invalid_response');
 }
 
@@ -466,8 +474,8 @@ async function runPrimaryFromShortcut() {
   showToast(chrome.i18n.getMessage('toastExporting'), 'info');
   const t0 = performance.now();
   try {
-    const { conversation, assets } = await fetchByRoute(route);
-    await sendInline(conversation, assets);
+    const { conversation, assets, provider } = await fetchByRoute(route);
+    await sendInline(conversation, assets, provider);
     const ms = Math.round(performance.now() - t0);
     const messages = countMessages(conversation);
     showToast(`${chrome.i18n.getMessage('feedbackOpenedInVsCode')} · ${ms}ms · ${messages}`, 'ok');
@@ -506,8 +514,8 @@ async function runSecondaryAction(id) {
   if (response?.ok !== true) throw new Error(response?.error ?? 'unknown');
 }
 
-async function sendInline(conversation, assets) {
-  const message = { type: 'exportal:sendInline', conversation };
+async function sendInline(conversation, assets, provider) {
+  const message = { type: 'exportal:sendInline', conversation, provider };
   if (Array.isArray(assets) && assets.length > 0) message.assets = assets;
   const response = await chrome.runtime.sendMessage(message);
   if (response?.ok !== true) throw new Error(response?.error ?? 'unknown');
@@ -521,13 +529,23 @@ function explainError(err) {
 }
 
 function countMessages(conversation) {
-  // claude.ai's internal shape uses chat_messages; older responses
-  // (or shape drift) may expose messages. Both are best-effort — a
-  // wrong count isn't a failure, so fall back to 0 silently.
+  // Best-effort across providers. claude.ai uses chat_messages[];
+  // ChatGPT uses mapping{} (a tree of nodes with .message). Wrong
+  // counts aren't failures — fall back to 0 silently.
   const a = conversation?.chat_messages;
   if (Array.isArray(a)) return a.length;
   const b = conversation?.messages;
   if (Array.isArray(b)) return b.length;
+  const mapping = conversation?.mapping;
+  if (mapping !== null && typeof mapping === 'object') {
+    let n = 0;
+    for (const node of Object.values(mapping)) {
+      if (node !== null && typeof node === 'object' && node.message !== null && node.message !== undefined) {
+        n += 1;
+      }
+    }
+    return n;
+  }
   return 0;
 }
 
@@ -558,6 +576,72 @@ async function fetchOrganizationIds() {
   if (!res.ok) throw new Error(`claude_api_${String(res.status)}`);
   const data = await parseJsonOrThrow(res);
   return ExportalPure.extractOrgIds(data);
+}
+
+// ─── ChatGPT (chatgpt.com) — Hito 30 ──────────────────────────────────
+// Two-step auth: chatgpt.com's frontend uses NextAuth, which keeps the
+// session in HttpOnly cookies and exposes a short-lived access token
+// via /api/auth/session. Our content script runs in the page's origin
+// so the cookies travel automatically with `credentials: 'same-origin'`.
+//
+// Step 1: GET /api/auth/session → JSON includes `accessToken` (JWT).
+// Step 2: GET /backend-api/conversation/<id> with `Authorization:
+//         Bearer <token>` → the conversation's full mapping shape.
+//
+// On 401 from step 2 we retry the session fetch once (token may have
+// rotated mid-call), then bail with `session_expired` so the user
+// gets a useful toast instead of generic "import failed".
+
+async function fetchChatGptConversation(conversationId) {
+  const token = await fetchChatGptAccessToken();
+  let res = await fetchChatGptApi(`/backend-api/conversation/${encodeURIComponent(conversationId)}`, token);
+  if (res.status === 401) {
+    const retryToken = await fetchChatGptAccessToken();
+    res = await fetchChatGptApi(`/backend-api/conversation/${encodeURIComponent(conversationId)}`, retryToken);
+    if (res.status === 401 || res.status === 403) throw new Error('session_expired');
+  }
+  if (res.status === 404) throw new Error('not_found');
+  if (res.status === 401 || res.status === 403) throw new Error('session_expired');
+  if (!res.ok) throw new Error(`chatgpt_api_${String(res.status)}`);
+  return await parseJsonOrThrow(res);
+}
+
+async function fetchChatGptAccessToken() {
+  const res = await fetch('/api/auth/session', {
+    credentials: 'same-origin',
+    headers: { accept: 'application/json' },
+  });
+  if (res.status === 401 || res.status === 403) throw new Error('session_expired');
+  if (!res.ok) throw new Error(`chatgpt_session_${String(res.status)}`);
+  const data = await parseJsonOrThrow(res);
+  const token = data?.accessToken;
+  if (typeof token !== 'string' || token.length === 0) {
+    // No accessToken means the user isn't logged in (or NextAuth changed
+    // their response shape). Surface as session_expired — the user has
+    // a clear next step (open chatgpt.com in another tab and log in).
+    throw new Error('session_expired');
+  }
+  return token;
+}
+
+async function fetchChatGptApi(url, token) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
+  try {
+    return await fetch(url, {
+      credentials: 'same-origin',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        accept: 'application/json',
+      },
+      signal: controller.signal,
+    });
+  } catch (err) {
+    if (err?.name === 'AbortError') throw new Error('timeout');
+    throw err;
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 // Claude Design lives on the same origin as claude.ai/chat but speaks

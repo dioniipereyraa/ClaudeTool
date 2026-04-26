@@ -84,6 +84,10 @@ const ImportInlinePayload = z.object({
       { message: 'conversation must be an object' },
     ),
   assets: z.array(InlineAsset).optional(),
+  // Provider tag (Hito 30). Absent means 'claude' for backward compat
+  // with older Companion installs that pre-date the multi-provider
+  // bridge protocol.
+  provider: z.enum(['claude', 'chatgpt']).optional(),
 });
 export type ImportInlinePayload = z.infer<typeof ImportInlinePayload>;
 

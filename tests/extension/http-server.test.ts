@@ -332,6 +332,43 @@ describe('startServer — /import-inline', () => {
     expect(body.error).toBe('invalid_shape');
     expect(body.message).toBe('schema mismatch');
   });
+
+  it('forwards provider="chatgpt" to the inline handler (Hito 30)', async () => {
+    h = await setup();
+    const conversation = {
+      conversation_id: 'c-1',
+      title: 'ChatGPT chat',
+      mapping: {},
+      current_node: 'a',
+    };
+    const res = await fetch(`${h.baseUrl}/import-inline`, {
+      method: 'POST',
+      headers: {
+        authorization: `Bearer ${h.handle.token}`,
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({ conversation, provider: 'chatgpt' }),
+    });
+    expect(res.status).toBe(200);
+    expect(h.onImportInline).toHaveBeenCalledExactlyOnceWith({
+      conversation,
+      provider: 'chatgpt',
+    });
+  });
+
+  it('rejects an unknown provider value with 400', async () => {
+    h = await setup();
+    const res = await fetch(`${h.baseUrl}/import-inline`, {
+      method: 'POST',
+      headers: {
+        authorization: `Bearer ${h.handle.token}`,
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({ conversation: { uuid: 'x' }, provider: 'random_thing' }),
+    });
+    expect(res.status).toBe(400);
+    expect(h.onImportInline).not.toHaveBeenCalled();
+  });
 });
 
 describe('startServer — port selection', () => {

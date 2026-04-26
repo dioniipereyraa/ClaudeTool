@@ -6,6 +6,56 @@ Companion (Chrome extension) are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 and versions follow [Semantic Versioning](https://semver.org/).
 
+## [0.10.0] — 2026-04-26
+
+Bump minor: el FAB flotante de Exportal ahora aparece también en
+**chatgpt.com**. Click → conversación importada en VS Code en menos
+de 2 segundos, sin pasar por el ZIP de export por mail. Hito 30.
+
+### Added
+
+- **One-click export desde chatgpt.com (Hito 30)**:
+  - El Chrome companion ahora se inyecta en `https://chatgpt.com/*`
+    además de `https://claude.ai/*`. El FAB aparece en cualquier
+    `chatgpt.com/c/<conversation-id>`.
+  - Click → fetch de la conversación vía `/api/auth/session`
+    (NextAuth, obtiene access token JWT) + `/backend-api/conversation/<id>`
+    (Bearer auth) → POST al bridge local de VS Code → Markdown abierto.
+  - El secondary button ("Preparar export oficial") está hidden en
+    chatgpt.com porque no hay equivalente útil — el ZIP path requiere
+    navegación manual del user a Settings → Data controls → Export.
+- **Bridge protocol**: nuevo campo opcional `provider: 'claude' | 'chatgpt'`
+  en el payload de `/import-inline`. Backward compat: absent = claude
+  (Companions pre-Hito-30 siguen funcionando sin cambios).
+- **`chrome/pure.js`**: nueva función `extractChatGptConversationIdFromPath`
+  + `routeFromPath(pathname, host)` ahora dispatcha por host (claude.ai
+  o chatgpt.com) para evitar accidental cross-matches.
+- **`src/extension/extension.ts`**: nuevo branch `handleChatGptInline`
+  que valida con `parseSingleConversation` del schema chatgpt y formatea
+  con `formatChatGptConversation`. Reusa `persistAndOpenMarkdown` y
+  `attachToClaudeCodeIfAvailable` (provider-agnostic).
+- **13 tests nuevos** (232 totales): 10 cubren la detección de rutas
+  ChatGPT en pure.js (incluyendo defensiva contra cross-matches:
+  `/c/<uuid>` solo matchea si host === 'chatgpt.com'), 3 cubren el
+  nuevo provider field en el bridge protocol.
+
+### Notes
+
+- **No `.jsonl` para `/resume` desde imports de ChatGPT**: la envelope
+  Anthropic asume claude shapes (claude.ai/Claude Code messages),
+  no maneja la estructura de mapping/branching de ChatGPT
+  directamente. Para v1 solo `.md`.
+- **No bundling de attachments multimodal**: si una conversación de
+  ChatGPT tiene imágenes uploadeadas, el `/backend-api/conversation/<id>`
+  devuelve `image_asset_pointer` references pero no los bytes. Para
+  bundlear los archivos al `.md`, scrapear también `/backend-api/files/<id>/download`
+  queda como Tier 3 del Hito 21 (futuro).
+- **Sensible al cambio de chatgpt.com**: si OpenAI cambia su
+  `/api/auth/session` o `/backend-api/conversation/<id>`, el FAB
+  silenciosamente rompe. El error toast da el código específico
+  (`session_expired`, `not_found`, etc.) para que cuando un user
+  reporte el problema, podamos diagnosticar rápido.
+
 ## [0.9.2] — 2026-04-26
 
 Hot-fix sobre 0.9.1: el import del export grande del usuario validaba en

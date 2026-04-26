@@ -9,7 +9,10 @@ import { formatAsClaudeCodeJsonl } from '../formatters/claude-code-jsonl.js';
 import { formatConversation } from '../formatters/claudeai-markdown.js';
 import { formatAsMarkdown } from '../formatters/markdown.js';
 import { readChatGptExport } from '../importers/chatgpt/reader.js';
-import { type ChatGptConversation } from '../importers/chatgpt/schema.js';
+import {
+  parseSingleConversation as parseSingleChatGptConversation,
+  type ChatGptConversation,
+} from '../importers/chatgpt/schema.js';
 import { stripUnsupportedBlockPlaceholders } from '../importers/claudeai/cleanup.js';
 import { readClaudeAiExport } from '../importers/claudeai/reader.js';
 import {
@@ -201,6 +204,13 @@ async function handleBridgeImport(payload: ImportPayload): Promise<void> {
 }
 
 async function handleBridgeImportInline(payload: ImportInlinePayload): Promise<void> {
+  // Provider tag drives which schema/formatter pipeline we use. Absent
+  // = 'claude' (backward compat with pre-Hito-30 Companion installs).
+  const provider = payload.provider ?? 'claude';
+  if (provider === 'chatgpt') {
+    await handleChatGptInline(payload);
+    return;
+  }
   // The Chrome companion scraped this directly from claude.ai's internal
   // conversation API, so the shape should match — but we re-validate here
   // because the bridge is a trust boundary. A specific BridgeError code
@@ -225,6 +235,32 @@ async function handleBridgeImportInline(payload: ImportInlinePayload): Promise<v
   const savedUri = await persistAndOpenMarkdown(conversation.name, markdown, baseName, assets);
   announceImport(conversation);
   await maybeWriteClaudeCodeJsonl(conversation);
+  await attachToClaudeCodeIfAvailable(savedUri);
+}
+
+/**
+ * ChatGPT branch of the inline import (Hito 30). Companion fetched a
+ * single conversation from `/backend-api/conversation/<id>` and we
+ * validate + format with the chatgpt-side schema/formatter. Reuses
+ * persist + auto-attach (provider-agnostic). No `.jsonl` for /resume:
+ * the Anthropic envelope assumes claude shapes, would need a
+ * dedicated converter.
+ */
+async function handleChatGptInline(payload: ImportInlinePayload): Promise<void> {
+  const parsed = parseSingleChatGptConversation(payload.conversation);
+  if (parsed === null) {
+    throw new BridgeError(
+      'invalid_shape',
+      'ChatGPT conversation JSON did not match the expected schema',
+    );
+  }
+  const title = parsed.title ?? `chatgpt-${(parsed.conversation_id ?? parsed.id ?? 'untitled').slice(0, 8)}`;
+  const baseName = `${buildExportTimestamp()}-${slugify(title)}`;
+  const { markdown } = formatChatGptConversation(parsed, { redact: true });
+  const savedUri = await persistAndOpenMarkdown(title, markdown, baseName);
+  void vscode.window.showInformationMessage(
+    vscode.l10n.t('Exportal: "{0}" imported from ChatGPT.', title),
+  );
   await attachToClaudeCodeIfAvailable(savedUri);
 }
 

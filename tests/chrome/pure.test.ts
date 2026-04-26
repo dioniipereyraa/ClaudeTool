@@ -25,7 +25,11 @@ interface Pure {
   readonly PORT_RANGE_END: number;
   extractConversationIdFromPath(pathname: unknown): string | undefined;
   extractDesignProjectIdFromPath(pathname: unknown): string | undefined;
-  routeFromPath(pathname: unknown): { kind: 'chat' | 'design'; id: string } | undefined;
+  extractChatGptConversationIdFromPath(pathname: unknown): string | undefined;
+  routeFromPath(
+    pathname: unknown,
+    host?: unknown,
+  ): { kind: 'chat' | 'design' | 'chatgpt'; id: string } | undefined;
   isClaudeAiExport(filename: unknown, url?: unknown, referrer?: unknown): boolean;
   buildPortOrder(lastPort?: number): number[];
   extractOrgIds(data: unknown): string[];
@@ -289,5 +293,71 @@ describe('ExportalPure.explainError', () => {
     expect(pure.explainError('wat')).toBe('errGeneric');
     expect(pure.explainError(undefined)).toBe('errGeneric');
     expect(pure.explainError(null)).toBe('errGeneric');
+  });
+});
+
+describe('ExportalPure.extractChatGptConversationIdFromPath', () => {
+  const valid = '6741e8ca-fd8c-8191-9b66-9f4875d4ef80';
+
+  it('extracts a UUID from /c/<uuid>', () => {
+    expect(pure.extractChatGptConversationIdFromPath(`/c/${valid}`)).toBe(valid);
+  });
+
+  it('tolerates trailing query/hash segments', () => {
+    expect(pure.extractChatGptConversationIdFromPath(`/c/${valid}?model=gpt-4`)).toBe(valid);
+    expect(pure.extractChatGptConversationIdFromPath(`/c/${valid}#anchor`)).toBe(valid);
+  });
+
+  it('rejects non-UUID conversation ids', () => {
+    expect(pure.extractChatGptConversationIdFromPath('/c/not-a-uuid')).toBeUndefined();
+    expect(pure.extractChatGptConversationIdFromPath('/c/')).toBeUndefined();
+  });
+
+  it('returns undefined for non-conversation paths', () => {
+    expect(pure.extractChatGptConversationIdFromPath('/')).toBeUndefined();
+    expect(pure.extractChatGptConversationIdFromPath('/g/g-abc/c/foo')).toBeUndefined();
+    expect(pure.extractChatGptConversationIdFromPath('/settings')).toBeUndefined();
+  });
+
+  it('rejects non-string inputs defensively', () => {
+    expect(pure.extractChatGptConversationIdFromPath(undefined)).toBeUndefined();
+    expect(pure.extractChatGptConversationIdFromPath(null)).toBeUndefined();
+  });
+});
+
+describe('ExportalPure.routeFromPath — multi-host dispatch', () => {
+  const claudeUuid = '0f1e2d3c-4b5a-6978-8796-a5b4c3d2e1f0';
+  const chatgptUuid = '6741e8ca-fd8c-8191-9b66-9f4875d4ef80';
+
+  it('routes /chat/<uuid> on claude.ai (default host)', () => {
+    expect(pure.routeFromPath(`/chat/${claudeUuid}`)).toEqual({ kind: 'chat', id: claudeUuid });
+  });
+
+  it('routes /design/p/<uuid> on claude.ai', () => {
+    expect(pure.routeFromPath(`/design/p/${claudeUuid}`)).toEqual({
+      kind: 'design',
+      id: claudeUuid,
+    });
+  });
+
+  it('routes /c/<uuid> on chatgpt.com (host = "chatgpt.com")', () => {
+    expect(pure.routeFromPath(`/c/${chatgptUuid}`, 'chatgpt.com')).toEqual({
+      kind: 'chatgpt',
+      id: chatgptUuid,
+    });
+  });
+
+  it('does NOT match /c/<uuid> when host is claude.ai (avoids accidental cross-match)', () => {
+    expect(pure.routeFromPath(`/c/${chatgptUuid}`)).toBeUndefined();
+    expect(pure.routeFromPath(`/c/${chatgptUuid}`, 'claude.ai')).toBeUndefined();
+  });
+
+  it('does NOT match /chat/<uuid> when host is chatgpt.com', () => {
+    expect(pure.routeFromPath(`/chat/${claudeUuid}`, 'chatgpt.com')).toBeUndefined();
+  });
+
+  it('returns undefined for unrecognized chatgpt.com paths', () => {
+    expect(pure.routeFromPath('/', 'chatgpt.com')).toBeUndefined();
+    expect(pure.routeFromPath('/settings', 'chatgpt.com')).toBeUndefined();
   });
 });

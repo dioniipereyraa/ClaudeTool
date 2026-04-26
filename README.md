@@ -13,7 +13,7 @@ Cuando pasás de claude.ai a Claude Code (o viceversa), perdés todo el contexto
 
 Con las dos extensiones instaladas y emparejadas:
 
-1. Abrí cualquier chat en `claude.ai/chat/<uuid>` **o un proyecto en `claude.ai/design/p/<uuid>`**.
+1. Abrí cualquier chat en `claude.ai/chat/<uuid>`, un proyecto en `claude.ai/design/p/<uuid>`, **o un chat en `chatgpt.com/c/<uuid>`**.
 2. Click en el botón flotante de Exportal (esquina inferior derecha) → **Exportar este chat**.
 3. VS Code guarda la conversación en `<workspace>/.exportal/<timestamp>-<slug>.md`, abre el archivo, **y automáticamente abre el panel de Claude Code con el Markdown adjunto como `@-mention`**. Solo escribís tu prompt y listo.
 

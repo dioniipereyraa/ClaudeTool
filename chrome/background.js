@@ -82,10 +82,13 @@ async function refreshPairingBadge() {
 //   - exportal:sendInline → POST the scraped conversation JSON to the
 //     VS Code bridge right now, no ZIP in the middle.
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  // Only accept from claude.ai tabs — defense-in-depth against any other
-  // page that somehow tries to talk to us.
+  // Only accept from origins our content script runs on (manifest matches):
+  // claude.ai for chat + Claude Design, chatgpt.com for ChatGPT (Hito 30).
+  // Defense-in-depth against any other page that somehow tries to talk
+  // to us.
   const url = sender.tab?.url ?? sender.url ?? '';
-  if (!url.startsWith('https://claude.ai/')) {
+  const ok = url.startsWith('https://claude.ai/') || url.startsWith('https://chatgpt.com/');
+  if (!ok) {
     sendResponse({ ok: false, error: 'bad_origin' });
     return false;
   }
@@ -109,6 +112,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       sendResponse({ ok: false, error: 'bad_payload' });
       return false;
     }
+    // Provider tag tells the bridge which schema to validate against.
+    // Backward compat: if missing, the bridge defaults to 'claude' so
+    // older Companion installs keep working.
+    const provider = message.provider === 'chatgpt' ? 'chatgpt'
+      : message.provider === 'claude' ? 'claude'
+      : undefined;
     // Optional `assets` only fires for Claude Design exports — the
     // bridge schema treats it as optional, so chats keep their old
     // shape. Defensive shape check: must be an array of objects with
@@ -123,7 +132,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         && typeof a.contentType === 'string',
       )
       .map((a) => ({ filename: a.filename, content: a.content, contentType: a.contentType }));
-    forwardInlineConversation(conversation, assets)
+    forwardInlineConversation(conversation, assets, provider)
       .then((result) => sendResponse(result))
       .catch((err) => sendResponse({ ok: false, error: String(err) }));
     return true;
@@ -243,17 +252,18 @@ async function tryPort(port, token, zipPath, conversationId) {
   }
 }
 
-async function forwardInlineConversation(conversation, assets) {
+async function forwardInlineConversation(conversation, assets, provider) {
   const token = await getToken();
   if (token === undefined) {
     await setBadge('SET', '#ca8a04');
     return { ok: false, error: 'no_token' };
   }
   // Bundle the assets into the JSON body only when present — keeps
-  // chat exports byte-identical to before this change.
-  const payload = Array.isArray(assets) && assets.length > 0
-    ? { conversation, assets }
-    : { conversation };
+  // chat exports byte-identical to before this change. Provider tag
+  // is sent only when set; absent means the bridge defaults to claude.
+  const payload = { conversation };
+  if (Array.isArray(assets) && assets.length > 0) payload.assets = assets;
+  if (provider !== undefined) payload.provider = provider;
   const body = JSON.stringify(payload);
   const ports = await buildPortOrder();
   let sawAuthError = false;
