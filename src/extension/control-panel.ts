@@ -4,6 +4,7 @@ import { join } from 'node:path';
 
 import * as vscode from 'vscode';
 
+import { pairAndOpenChrome } from './extension.js';
 import {
   findRecentExportsByProvider,
   formatRelativeTime,
@@ -168,28 +169,13 @@ export class ExportalControlPanelProvider implements vscode.WebviewViewProvider 
           );
         }
       } else if (m.type === 'pairAndOpen') {
-        // Mirrors the `pair-and-open` flow from showPairingPanel in
-        // extension.ts: copy as fallback (default browser may not be
-        // Chrome), then launch claude.ai with `#exportal-pair=<hex>`
-        // so the Companion auto-pairs without a manual paste. See the
-        // long comment in extension.ts for the URL construction
-        // rationale (Uri.from over Uri.parse to keep the fragment
-        // intact across VS Code builds).
+        // Single source of truth lives in extension.ts —
+        // pairAndOpenChrome handles the QuickPick (claude.ai vs
+        // chatgpt.com), the clipboard fallback, the URL launch with
+        // the `#exportal-pair=<hex>` fragment, and the toast.
         const token = this.readToken();
         if (token !== undefined) {
-          await vscode.env.clipboard.writeText(token);
-          const pairingUri = vscode.Uri.from({
-            scheme: 'https',
-            authority: 'claude.ai',
-            path: '/',
-            fragment: `exportal-pair=${token}`,
-          });
-          await vscode.env.openExternal(pairingUri);
-          void vscode.window.showInformationMessage(
-            vscode.l10n.t(
-              'Exportal: opened claude.ai in your browser — pairing completes automatically if the Companion is installed.',
-            ),
-          );
+          await pairAndOpenChrome(this.context, token);
         }
       } else if (m.type === 'rotateToken') {
         await this.context.globalState.update('exportal.pairingToken', undefined);

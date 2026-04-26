@@ -1,7 +1,7 @@
 {
   "name": "exportal",
   "displayName": "Exportal",
-  "version": "0.11.1",
+  "version": "0.11.2",
   "description": "%extension.description%",
   "l10n": "./l10n",
   "private": true,
@@ -56,6 +56,10 @@
       {
         "command": "exportal.sendSessionToChatGpt",
         "title": "%command.sendSessionToChatGpt.title%"
+      },
+      {
+        "command": "exportal.switchPairingProvider",
+        "title": "%command.switchPairingProvider.title%"
       }
     ],
     "configuration": {

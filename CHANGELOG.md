@@ -6,6 +6,50 @@ Companion (Chrome extension) are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 and versions follow [Semantic Versioning](https://semver.org/).
 
+## [0.11.2] — 2026-04-26
+
+UX polish multi-IA: el flow de "Copiar y abrir Chrome" ya no
+asume claude.ai. La primera vez te preguntamos si querés emparejar
+via **claude.ai** o **chatgpt.com** (el Companion vive en los dos
+sitios, cualquiera funciona como puente para el fragment
+`#exportal-pair=<hex>`). La elección queda recordada y las
+siguientes veces se usa silenciosamente.
+
+### Added
+
+- **QuickPick "Where do you want to pair?"** la primera vez que el
+  user dispara `pair-and-open` (desde el panel de Ctrl+Shift+P o
+  desde el botón nuevo del sidebar de 0.11.1). Persiste en
+  `globalState['exportal.lastPairProvider']`.
+- **Comando nuevo `Exportal: Switch pairing provider (claude.ai
+  / chatgpt.com)`** en el command palette. Limpia la preferencia
+  guardada para que el próximo pair-and-open vuelva a preguntar.
+  Útil si cambiás de workflow (claude-heavy → chatgpt-heavy).
+- **Helper exportado `pairAndOpenChrome(context, token)`** en
+  `src/extension/extension.ts`. Single source of truth para el
+  flow de auto-pair: elimina la duplicación de lógica que había
+  entre el panel del Ctrl+Shift+P y el sidebar.
+
+### Changed
+
+- **String l10n**: `Exportal: opened claude.ai in your browser…`
+  pasa a tener placeholder `{0}` y queda
+  `Exportal: opened {0} in your browser…` para reflejar el host
+  real (claude.ai o chatgpt.com). Las traducciones español
+  actualizadas.
+- README + README.vsix: la sección de instalación menciona el
+  QuickPick + el comando para cambiar de proveedor.
+
+### Notes
+
+- 242 tests siguen verdes (sin nuevos — el flow real está cubierto
+  manualmente; el QuickPick es UI standard de VS Code).
+- Companion sigue sin requerir update — el fragment
+  `#exportal-pair=<hex>` ya lo entendía desde Hito 10 en ambos
+  hosts. Solo cambia el VSIX.
+- `chrome/manifest.json` se bumpeó por el patrón histórico de
+  versiones sincronizadas, aunque no hay cambios en el companion.
+
 ## [0.11.1] — 2026-04-26
 
 UX polish: el panel de la sidebar (Bridge status → token block) gana

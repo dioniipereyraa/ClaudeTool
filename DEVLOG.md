@@ -3241,3 +3241,116 @@ hace el `pair-and-open` del Ctrl+Shift+P panel.
   al lado del copy → click debería abrir claude.ai con el fragment
   y el companion auto-pairear.
 
+---
+
+## 2026-04-26 — Pair-and-open multi-IA via QuickPick (v0.11.2)
+
+### Qué hicimos
+Feedback del user sobre 0.11.1: el botón "Copiar y abrir Chrome"
+abre `claude.ai` hardcoded, lo cual hizo sentido cuando claude.ai
+era el único proveedor pero hoy somos multi-IA (chatgpt.com tiene
+su propio FAB del companion desde Hito 30). Si el user es
+chatgpt-heavy, le aparece una pestaña de claude.ai random cada
+vez que paira.
+
+Solución: la primera vez que se dispara el flow `pair-and-open`,
+QuickPick neutro **"Where do you want to pair?"** con
+[claude.ai, chatgpt.com]. La elección persiste en `globalState` y
+las siguientes veces se usa silenciosamente (sin friction). Para
+cambiarla más adelante, comando palette nuevo
+`Exportal: Switch pairing provider` que limpia la preferencia.
+
+Aprovechamos para refactorear: extrajimos un helper exportado
+`pairAndOpenChrome(context, token)` en `extension.ts`. Antes la
+lógica del clipboard + URI build + openExternal vivía duplicada
+en dos lugares (panel del Ctrl+Shift+P + sidebar de 0.11.1). Ahora
+hay una sola fuente de verdad.
+
+**`src/extension/extension.ts`:**
+- Nueva constante `LAST_PAIR_PROVIDER_KEY = 'exportal.lastPairProvider'`.
+- Nuevo type `PairProvider = 'claude' | 'chatgpt'` + record
+  `PAIR_PROVIDER_HOSTS` con los authorities.
+- Función exportada `pairAndOpenChrome(context, token)`: copy
+  fallback al clipboard + `pickPairingProvider` + `openExternal`
+  con `Uri.from` (mismo razonamiento del Hito 30 sobre
+  `Uri.parse` re-encoding `=` en algunos VS Code builds) + toast
+  con el host real.
+- Función local `pickPairingProvider(context)`: lee globalState
+  → si hay valor válido, return directo; si no, QuickPick + save.
+- Comando `exportal.switchPairingProvider` registrado en
+  `activate` que limpia el state (set undefined) + toast.
+- Reemplazado el inline `pair-and-open` handler (≈40 líneas) por
+  una sola call a `pairAndOpenChrome(context, token)`.
+
+**`src/extension/control-panel.ts`:**
+- Import `pairAndOpenChrome` desde `./extension.js`.
+- Reemplazado el handler `pairAndOpen` inline (que era duplicación
+  del de extension.ts) por `await pairAndOpenChrome(this.context, token)`.
+
+**`package.json`:**
+- Nuevo command entry para `exportal.switchPairingProvider`.
+
+**`package.nls.json` + `package.nls.es.json`:**
+- Title del comando: "Exportal: Switch pairing provider (claude.ai
+  / chatgpt.com)" / "Exportal: Cambiar proveedor de emparejamiento
+  (claude.ai / chatgpt.com)".
+
+**`l10n/bundle.l10n.es.json`:**
+- Key vieja `Exportal: opened claude.ai in your browser…` removida.
+- Nuevas keys: `Exportal: opened {0} in your browser…` (con
+  placeholder), `Where do you want to pair?`, `Pick the site the
+  Companion should capture the token from. We remember your
+  choice.`, `Exportal: pairing provider preference cleared. Next
+  pair-and-open will ask again.`.
+
+**`README.md` + `README.vsix.md`:**
+- Sección de instalación menciona el QuickPick + el comando para
+  cambiar de proveedor.
+- Sección "Tab dedicada en VS Code" menciona el botón de "Copiar
+  y abrir Chrome" en el Bridge status (heredado de 0.11.1, pero
+  no se había documentado).
+
+### Decisiones técnicas
+- **Refactor justificado por el tercer caller potencial**: en
+  0.11.1 dije "duplicación pragmática" (5 líneas, sin extraer). Hoy
+  con la lógica del QuickPick + persistencia + URI build el bloque
+  pasa a ~25 líneas y agregar un tercer caller (el comando palette
+  para "pair manualmente") sería viable. Extraer ahora pone el
+  costo del refactor temprano y deja el suelo limpio para Hito 23
+  (popover multi-IA) que va a tocar este flow.
+- **Persist en `globalState`, no `workspaceState`**: el pairing es
+  per-installation (token vive en globalState también), no per-
+  workspace. Si el user trabaja en 5 proyectos no quiere
+  re-elegir provider en cada uno.
+- **QuickPick sin "(last used)" tag en la primera vez**: la
+  primera vez no hay last-used, así que el QuickPick muestra los
+  dos providers neutros. En las siguientes veces no aparece el
+  picker en absoluto (preferencia recordada). Si el user quiere
+  rever las opciones, comando palette → "Switch pairing
+  provider" → vuelve a preguntar.
+- **Comando NO bumpea minor**: agregar un command palette entry
+  es nueva surface técnicamente, pero es UX polish del feature
+  de 0.11.1 sin nueva capability principal. Patch (0.11.2) cubre.
+
+### Verificación
+- `npm run ci` — lint ✓, typecheck ✓, **242/242 tests ✓** (sin
+  tests nuevos), build ✓.
+- Flake del cache aparece la primera corrida (1.85s, error de
+  `config`); rm `node_modules/.vite` + retry → limpio. Mismo
+  patrón documentado.
+
+### Release
+- **v0.11.2** publicada. `package.json` y `chrome/manifest.json`
+  bumpeados. Companion sin cambios reales (manifest sincronía).
+- Vsix nuevo: `exportal-0.11.2.vsix`.
+- Companion zip: `exportal-companion-0.11.2.zip` (sin código
+  diferente, solo manifest version).
+
+### Próximo paso
+- Smoke test del user en su workflow: el primer click después de
+  instalar 0.11.2 debería mostrar el QuickPick; el segundo y
+  siguientes deberían usar la elección recordada sin preguntar.
+- Si en el futuro agregamos Gemini (Hito 22), agregar `'gemini'`
+  al type `PairProvider` + `PAIR_PROVIDER_HOSTS` + el QuickPick
+  va a tener tres opciones automáticamente.
+

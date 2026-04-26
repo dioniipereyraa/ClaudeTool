@@ -44,6 +44,83 @@ const PAIRING_TOKEN_KEY = 'exportal.pairingToken';
 // users see the new experience once. v2 landed with the webview /
 // auto-pair rewrite (previous version was the blocking modal dialog).
 const ONBOARDING_SHOWN_KEY = 'exportal.onboardingShownV2';
+// Remembers which provider the user chose the last time they hit the
+// "Copy and open Chrome" button. The Companion's content script lives
+// on both claude.ai and chatgpt.com, so either host can act as the
+// trampoline for the `#exportal-pair=<hex>` fragment — we ask once
+// and reuse the choice on subsequent pairings.
+const LAST_PAIR_PROVIDER_KEY = 'exportal.lastPairProvider';
+
+type PairProvider = 'claude' | 'chatgpt';
+
+const PAIR_PROVIDER_HOSTS: Record<PairProvider, string> = {
+  claude: 'claude.ai',
+  chatgpt: 'chatgpt.com',
+};
+
+/**
+ * Open the configured pairing provider in the user's default browser
+ * with `#exportal-pair=<token>` so the Companion's content script
+ * captures it without manual paste. Always copies the token to the
+ * clipboard first as a fallback (default browser may not be Chrome,
+ * or the Companion may not yet be installed).
+ *
+ * Returns silently if the user cancels the QuickPick on first run.
+ */
+export async function pairAndOpenChrome(
+  context: vscode.ExtensionContext,
+  token: string,
+): Promise<void> {
+  await vscode.env.clipboard.writeText(token);
+  const provider = await pickPairingProvider(context);
+  if (provider === undefined) return;
+  const authority = PAIR_PROVIDER_HOSTS[provider];
+  // URL construction uses Uri.from with explicit components, NOT
+  // Uri.parse. Parsing "https://<host>/#x=y" works, but some VS Code
+  // builds re-encode the "=" inside the fragment during .toString()
+  // — Chrome then treats the whole fragment as a single literal, not
+  // a key/value pair, and our content-script regex misses it.
+  // Uri.from preserves the fragment verbatim.
+  const pairingUri = vscode.Uri.from({
+    scheme: 'https',
+    authority,
+    path: '/',
+    fragment: `exportal-pair=${token}`,
+  });
+  await vscode.env.openExternal(pairingUri);
+  void vscode.window.showInformationMessage(
+    vscode.l10n.t(
+      'Exportal: opened {0} in your browser — pairing completes automatically if the Companion is installed.',
+      authority,
+    ),
+  );
+}
+
+/**
+ * First call shows a QuickPick (claude.ai vs chatgpt.com). Subsequent
+ * calls reuse the saved choice silently. Use the
+ * `exportal.switchPairingProvider` command to clear the preference and
+ * be asked again.
+ */
+async function pickPairingProvider(
+  context: vscode.ExtensionContext,
+): Promise<PairProvider | undefined> {
+  const saved = context.globalState.get<unknown>(LAST_PAIR_PROVIDER_KEY);
+  if (saved === 'claude' || saved === 'chatgpt') return saved;
+  const items: readonly { label: string; value: PairProvider }[] = [
+    { label: 'claude.ai', value: 'claude' },
+    { label: 'chatgpt.com', value: 'chatgpt' },
+  ];
+  const picked = await vscode.window.showQuickPick(items, {
+    title: vscode.l10n.t('Where do you want to pair?'),
+    placeHolder: vscode.l10n.t(
+      'Pick the site the Companion should capture the token from. We remember your choice.',
+    ),
+  });
+  if (picked === undefined) return undefined;
+  await context.globalState.update(LAST_PAIR_PROVIDER_KEY, picked.value);
+  return picked.value;
+}
 
 /**
  * Exportal — VS Code extension entry point.
@@ -77,6 +154,17 @@ export function activate(context: vscode.ExtensionContext): void {
       'exportal.importFromChatGptZip',
       importFromChatGptZipCommand,
     ),
+    vscode.commands.registerCommand('exportal.switchPairingProvider', async () => {
+      // Clears the saved provider so the next pair-and-open call
+      // shows the QuickPick again. Useful when the user switches
+      // between claude.ai-heavy and chatgpt.com-heavy workflows.
+      await context.globalState.update(LAST_PAIR_PROVIDER_KEY, undefined);
+      void vscode.window.showInformationMessage(
+        vscode.l10n.t(
+          'Exportal: pairing provider preference cleared. Next pair-and-open will ask again.',
+        ),
+      );
+    }),
   );
 
   // Activity-bar tab with the toggles + action buttons (hito 19
@@ -351,44 +439,20 @@ function showPairingPanel(context: vscode.ExtensionContext, token: string): void
         vscode.l10n.t('Exportal: token copied to clipboard.'),
       );
     } else if (type === 'pair-and-open') {
-      // Auto-pair flow. Put the token on the clipboard as a fallback
-      // (for users whose default browser is not Chrome, or who aren't
-      // running the Companion) and then launch claude.ai with the
-      // token attached as a URL fragment. The Companion's content
-      // script reads `#exportal-pair=<hex>`, asks the service worker
-      // to save it, and strips the fragment via history.replaceState
-      // so a reload can't re-pair. Fragments never hit the server —
-      // claude.ai itself never sees the token.
+      // pairAndOpenChrome handles the QuickPick (claude.ai vs
+      // chatgpt.com), the clipboard fallback, and the URL launch.
+      // Deliberately NOT disposing the panel here — the user asked
+      // that the pairing view stay open so they can retry if Chrome
+      // didn't pick up the fragment, or copy the token manually. The
+      // only explicit dismiss paths are the "Later" button and tab X.
       //
-      // Threat: a malicious link carrying someone else's token could
-      // overwrite the user's pairing. The worst outcome is the next
-      // export failing with "Invalid token" (our VS Code bridge has
-      // a different token stored); no data leaks, no RCE. Users
-      // re-pair from this panel.
-      //
-      // URL construction uses Uri.from with explicit components, NOT
-      // Uri.parse. Parsing "https://claude.ai/#x=y" works, but some
-      // VS Code builds re-encode the "=" inside the fragment during
-      // .toString() — Chrome then treats the whole fragment as a
-      // single literal, not a key/value pair, and our content-script
-      // regex misses it. Uri.from preserves the fragment verbatim.
-      await vscode.env.clipboard.writeText(token);
-      const pairingUri = vscode.Uri.from({
-        scheme: 'https',
-        authority: 'claude.ai',
-        path: '/',
-        fragment: `exportal-pair=${token}`,
-      });
-      await vscode.env.openExternal(pairingUri);
-      void vscode.window.showInformationMessage(
-        vscode.l10n.t(
-          'Exportal: opened claude.ai in your browser — pairing completes automatically if the Companion is installed.',
-        ),
-      );
-      // Deliberately NOT disposing the panel here. The user asked that
-      // the pairing view stay open so they can retry if Chrome didn't
-      // pick up the fragment, or copy the token manually. The only
-      // explicit dismiss paths are the "Later" button and the tab X.
+      // Threat note (kept local since it's policy-not-code): a
+      // malicious link carrying someone else's token could overwrite
+      // the user's pairing. Worst outcome is the next export failing
+      // with "Invalid token" (our VS Code bridge has a different
+      // token stored); no data leaks, no RCE. Users re-pair from
+      // this panel.
+      await pairAndOpenChrome(context, token);
     } else if (type === 'dismiss') {
       panel.dispose();
     } else if (type === 'open-sidebar') {
