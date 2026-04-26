@@ -423,30 +423,50 @@ function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-// Single-port probe shared by the wake polling loop above and the
-// pre-check called via `exportal:pingBridge` (one-shot from the
-// content script). Returns true iff at least one port answers
-// 200/401 — meaning some VS Code instance is listening.
+// Probes shared by the wake polling loop above and the pre-check
+// called via `exportal:pingBridge`. Returns true iff at least one
+// port answers 200/401 — meaning some VS Code instance is listening.
+//
+// Two reasons this is parallel + timeboxed instead of serial:
+//   1. On localhost, ECONNREFUSED is normally instant (~1ms). But on
+//      Windows with strict firewalls / some AV setups, fetches to a
+//      port without a listener can sit waiting for a TCP timeout
+//      (~2s each). Iterating 10 ports serially that way blows out
+//      to 20s — which the user observed in real logs.
+//   2. Promise.allSettled lets each port race independently. With the
+//      AbortController timeout at 500ms, the worst case is bounded
+//      to a single round-trip regardless of how many ports drag.
+const PROBE_TIMEOUT_MS = 500;
+
 async function isBridgeReachable() {
   const token = await getToken();
   if (token === undefined) return false;
   const ports = await buildPortOrder();
-  for (const port of ports) {
-    try {
-      const res = await fetch(`http://127.0.0.1:${port}/ping`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      // 200 = our bridge with our token; 401 = a bridge is listening
-      // but with a different token (still proves VS Code is up). Any
-      // 2xx/4xx response means *something* answered, which is what we
-      // care about for "is VS Code listening yet".
-      if (res.status === 200 || res.status === 401) return true;
-    } catch {
-      // connection refused on this port — keep probing
-    }
+  const probes = ports.map((port) => probeOnePort(port, token));
+  const results = await Promise.allSettled(probes);
+  return results.some((r) => r.status === 'fulfilled' && r.value === true);
+}
+
+async function probeOnePort(port, token) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), PROBE_TIMEOUT_MS);
+  try {
+    const res = await fetch(`http://127.0.0.1:${port}/ping`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+      signal: controller.signal,
+    });
+    // 200 = our bridge with our token; 401 = a bridge is listening
+    // with a different token (still proves VS Code is up). Either
+    // counts as "the bridge is reachable".
+    return res.status === 200 || res.status === 401;
+  } catch {
+    // ECONNREFUSED, timeout, or any other transport error — treat
+    // as "this port not listening".
+    return false;
+  } finally {
+    clearTimeout(timer);
   }
-  return false;
 }
 
 async function readErrorCode(res) {
