@@ -1,5 +1,3 @@
-import { basename } from 'node:path';
-
 import * as vscode from 'vscode';
 
 import { encodeProjectDir, PROJECTS_DIR } from '../core/paths.js';
@@ -1175,7 +1173,14 @@ async function sendSessionTo(target: SendSessionTarget): Promise<void> {
   }
 
   const metas = await Promise.all(files.map(async (f) => describeSession(f)));
-  const metadata = await pickSession(metas);
+  // Auto-pick the most recently active session (file mtime). When the
+  // user has Claude Code open and clicks "Send to claude.ai/ChatGPT",
+  // they almost always mean "this conversation I'm in right now". The
+  // QuickPick was confusing when several sessions shared a title (a
+  // common artifact of compaction). Power users can still hit
+  // Ctrl+Shift+P → palette and pick a specific session via the future
+  // "Send specific session…" command if we add one.
+  const metadata = pickMostRecentSession(metas);
   if (metadata === undefined) return;
 
   let markdown: string;
@@ -1207,12 +1212,14 @@ async function sendSessionTo(target: SendSessionTarget): Promise<void> {
   const revealLabel = vscode.l10n.t('Reveal file');
   const message = looksLarge
     ? vscode.l10n.t(
-        'Exportal: session is {0} KB — paste may truncate. Drag the saved .md into {1} instead.',
+        'Exportal: "{0}" is {1} KB — paste may truncate. Drag the saved .md into {2} instead.',
+        sessionTitle,
         (sizeBytes / 1024).toFixed(0),
         target.providerLabel,
       )
     : vscode.l10n.t(
-        'Exportal: copied to clipboard and saved. Paste with Ctrl+V into {0}, or drag the .md if the paste fails.',
+        'Exportal: "{0}" copied and saved. Paste with Ctrl+V into {1}, or drag the .md if the paste fails.',
+        sessionTitle,
         target.providerLabel,
       );
   const action = savedUri !== undefined
@@ -1223,47 +1230,11 @@ async function sendSessionTo(target: SendSessionTarget): Promise<void> {
   }
 }
 
-interface SessionQuickPickItem extends vscode.QuickPickItem {
-  readonly metadata: SessionMetadata;
-}
-
-async function pickSession(
+function pickMostRecentSession(
   metas: readonly SessionMetadata[],
-): Promise<SessionMetadata | undefined> {
-  const sorted = [...metas].sort(compareSessionsByLastActiveDesc);
-  const items: SessionQuickPickItem[] = sorted.map((m) => {
-    // Title precedence: user override > Claude Code auto-title > first
-    // user message. The first user message is usually generic ("hola",
-    // "ayudame con esto") so it's the worst-quality option.
-    const label =
-      m.customTitle ??
-      m.aiTitle ??
-      m.firstUserText ??
-      vscode.l10n.t('(session with no user messages)');
-    const description =
-      m.lastActiveAt !== undefined
-        ? formatRelativeTime(m.lastActiveAt)
-        : (m.startedAt?.slice(0, 10) ?? '');
-    const detailParts = [
-      vscode.l10n.t('{0} turns', String(m.turnCount)),
-      m.gitBranch,
-      m.cwd !== undefined ? basename(m.cwd) : undefined,
-      m.sessionId.slice(0, 8),
-    ].filter((p): p is string => p !== undefined && p.length > 0);
-    return {
-      label,
-      description,
-      detail: detailParts.join(' · '),
-      metadata: m,
-    };
-  });
-  const selected = await vscode.window.showQuickPick(items, {
-    title: vscode.l10n.t('Exportal — {0} Claude Code sessions', String(metas.length)),
-    placeHolder: vscode.l10n.t('Pick a session to send to claude.ai'),
-    matchOnDescription: true,
-    matchOnDetail: true,
-  });
-  return selected?.metadata;
+): SessionMetadata | undefined {
+  if (metas.length === 0) return undefined;
+  return [...metas].sort(compareSessionsByLastActiveDesc)[0];
 }
 
 function compareSessionsByLastActiveDesc(a: SessionMetadata, b: SessionMetadata): number {
