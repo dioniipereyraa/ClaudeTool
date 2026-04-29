@@ -3453,6 +3453,111 @@ fallback al mismo `bridge_offline` que antes — sin regression.
 
 ---
 
+## 2026-04-29 (tarde) — Landing en exportal.dev + OSS signals para awesome-lists
+
+### Qué hicimos
+Sesión de tarde (después de la entrada de la mañana). Construimos
+el blindaje + visibility infrastructure que NO depende de la
+aprobación de Chrome Web Store (la 0.5.7 sigue trabada en review).
+Tres frentes en paralelo: landing pública en `exportal.dev`,
+señales de OSS maturity en el repo, y SEO essentials.
+
+### Landing pública en exportal.dev (commits `acabb7c` + `c551dbe`)
+- Dominio `exportal.dev` registrado en Cloudflare (DNS-only, gris,
+  4 A records al apex apuntando a las IPs de GitHub Pages
+  185.199.108-111.153 + un CNAME para `www`).
+- GitHub Pages activado desde `main` / `/docs`. Custom domain
+  `exportal.dev` con cert Let's Encrypt emitido (Enforce HTTPS
+  marcado).
+- `docs/index.html`: hero con tagline + 3 CTAs, "Under the hood"
+  (Markdown sample + SVG architecture diagram inline), 6 features
+  cards, "How it works" en 3 pasos, "Architecture & Privacy",
+  bio del autor, "Built in the open" (4 cards linkeando
+  CHANGELOG/DEVLOG/ROADMAP/SECURITY), FAQ con 7 respuestas
+  honestas, footer con disclaimers de trademarks.
+- Animaciones: hero entrance staggered, sections reveal-on-scroll
+  via IntersectionObserver, FAQ smooth expand JS-driven con
+  scrollHeight medido (la primera versión usaba `grid-template-rows`
+  pero no animaba consistente — pivot a `height` explícito).
+- Favicon: copia de `assets/icon.svg` + `.png` a `docs/favicon.*`,
+  con `<link>` priorizando SVG.
+- Decisión clave durante la iteración: las screenshots actuales
+  son slides promocionales en español ("De tus chats a Claude
+  Code", "Ahora también ChatGPT") generadas para Chrome Web Store.
+  No representan al producto funcionando, y mismatch con el inglés
+  de la landing. Reemplazamos "See it in action" por "Under the
+  hood" — un Markdown sample real (frontmatter + `## User`/
+  `## Assistant` + thinking + tool_use) y un diagrama SVG hand-
+  drawn. Más honesto y técnicamente convincente que slides
+  decoradas. Una versión polished del diagrama queda en queue
+  para más adelante.
+
+### OSS signals para que awesome-lists nos tomen en serio
+Los maintainers de awesome-claude-code (30.9k stars) abren un
+repo y miran 5 cosas en 30 segundos antes de aceptar una
+submission: README, LICENSE, CONTRIBUTING.md, issue templates,
+mantenimiento activo. Faltaban 3 de esas 5. Cerrado:
+
+- `CONTRIBUTING.md`: dev setup (npm scripts), arquitectura de las
+  3 piezas (Chrome companion + VS Code extension + CLI), cómo
+  testear el bridge end-to-end, convenciones de commit (feat/
+  fix/docs/chore con scopes), what we say no to (telemetry,
+  bidirectional sync, etc — copiado de ROADMAP), CoC reference.
+- `CODE_OF_CONDUCT.md`: versión slim. **No inlineamos** el texto
+  del Contributor Covenant 2.1 — lo referenciamos por URL
+  canónica. Los content classifiers de Anthropic flagean el texto
+  literal del Covenant cuando lo genera un LLM (falso positivo
+  por las listas de prohibited behaviors), entonces pivotamos a
+  link + reporting contact (`dionipereyrab@gmail.com`).
+- `.github/ISSUE_TEMPLATE/bug_report.md` y `feature_request.md`:
+  forms estructurados con campos para version, OS, browser,
+  provider involved, logs, scope check contra ROADMAP.
+- `.github/PULL_REQUEST_TEMPLATE.md`: checklist de ci passes,
+  manual test descrito, CHANGELOG/DEVLOG updated, breaking
+  changes flag.
+- `.github/FUNDING.yml`: archivo placeholder con todas las
+  plataformas comentadas. Cuando Dioni active GitHub Sponsors o
+  Ko-fi se descomentan las líneas relevantes — hasta entonces
+  GitHub no muestra botón roto.
+
+### SEO essentials para la landing
+- `docs/robots.txt`: allow all + sitemap pointer.
+- `docs/sitemap.xml`: una entrada para la home (no hay subpáginas
+  todavía). Sin esto, Google indexa más lento o no indexa.
+
+### .gitignore reforzado
+Cambiamos `.claude/settings.local.json` por `.claude/` (carpeta
+entera). Defense-in-depth: cualquier archivo futuro que Claude
+Code cree dentro de `.claude/` queda automáticamente afuera.
+Verificado con `git check-ignore` — `.claude/anything.json` ya
+matchea la regla.
+
+### Inventario de assets disponibles para el día de submissions
+Cuando finalmente Chrome Web Store apruebe una versión con
+ChatGPT support, todo esto está listo:
+- Listing en inglés (READMEs + package.json keywords/categories
+  expandidas).
+- Landing pública en `exportal.dev` con HTTPS y SEO basics.
+- Repo con CONTRIBUTING/CoC/issue+PR templates → no nos rebotan
+  por "low quality submission".
+- 3 docs estratégicos en `.exportal/` con copy ready-to-paste
+  para awesome-lists, Reddit, X, Show HN, dev.to.
+
+### Lo que queda dependiente de Dioni
+- **GIF demo** (5-8s del flujo completo). Herramienta:
+  ScreenToGif en Windows.
+- **Real product screenshots** (FAB real + panel real + Claude
+  Code @-mention real) para reemplazar las promo screenshots
+  cuando llegue el momento.
+- **Vsix publish** con la nueva versión (necesita PAT de
+  Microsoft).
+
+### Próximo paso
+Esperar la aprobación de Chrome Web Store. Mientras: capturar
+GIF + screenshots cuando Dioni tenga ganas.
+
+---
+
 ## 2026-04-29 — Plan de visibilidad acordado + READMEs traducidos al inglés
 
 ### Qué hicimos

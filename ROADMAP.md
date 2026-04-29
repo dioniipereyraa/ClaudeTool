@@ -8,10 +8,21 @@ Items concretos y cerrados se mueven al `DEVLOG.md`. Releases formales al
 
 - [ ] Verificar el flujo de instalación en una máquina limpia (vsix +
   zip del companion desde releases, emparejar, probar ambos sentidos).
-- [ ] Subir los screenshots nuevos (ya en `docs/screenshots/exportal-s*-1280x800.png`)
-  al detail page del Chrome Web Store y al listing del VS Code
-  Marketplace. README ya está actualizado; queda el upload manual a
-  los dos dashboards (no se puede automatizar).
+- [ ] Cuando Chrome Web Store apruebe el ciclo trabado actual
+  (0.5.7 → versión nueva con ChatGPT), reescribir el listing del
+  store con el copy en inglés (texto listo en `.exportal/3-exportal-ejemplos-copy.md`)
+  y subir las screenshots nuevas. README ya está en inglés —
+  Marketplace de VS Code lo recoge en el próximo `vsce publish`.
+- [ ] Capturar GIF demo (5-8s, flujo claude.ai → VS Code con FAB
+  + auto-attach) con ScreenToGif y agregarlo al README + landing.
+- [ ] Reemplazar las promo screenshots de la landing por capturas
+  reales del producto funcionando (FAB real, panel de VS Code real,
+  @-mention real en Claude Code). Snipping Tool. Las promo en español
+  generan inconsistencia de idioma con el resto en inglés.
+- [ ] Re-renderizar las screenshots de la sección s0-s6 con headlines
+  en inglés (alineado con la decisión de idioma primario tomada el
+  2026-04-29). Trabajo de diseño, requiere herramientas que Dioni
+  todavía no tiene contratadas.
 
 ## Próximos hitos — en orden de prioridad
 
