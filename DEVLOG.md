@@ -3453,6 +3453,104 @@ fallback al mismo `bridge_offline` que antes — sin regression.
 
 ---
 
+## 2026-04-29 (cierre) — Limpieza final del día
+
+### Qué hicimos
+Barrido de hygiene antes de cerrar la sesión más larga del proyecto.
+Cinco issues encontrados y resueltos en una pasada.
+
+### Issues encontrados + fix
+1. **`console.log` huérfano en `src/extension/extension.ts:174`** —
+   debug residual del flow del URI handler ("Exportal: URI handler
+   invoked"). Removido. ESLint marcó `uri` como param sin uso, lo
+   renombré a `_uri` para honrar la convención del repo. El comment
+   adjacente se actualizó para reflejar que el handler es no-op por
+   diseño.
+2. **2 vulnerabilidades moderate en npm audit** — ambas transitivas
+   en `@azure/msal-node` (vsce dependency). `npm audit fix`
+   resolvió clean: **0 vulnerabilities**, `package-lock.json`
+   updated.
+3. **README.md y README.vsix.md sin link a `exportal.dev`** — la
+   landing está live hace horas pero los READMEs no la
+   referenciaban. Agregado en el callout `> Status` de ambos.
+4. **`docs/screenshots/exportal-marquee-1400x560.png` untracked** —
+   el marquee con bug de generación que sacamos de la landing. Lo
+   borré local (estaba en `git status` como untracked desde el
+   2026-04-26).
+5. **Vsix/zip artifacts en root** — ~30 archivos `exportal-*.vsix`
+   y `exportal-companion-*.zip` de releases viejos. Están
+   gitignored así que no se commitean, pero ocupan ~50MB en el
+   working dir. Decisión: **dejar como están** — Dioni puede
+   borrarlos cuando quiera con `rm exportal-*.{vsix,zip}` o
+   conservarlos como referencia histórica de releases pasados.
+
+### No-issues verificados
+- **Sin TODOs/FIXMEs/XXXs/HACKs** en `src/`. El único match
+  (`chatgpt-markdown.ts:184`) es la string literal `[Image:
+  file-XXX]` que es parte del format output, no un TODO.
+- **Sin console.logs** restantes en `src/` después del cleanup.
+
+### Verificación final
+- `npm run ci` → 243/243 tests, lint, typecheck, build limpios.
+- `git status` → solo los 4 cambios del cleanup pendientes para
+  commit.
+- exportal.dev live, GitHub README con video player embebido,
+  Lighthouse 100/100/100/100.
+
+### Sesión completa del 2026-04-29
+17 commits productivos en main. La sesión más densa del proyecto
+hasta hoy. Para referencia de scope:
+
+| # | Commit | Cierre |
+|---|---|---|
+| 1 | `efdfc8b` | READMEs en inglés + package.json keywords/categories |
+| 2 | `acabb7c` | Landing page en exportal.dev |
+| 3 | `c551dbe` | "Under the hood" + "Built in the open" en landing |
+| 4 | `8f1657c` | OSS signals (CONTRIBUTING, CoC, templates, FUNDING) |
+| 5 | `7ab760d` | SEO essentials (robots.txt, sitemap.xml) |
+| 6 | `fd11776` | DEVLOG tarde + ROADMAP near-term refresh |
+| 7 | `649d471` | GIF demo en README + Marketplace + landing |
+| 8 | `513f215` | Perf hints para LCP (no movieron la aguja) |
+| 9 | `22e8e8c` | GIF→MP4 swap, Lighthouse 100/100 |
+| 10 | `09226b5` | README MP4 — bare URL |
+| 11 | `b52d844` | README MP4 — `<video>` tag con URL absoluta |
+| 12 | `21f05a9` | README MP4 — user-attachments URL (la que funcionó) |
+| 13 | `739714c` | DEVLOG noche |
+| 14 | `9e5371b` | Auto-recovery del pairing token (ROADMAP backlog) |
+| 15 | `fcee211` | Hito 14: orgs en paralelo |
+| 16 | (este) | Cleanup final + audit fix + console.log + dev.link |
+
+Plus: dominio `exportal.dev` registrado en Cloudflare, GitHub
+Sponsors application enviada (esperando review 24-72h), DNS
+propagado, HTTPS cert emitido.
+
+### Lo que queda para próximas sesiones
+**No bloqueado, pendiente Dioni:**
+- Capturar real product screenshots (~20 min, Snipping Tool).
+- Vsix publish con PAT de Microsoft para que el Marketplace
+  refleje el README en inglés (~10 min con PAT setup).
+- Reddit warm-up (4 días, 30-45 min/día).
+- Escribir el post evergreen técnico (draft skeleton en
+  `.exportal/draft-blog-post-claude-coauthored.md`).
+
+**Bloqueado por Chrome Web Store** (la 0.5.7 sigue trabada en review):
+- Listing rewrite con copy en inglés.
+- Awesome-lists submissions (3 listas).
+- Reddit Show & Tell.
+- X thread de re-launch.
+- Show HN.
+
+**ROADMAP backlog activo después del cierre de hoy:**
+- Imágenes inline del export de ChatGPT (Tier 3 del Hito 21).
+- Flake intermitente del CI en Windows (no reproducible).
+- Hito 16 — Soporte para artifacts de claude.ai.
+- Hito 17 — Export parcial ("desde mensaje X").
+
+Hito 14 y "Auto-recovery del pairing token" cerrados hoy y
+removidos del ROADMAP.
+
+---
+
 ## 2026-04-29 (noche, después aún) — Hito 14: probar orgs de claude.ai en paralelo
 
 ### Qué hicimos

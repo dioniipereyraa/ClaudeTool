@@ -165,13 +165,12 @@ export function activate(context: vscode.ExtensionContext): void {
     // it on the next tick, and the export proceeds without waiting
     // for the rest of the IDE to finish loading.
     vscode.window.registerUriHandler({
-      handleUri(uri) {
-        // No-op: the activation is the whole point. Logging the URI
-        // helps if a future companion build expects a richer payload
-        // here (e.g. carry the conversation id to skip the second
-        // round-trip), but for now `/wake` is meaningless and that's
-        // by design — keeps the protocol asymmetric and simple.
-        console.log('Exportal: URI handler invoked', uri.toString());
+      handleUri(_uri) {
+        // No-op: the activation is the whole point. The companion's
+        // wake flow only needs the extension to be alive when the
+        // bridge gets its first POST — registering this handler is
+        // what guarantees that. `/wake` carries no payload by design,
+        // keeping the protocol asymmetric and simple.
       },
     }),
     vscode.commands.registerCommand('exportal.switchPairingProvider', async () => {

@@ -5,7 +5,7 @@ Bridge between **claude.ai / ChatGPT** and **Claude Code** (VS Code). Export any
 <video src="https://github.com/dioniipereyraa/ClaudeTool/raw/main/docs/screenshots/exportal-demo.mp4" autoplay loop muted playsinline></video>
 
 > **Status**: bidirectional (claude.ai / ChatGPT ↔ Claude Code). VS Code extension + Chrome companion + CLI.
-> Full changelog and docs: [GitHub repo](https://github.com/dioniipereyraa/ClaudeTool).
+> Landing: [exportal.dev](https://exportal.dev). Full changelog and docs: [GitHub repo](https://github.com/dioniipereyraa/ClaudeTool).
 
 ## What it solves
 
