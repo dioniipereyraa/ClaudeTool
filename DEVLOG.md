@@ -3453,6 +3453,68 @@ fallback al mismo `bridge_offline` que antes — sin regression.
 
 ---
 
+## 2026-04-29 (noche, después) — Auto-recovery del pairing token cuando el companion lo pierde
+
+### Qué hicimos
+Cerramos el ítem del backlog del ROADMAP que llevaba meses
+abierto: cuando el chrome.storage del companion se resetea (fresh
+unpacked install, browser data wipe, etc.), el FAB en claude.ai/
+chatgpt.com fallaba con un mensaje opaco "Error — see console" y
+el user no tenía guía para recuperarse. Ahora cuando el background
+retorna `no_token`, el FAB muestra un mensaje específico
+("Pairing needed — opening Options…" / "Falta emparejar — abriendo
+Opciones…") Y abre programáticamente la Options page con el campo
+para pegar el token. Cero acción extra del user.
+
+### Implementación (4 cambios chicos)
+1. `chrome/pure.js`: agregamos case `'no_token' → 'errNoToken'` al
+   `explainError`. Antes caía a `errGeneric` por default.
+2. `chrome/_locales/{en,es}/messages.json`: nuevo string
+   `errNoToken`:
+   - en: *"Pairing needed — opening Options…"*
+   - es: *"Falta emparejar — abriendo Opciones…"*
+3. `chrome/content-script.js`: nueva helper
+   `maybeOpenOptionsForNoToken(err)` que duck-typea el error y, si
+   matchea `'no_token'`, fire-and-forget
+   `chrome.runtime.sendMessage({ type: 'exportal:openOptionsPage' })`.
+   Llamada desde los dos catches de `runPrimaryFromButton` y
+   `runPrimaryFromShortcut` (mismo flow para FAB y `Alt+Shift+E`).
+   El handler `'exportal:openOptionsPage'` ya existía en
+   `background.js` desde el flow de auto-pair, lo reusamos directo.
+4. `tests/chrome/pure.test.ts`: agregamos un it() específico para
+   el nuevo mapping.
+
+### Decisiones técnicas
+- **Open options inmediato vs. delayed**: descartamos el delay
+  (esperar 2 clicks o 5s antes de abrir) porque `no_token` solo
+  aparece cuando el companion está genuinamente sin token — el
+  user no puede hacer NADA hasta pairear, entonces abrir options
+  on-demand es exactamente lo que necesita.
+- **Fire-and-forget vs. await**: el `sendMessage` no se awaitea.
+  El SW puede haberse evicted, el user puede haber cerrado la tab.
+  El toast/flash con el mensaje ya cubre el caso peor.
+- **Helper en content-script vs. en background**: la decisión vive
+  en content-script porque ahí está el catch del FAB. Background
+  ya retorna el código `no_token`, no hace falta tocarlo.
+
+### Verificación
+- `npm run ci` → 243 tests pasan (incluyendo el nuevo it()), lint
+  + typecheck + build limpios.
+- Smoke test manual sugerido (pre-merge si querés): cargar
+  companion unpacked, pairear, después borrar el token via
+  DevTools (`chrome.storage.local.remove('exportal.pairingToken')`),
+  refrescar claude.ai, click FAB → debería ver el toast y
+  abrirse la Options page con la card en estado 'waiting'.
+
+### Release / distribución
+- Sin bump por ahora — silent patch acumulado en main. Cuando
+  salga el próximo release oficial (probably 0.11.3 o 0.12.0),
+  agregamos al CHANGELOG: *"Auto-recovery del pairing token: el
+  FAB ahora abre solo la pestaña de Opciones cuando detecta que el
+  companion perdió el token"*.
+
+---
+
 ## 2026-04-29 (noche) — Landing 100/100 en Lighthouse + video embed en README
 
 ### Qué hicimos

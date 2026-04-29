@@ -146,6 +146,9 @@
   "errPayloadTooLarge": {
     "message": "Conversación muy grande"
   },
+  "errNoToken": {
+    "message": "Falta emparejar — abriendo Opciones…"
+  },
   "errGeneric": {
     "message": "Error — ver consola"
   }

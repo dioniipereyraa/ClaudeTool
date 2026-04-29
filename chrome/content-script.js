@@ -522,6 +522,7 @@ async function handlePrimaryClick(btn) {
     console.warn('Exportal: inline export failed.', err);
     if (labelEl !== null) labelEl.textContent = originalLabel;
     flash(btn, explainError(err), 'err');
+    maybeOpenOptionsForNoToken(err);
   } finally {
     btn.disabled = false;
   }
@@ -573,6 +574,7 @@ async function runPrimaryFromShortcut() {
   } catch (err) {
     console.warn('Exportal: inline export failed.', err);
     showToast(explainError(err), 'err');
+    maybeOpenOptionsForNoToken(err);
   } finally {
     actionInFlight = false;
   }
@@ -715,6 +717,26 @@ function explainError(err) {
   // against the current locale here since pure.js must stay browser/
   // Node-agnostic for unit tests.
   return chrome.i18n.getMessage(ExportalPure.explainError(err));
+}
+
+// When the FAB fires but `chrome.storage` has no token (typical after
+// a fresh unpacked install or a storage reset), the background returns
+// `no_token`. Open the Options page so the user lands on the pairing
+// UI instead of staring at an opaque error toast.
+function maybeOpenOptionsForNoToken(err) {
+  const msg =
+    err !== null && typeof err === 'object' && typeof err.message === 'string'
+      ? err.message
+      : typeof err === 'string'
+        ? err
+        : '';
+  if (msg !== 'no_token') return;
+  // Fire-and-forget — the user is already seeing the toast/flash; we
+  // don't need to await the response.
+  chrome.runtime.sendMessage({ type: 'exportal:openOptionsPage' }).catch(() => {
+    // Ignore: SW may have just been evicted, or the user already
+    // closed the tab. The toast still tells them what to do.
+  });
 }
 
 function countMessages(conversation) {

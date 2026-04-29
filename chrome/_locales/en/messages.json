@@ -185,6 +185,9 @@
   "errPayloadTooLarge": {
     "message": "Conversation too large"
   },
+  "errNoToken": {
+    "message": "Pairing needed — opening Options…"
+  },
   "errGeneric": {
     "message": "Error — see console"
   }

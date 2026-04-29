@@ -132,6 +132,9 @@ var ExportalPure = (function () {
     if (msg === 'bridge_auth') return 'errBridgeAuth';
     if (msg === 'invalid_shape') return 'errInvalidShape';
     if (msg === 'payload_too_large') return 'errPayloadTooLarge';
+    // Companion lost its pairing token (e.g. fresh install of the
+    // unpacked extension). Caller should also open the Options page.
+    if (msg === 'no_token') return 'errNoToken';
     return 'errGeneric';
   }
 

@@ -101,24 +101,6 @@ trabajo de mapping cubre dos providers de una.
 
 Tier más abajo — útiles pero no en la cola activa.
 
-### Auto-recovery del pairing token cuando el Companion lo pierde
-
-Si el user reinstala el Chrome companion (loadear como unpacked,
-borrar+reagregar, etc.), `chrome.storage` se resetea y el pairing
-token desaparece. Hoy el FAB en cualquier site falla con
-`no_token` sin guiar al user a la solución.
-
-**Scope**:
-- Detectar el caso `no_token` desde el background script (ya
-  retornamos el código).
-- En lugar de solo flashear el error en el botón, abrir
-  programáticamente la options page del companion (donde el campo
-  de paste del token vive).
-- O mejor: detectar al activar el companion fresh que no hay
-  token Y disparar el flow de pairing automático que ya tenemos
-  (`exportal:openOptionsPage` mensaje + el toast de VS Code que
-  abre el panel de pairing).
-
 ### Imágenes inline del export de ChatGPT (Tier 3 del Hito 21)
 
 Hoy las imágenes uploadeadas en chats de ChatGPT (`image_asset_pointer`

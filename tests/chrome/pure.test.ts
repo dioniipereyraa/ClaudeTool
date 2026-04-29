@@ -287,6 +287,10 @@ describe('ExportalPure.explainError', () => {
     expect(pure.explainError('payload_too_large')).toBe('errPayloadTooLarge');
   });
 
+  it('maps no_token to its own message ID for the auto-recovery flow', () => {
+    expect(pure.explainError('no_token')).toBe('errNoToken');
+  });
+
   it('accepts an Error instance and reads .message', () => {
     expect(pure.explainError(new Error('session_expired'))).toBe('errSessionExpired');
   });
