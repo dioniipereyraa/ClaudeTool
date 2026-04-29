@@ -2,7 +2,7 @@
 
 Bridge between **claude.ai / ChatGPT** and **Claude Code** (VS Code). Export any chat to clean Markdown with one click — ready to paste as context into Claude Code, or to send a Claude Code session back to your web chat.
 
-<video src="https://github.com/dioniipereyraa/ClaudeTool/raw/main/docs/screenshots/exportal-demo.mp4" autoplay loop muted playsinline></video>
+https://github.com/user-attachments/assets/159f0c0a-e07c-46f2-b1b3-7d632460f820
 
 > **Status**: bidirectional (claude.ai / ChatGPT ↔ Claude Code). VS Code extension + Chrome companion + CLI.
 > Changelog: [`CHANGELOG.md`](./CHANGELOG.md). Threat model: [`SECURITY.md`](./SECURITY.md). Detailed progress: [`DEVLOG.md`](./DEVLOG.md). What's coming: [`ROADMAP.md`](./ROADMAP.md).
