@@ -365,7 +365,7 @@
   /* ---------- Animations ---------- */
 
   /* Hero entrance — staggered fade-up on initial load. */
-  .hero h1, .hero .lede, .hero .ctas, .hero .badges {
+  .hero h1, .hero .lede, .hero .ctas, .hero .badges, .hero .hero-demo {
     opacity: 0;
     transform: translateY(12px);
     animation: fadeUp 0.55s cubic-bezier(0.22, 0.61, 0.36, 1) forwards;
@@ -374,6 +374,21 @@
   .hero .lede { animation-delay: 0.18s; }
   .hero .ctas { animation-delay: 0.30s; }
   .hero .badges { animation-delay: 0.42s; }
+  .hero .hero-demo { animation-delay: 0.54s; }
+
+  .hero-demo {
+    margin: 32px 0 4px;
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 14px 40px rgba(11, 18, 32, 0.18);
+    border: 1px solid rgba(11, 18, 32, 0.06);
+    line-height: 0;
+  }
+  .hero-demo img {
+    width: 100%;
+    height: auto;
+    display: block;
+  }
 
   @keyframes fadeUp {
     from { opacity: 0; transform: translateY(12px); }
@@ -592,6 +607,9 @@
     <img src="https://img.shields.io/badge/license-MIT-1d4ed8" alt="MIT license">
     <img src="https://img.shields.io/badge/local--first-yes-1d4ed8" alt="Local-first">
   </div>
+  <figure class="hero-demo">
+    <img src="screenshots/exportal-demo.gif" alt="Exportal demo: one click on a Claude.ai chat, the conversation lands in VS Code, and Claude Code receives it as @-mention." loading="eager">
+  </figure>
 </section>
 
 <section id="under-the-hood">
