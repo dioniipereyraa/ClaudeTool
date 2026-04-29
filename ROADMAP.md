@@ -163,31 +163,6 @@ cargo-culting. Las opciones consideradas y descartadas:
 **Reabrir cuando**: el flake reaparezca con datos frescos (output
 completo, qué archivos se editaron antes, qué procesos corrían).
 
-### Hito 14 — Optimización de latencia para usuarios multi-org (re-scopeado)
-
-**Original**: "agarramos `organizations[0]` sin preguntar". Ese
-diagnóstico quedó desactualizado — hoy `fetchConversation` en
-`chrome/content-script.js` itera todas las orgs y prueba cada una con
-el UUID de la conversación, pasando si devuelve 404 y exportando si
-devuelve 200. El comportamiento correcto para casi todos los casos
-está resuelto.
-
-**Scope residual**: usuarios con 3+ orgs en claude.ai pagan ~100-500ms
-de latencia extra por orgs erradas antes de encontrar la que tiene
-el chat. Medible, probablemente invisible (la UI ya muestra un
-spinner). Opciones si decidimos atacar esto:
-- Cachear la última org exitosa por-tab en `chrome.storage.session` y
-  probarla primero.
-- Probar orgs en paralelo (`Promise.allSettled`) y tomar el primer
-  200. Costo: burst de ~N requests; gain: latencia ≈ max(orgs) en
-  vez de sum(orgs).
-- UI de selector explícito en la options page (overkill para este
-  caso).
-
-**Disparador**: primer bug report real de alguien con 3+ orgs que
-note la latencia. Hasta entonces YAGNI. El código actual es correcto,
-solo es sub-óptimo en ese percentil.
-
 ### Hito 16 — Soporte para artifacts de claude.ai
 
 - claude.ai embebe artifacts (React components, code snippets

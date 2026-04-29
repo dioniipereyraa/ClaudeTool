@@ -767,17 +767,46 @@ const API_TIMEOUT_MS = 15000;
 async function fetchConversation(conversationId) {
   const orgIds = await fetchOrganizationIds();
   if (orgIds.length === 0) throw new Error('no_org');
-  for (const orgId of orgIds) {
+
+  // Probe all orgs in parallel. claude.ai's data model puts a chat in
+  // exactly one org but the URL doesn't tell us which, so we ask each.
+  // The previous serial loop cost sum(N) latency in the worst case
+  // (chat lives in the last org tried). Parallel brings it to max(N).
+  // Common case (1 org) costs nothing; users with 3+ orgs save
+  // 100-500ms of extra spinner.
+  const probes = orgIds.map(async (orgId) => {
     const url =
       `/api/organizations/${encodeURIComponent(orgId)}` +
       `/chat_conversations/${encodeURIComponent(conversationId)}` +
       `?tree=True&rendering_mode=messages`;
     const res = await fetchClaudeApi(url);
-    if (res.status === 404) continue;
+    if (res.status === 404) return null;
     if (res.status === 401 || res.status === 403) throw new Error('session_expired');
     if (!res.ok) throw new Error(`claude_api_${String(res.status)}`);
     return await parseJsonOrThrow(res);
+  });
+  const results = await Promise.allSettled(probes);
+
+  // First hit wins. Order doesn't matter — we know the chat lives in
+  // exactly one org, so at most one probe returns a non-null body.
+  for (const r of results) {
+    if (r.status === 'fulfilled' && r.value !== null) return r.value;
   }
+
+  // No hit. Surface the most actionable error.
+  // Priority: session_expired (user can re-login) > claude_api_*
+  // (server hiccup) > not_found (just a wrong UUID for this user).
+  let claudeApiErr = null;
+  for (const r of results) {
+    if (r.status !== 'rejected') continue;
+    const msg = r.reason?.message;
+    if (msg === 'session_expired') throw r.reason;
+    if (typeof msg === 'string' && msg.startsWith('claude_api_') && claudeApiErr === null) {
+      claudeApiErr = r.reason;
+    }
+  }
+  if (claudeApiErr !== null) throw claudeApiErr;
+
   throw new Error('not_found');
 }
 

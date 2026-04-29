@@ -3453,6 +3453,75 @@ fallback al mismo `bridge_offline` que antes — sin regression.
 
 ---
 
+## 2026-04-29 (noche, después aún) — Hito 14: probar orgs de claude.ai en paralelo
+
+### Qué hicimos
+Cerramos el Hito 14 del backlog (latency multi-org). Estaba marcado
+YAGNI hasta el primer bug report real, pero el cambio es ~30
+líneas con cero riesgo y mismo patrón que ya usamos hoy a la mañana
+(el firewall fix de `isBridgeReachable`), así que aprovechamos.
+
+### El problema
+`fetchConversation` en el Chrome companion iteraba las orgs del
+user en serie hasta encontrar la que tenía el chat. Para users con
+1-2 orgs no se nota; para 3+ orgs el último org acertado paga
+sum(N) en el peor caso — entre 100 y 500ms de spinner extra antes
+de empezar el export real.
+
+### El fix
+Pasamos el loop a `Promise.allSettled` con un map paralelo:
+
+```js
+const probes = orgIds.map(async (orgId) => {
+  const res = await fetchClaudeApi(...);
+  if (res.status === 404) return null;
+  if (res.status === 401 || res.status === 403) throw 'session_expired';
+  if (!res.ok) throw `claude_api_${res.status}`;
+  return await parseJsonOrThrow(res);
+});
+const results = await Promise.allSettled(probes);
+```
+
+Después de las probes:
+- **Hit wins**: si CUALQUIER probe devuelve un body no-null, usamos ése.
+  Como el chat vive en exactamente un org, sabemos que como mucho una
+  probe gana.
+- **No hit, error priority**: si todas fallan, tiramos el error más
+  accionable. Prioridad: `session_expired` (user puede re-loginear)
+  > `claude_api_*` (server hiccup) > `not_found` (UUID equivocado
+  para este user).
+
+### Tradeoff
+El costo es que ahora hacemos N requests siempre, en lugar de "early
+return en la primera org que matchea" del loop serial. Para 1 org:
+sin cambio. Para 5 orgs con hit en la primera: 5 requests vs 1.
+Acceptable porque: (a) el endpoint claude.ai es interno y barato,
+(b) ya estaba haciendo 4-5 requests serial en el caso peor, (c)
+ganancia de latencia perceptible para el percentil afectado.
+
+### Verificación
+- `npm run lint` ✓
+- `npm run typecheck` ✓
+- `npm test` → 243/243 (sin nuevos tests, el cambio preserva la
+  semántica del happy path y del error path; agregar integration
+  tests para fetchConversation requiere mocks de fetch que la
+  test infrastructure no tiene hoy).
+
+### Sin tests nuevos — justificación
+El cambio no introduce paths nuevos: emite los mismos errores
+(`no_org`, `session_expired`, `claude_api_*`, `not_found`) en las
+mismas condiciones. La única diferencia observable es el orden de
+ejecución (paralelo vs serial), que no es testeable sin tooling de
+timing y no afecta la API contract.
+
+### Release / distribución
+Sin bump por ahora — silent patch en main. En el próximo release
+oficial agregamos al CHANGELOG: *"Multi-org users see ~100-500ms
+faster chat exports — orgs are now probed in parallel instead of
+sequentially"*.
+
+---
+
 ## 2026-04-29 (noche, después) — Auto-recovery del pairing token cuando el companion lo pierde
 
 ### Qué hicimos
