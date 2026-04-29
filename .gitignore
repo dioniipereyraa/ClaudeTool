@@ -31,8 +31,8 @@ npm-debug.log*
 .DS_Store
 Thumbs.db
 
-# Claude Code — local per-user settings (keep shared settings.json commitable)
-.claude/settings.local.json
+# Claude Code — entire local config dir (permissions, hooks, etc. are personal)
+.claude/
 
 # Exportal output (never commit real exports — may contain secrets)
 *.export.md
