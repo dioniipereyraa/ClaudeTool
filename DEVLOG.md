@@ -3453,6 +3453,90 @@ fallback al mismo `bridge_offline` que antes — sin regression.
 
 ---
 
+## 2026-04-29 (noche) — Landing 100/100 en Lighthouse + video embed en README
+
+### Qué hicimos
+Loop de optimización sobre la landing publicada esa misma tarde,
+disparado por una corrida de Lighthouse mobile que dio 80
+Performance con LCP 5.4s en rojo. Resultado final: 100/100/100/100
+en mobile y desktop, y el demo en formato video embebido en GitHub
+README además de en la landing.
+
+### El loop de Lighthouse mobile
+1. **Primera corrida** (mobile): Performance 80, LCP 5.4s. Causa
+   diagnosticada: el GIF demo (816 KB) era el LCP element y bandwidth-
+   bound en Slow 4G (1.6 Mbps × 4s = ~5s).
+2. **Quick wins gratuitos** intentados primero: `<link rel="preload"
+   as="image">` + `fetchpriority="high"` + `decoding="async"` en el
+   `<img>`. Resultado: nada — LCP siguió en 5.4s. Confirmó que el
+   problema es el peso del archivo, no la prioridad de scheduling.
+3. **Path real**: re-encoding del MP4 original (22.6 MB que Dioni
+   ya tenía) a un MP4 chico via ffmpeg con
+   `-c:v libx264 -crf 28 -preset slow -vf "scale=1280:-2,fps=15"
+   -movflags +faststart -an`. Resultado: **165 KB**, 5x más chico
+   que el GIF. Calidad visual mejor (más colores, transiciones
+   smooth).
+4. **Swap del HTML**: `<img src=".gif">` → `<video src=".mp4"
+   autoplay loop muted playsinline preload="auto">`. CSS extendido
+   a `.hero-demo img, .hero-demo video`. Removido el `<link
+   rel="preload">` (ya no aplica para video, el `preload="auto"`
+   del video element basta).
+5. **Re-corrida**: 100 Performance mobile, 100 desktop. LCP sub-2s.
+   Todo lo demás ya estaba verde de antes.
+
+### El problema del video en GitHub README
+GitHub markdown sanitiza `<video>` tags incluso con `src` absoluto.
+URL bare (`https://...exportal-demo.mp4` sola en una línea)
+tampoco autoembeba — se renderiza como link de download.
+
+**Solución que funciona**: subir el archivo via la UI de GitHub
+(arrastrar al comment box de un issue nuevo, sin submitear el
+issue). GitHub lo hostea bajo
+`https://github.com/user-attachments/assets/<uuid>` y esas URLs
+sí auto-renderizan como player embebido con autoplay+loop+muted
+por default.
+
+URL final del demo del README:
+`https://github.com/user-attachments/assets/159f0c0a-e07c-46f2-b1b3-7d632460f820`.
+
+El MP4 sigue committeado en `docs/screenshots/exportal-demo.mp4`
+para la landing y el VS Code Marketplace (cada uno con su
+renderer distinto).
+
+### Stack final del demo asset
+- **Landing (exportal.dev)**: `<video>` element con `src` relativo a
+  `screenshots/exportal-demo.mp4`. Lighthouse 100.
+- **GitHub README**: URL `user-attachments/...` directa, GitHub la
+  embebe.
+- **VS Code Marketplace (README.vsix.md)**: `<video>` con URL
+  absoluta `github.com/.../raw/main/...`. Sin verificar todavía
+  porque requiere un `vsce publish` que está pending vsce PAT.
+- **MP4 original (22.6 MB)**: queda en disco de Dioni para futuras
+  necesidades (X/Twitter accepta hasta 15min de video, X
+  recomprime de origen mejor que de un asset ya comprimido).
+
+### Commits del loop (cronológico)
+1. `513f215` — preload + fetchpriority hints (no movió la aguja).
+2. `22e8e8c` — swap GIF (816 KB) → MP4 (165 KB). Lighthouse 100.
+3. `09226b5` — README primera intent: bare URL. Falló (renderizó
+   como link).
+4. `b52d844` — README segundo intent: `<video>` tag con URL
+   absoluta. Falló (GitHub stripeó el tag).
+5. `21f05a9` — README tercer intent: user-attachments URL. **Funciona**.
+
+### Lo que ya queda perfecto
+- ✅ Landing 100/100/100/100 en mobile + desktop.
+- ✅ Demo visible inline en GitHub README, VS Code Marketplace
+  (pendiente publish), y landing.
+- ✅ Stack de marketing assets listo para el día del launch.
+
+### Próximo paso
+Lo que queda no-bloqueado: GitHub Sponsors activation, Reddit
+warm-up, vsix publish con PAT (pendiente Dioni). El bloqueante
+sigue siendo Chrome Web Store con la 0.5.7 trabada.
+
+---
+
 ## 2026-04-29 (tarde) — Landing en exportal.dev + OSS signals para awesome-lists
 
 ### Qué hicimos
