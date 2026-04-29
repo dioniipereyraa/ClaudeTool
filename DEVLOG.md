@@ -3453,6 +3453,111 @@ fallback al mismo `bridge_offline` que antes — sin regression.
 
 ---
 
+## 2026-04-29 — Plan de visibilidad acordado + READMEs traducidos al inglés
+
+### Qué hicimos
+Sesión de planificación estratégica que arrancó importando a este
+workspace tres documentos producidos en una sesión paralela en
+claude.ai (chat "Exportal Companion extension", 28 mensajes, UUID
+`00ef7e7b-04fe-4082-878d-2a9cca29df04`). Los docs viven hoy en
+`.exportal/` y son input puntual, no parte del repo:
+
+1. `1-exportal-plan-negocio.md` — posicionamiento, modelos de negocio,
+   competencia, riesgos.
+2. `2-exportal-ejecucion.md` — semana 1-4 día por día.
+3. `3-exportal-ejemplos-copy.md` — copy listo para Chrome/VS Code
+   listings, awesome-lists PRs/Issues, Reddit, X, Show HN, dev.to,
+   landing HTML.
+
+Análisis del plan reveló varios conflictos con el estado real del
+repo y memoria existente (sobre todo Dual README y el dato del
+ritmo de releases). Esos puntos se reportaron y se ajustaron antes
+de ejecutar.
+
+### Decisiones cerradas (todas guardadas en memoria de Claude Code)
+- **Licencia: MIT.** Closed source no protege — el `.crx` y `.vsix`
+  ya están a la vista. Audiencia técnica trata MIT como filtro de
+  instalación, sobre todo en una extensión que toca cookies de
+  sesión y abre HTTP local.
+- **Modelo: Camino A (OSS puro)** los próximos 3-4 meses, evaluar
+  pivote a freemium con servicio cloud opcional al llegar a ~5k
+  usuarios activos.
+- **Posicionamiento: "bridge", no "exporter".** Único producto que
+  cierra el loop `claude.ai/ChatGPT → VS Code → Claude Code @-mention`.
+- **Nombre: queda "Exportal".** No se vuelve a debatir. El gap entre
+  el nombre y el wedge se cierra con el copy ("bridge" en todo el
+  messaging), no renombrando.
+- **Idioma primario: inglés**, español secundario. Mercado real
+  (r/ClaudeAI, HN, X devs, awesome-lists) es angloparlante.
+- **Audiencia primaria 60-90 días: devs de Claude Code.** Diseñadores
+  con Claude Design y usuarios híbridos ChatGPT+dev quedan como
+  segunda y tercera prioridad.
+
+### Acciones ejecutadas hoy
+- **About del repo de GitHub seteado** (manual via web): description
+  en inglés posicionando el producto como "bidirectional bridge",
+  15 topics (`claude`, `claude-code`, `claude-ai`, `chatgpt`,
+  `chrome-extension`, `vscode-extension`, `markdown`, `bridge`,
+  `ai-tools`, `developer-tools`, `local-first`, `open-source`,
+  `typescript`, `mit-license`, `productivity`), repo pinned al
+  perfil. Sin website (placeholder hasta que `exportal.dev` esté
+  registrado).
+- **`README.md` traducido al inglés** (versión GitHub con las 5
+  imágenes intercaladas + sección "Development"). Estructura
+  preservada exactamente; paths, settings names
+  (`exportal.autoAttachToClaudeCode`, `alsoWriteJsonl`), comandos
+  del paleta, atajos (`Alt+Shift+E`/`O`), y strings de UI exactos
+  ("Remember", "Done!", "Copy and open Chrome").
+- **`README.vsix.md` traducido al inglés** (versión Marketplace,
+  sin imágenes). Mantiene el diff existente con `README.md`
+  (sección "Development" omitida + sin imágenes).
+- **`package.json` actualizado**: `categories: ["AI", "Other"]` (era
+  `["Other"]` solo) y keywords expandidas de 5 a 15, ordenadas por
+  prioridad SEO en Marketplace (`claude-code` primero, `claude`,
+  `chatgpt`, `bridge`, `export`, etc.).
+
+### Estado de localización (verificado, no requiere cambios)
+- `package.nls.json` (default fallback) ya estaba **completamente en
+  inglés** desde antes. `package.nls.es.json` cubre el override en
+  español. Listing del Marketplace para users en inglés ya tiraba
+  inglés correctamente.
+- `l10n/bundle.l10n.es.json`: claves en inglés, valores en español.
+  UI runtime en inglés muestra las claves directo (que ya están en
+  inglés). Pasaba bien.
+
+### Bloqueante de Chrome Web Store (info corregida del user)
+La versión trabada en review de Google es **0.5.7** (vieja), no la
+0.11.2 actual. Cuando Google apruebe 0.5.7, hay que submitear una
+nueva versión saltando varias minor releases. **Mientras tanto el
+listing público de Chrome Web Store no refleja la 0.11.2** y por lo
+tanto no se puede vender "Claude.ai/ChatGPT bridge" en awesome-lists,
+Reddit, ni X — la versión publicada sigue siendo pre-ChatGPT.
+
+Todo el lanzamiento coordinado (PRs/Issues a awesome-lists +
+post r/ClaudeAI + thread X + listing rewrites) queda **bloqueado
+hasta que el ciclo de Chrome Web Store se desbloquee**. Timing
+incierto.
+
+### Verificación
+- `npm run lint` — limpio.
+- `npm run typecheck` — limpio.
+- Build del `.vsix` no se corrió en esta sesión (cambio de
+  package.json es metadata, no afecta tipos).
+
+### Próximo paso (lo que SÍ podemos hacer mientras Chrome Web Store
+está trabado)
+- Registrar `exportal.dev` (~$15/año, base del SEO y la canonical
+  URL para todo el plan).
+- Grabar GIF demo (5-8s, flujo claude.ai → VS Code) para arriba del
+  README. ScreenToGif en Windows.
+- Armar landing page mínima en `docs/index.html` para GitHub Pages,
+  con CNAME apuntando a `exportal.dev` cuando esté.
+- Verificar que el `.vsix` se sigue empaquetando limpio
+  (`npm run package:vsix`) — opcional, prudente antes de un
+  futuro publish.
+
+---
+
 ## 2026-04-26 — Iteración del auto-wake hasta que funciona instantáneo (silent patches sobre v0.11.2)
 
 ### Qué hicimos

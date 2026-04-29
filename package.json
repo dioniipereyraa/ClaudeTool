@@ -18,14 +18,25 @@
     "vscode": "^1.85.0"
   },
   "categories": [
+    "AI",
     "Other"
   ],
   "keywords": [
-    "claude",
     "claude-code",
-    "anthropic",
+    "claude",
+    "chatgpt",
+    "bridge",
     "export",
-    "markdown"
+    "claude-ai",
+    "markdown",
+    "chrome-extension",
+    "local-first",
+    "ai-tools",
+    "developer-tools",
+    "productivity",
+    "anthropic",
+    "openai",
+    "import"
   ],
   "bin": {
     "exportal": "./dist/cli/index.js"
