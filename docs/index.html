@@ -11,8 +11,6 @@
 <link rel="icon" href="favicon.png" type="image/png" sizes="128x128">
 <link rel="apple-touch-icon" href="favicon.png">
 
-<link rel="preload" as="image" href="screenshots/exportal-demo.gif" type="image/gif" fetchpriority="high">
-
 <meta property="og:title" content="Exportal — Bridge between AI chat and your editor">
 <meta property="og:description" content="Bidirectional bridge between Claude.ai/ChatGPT and Claude Code. One click in any chat → Markdown in your VS Code workspace, auto-attached to Claude Code as @-mention.">
 <meta property="og:type" content="website">
@@ -386,7 +384,7 @@
     border: 1px solid rgba(11, 18, 32, 0.06);
     line-height: 0;
   }
-  .hero-demo img {
+  .hero-demo img, .hero-demo video {
     width: 100%;
     height: auto;
     display: block;
@@ -610,7 +608,7 @@
     <img src="https://img.shields.io/badge/local--first-yes-1d4ed8" alt="Local-first">
   </div>
   <figure class="hero-demo">
-    <img src="screenshots/exportal-demo.gif" alt="Exportal demo: one click on a Claude.ai chat, the conversation lands in VS Code, and Claude Code receives it as @-mention." loading="eager" fetchpriority="high" decoding="async">
+    <video src="screenshots/exportal-demo.mp4" autoplay loop muted playsinline preload="auto" aria-label="Exportal demo: one click on a Claude.ai chat, the conversation lands in VS Code, and Claude Code receives it as @-mention."></video>
   </figure>
 </section>
 
