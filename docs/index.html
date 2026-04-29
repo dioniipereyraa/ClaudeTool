@@ -15,7 +15,7 @@
 <meta property="og:description" content="Bidirectional bridge between Claude.ai/ChatGPT and Claude Code. One click in any chat → Markdown in your VS Code workspace, auto-attached to Claude Code as @-mention.">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://exportal.dev/">
-<meta property="og:image" content="https://exportal.dev/screenshots/exportal-s4-vscode-1280x800.png">
+<meta property="og:image" content="https://exportal.dev/screenshots/exportal-s6-chatgpt-1280x800.png">
 <meta name="twitter:card" content="summary_large_image">
 
 <style>
@@ -454,6 +454,97 @@
     box-shadow: 0 4px 14px rgba(11, 18, 32, 0.05);
   }
 
+  /* "Under the hood" section: code block + architecture diagram. */
+  .sub-heading {
+    font-size: 1.05rem;
+    margin: 32px 0 14px;
+    font-weight: 600;
+    color: var(--ink);
+  }
+  .sub-heading:first-of-type { margin-top: 8px; }
+
+  pre.code-block {
+    background: var(--code-bg);
+    color: var(--code-ink);
+    border-radius: 10px;
+    padding: 22px 24px;
+    overflow-x: auto;
+    font-family: "SF Mono", Monaco, Consolas, "Liberation Mono", monospace;
+    font-size: 0.84rem;
+    line-height: 1.7;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    margin: 0;
+    white-space: pre;
+  }
+  pre.code-block .h { color: #c5fb52; font-weight: 600; }
+  pre.code-block .m { color: #94a3b8; }
+  pre.code-block .v { color: #f1f5f9; }
+  pre.code-block .sp { color: #c5fb52; font-weight: 700; }
+  pre.code-block .th { color: #94a3b8; font-style: italic; }
+  pre.code-block .tu { color: #f59e0b; }
+
+  .arch-wrap {
+    background: var(--bg-2);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 28px 20px 20px;
+  }
+  .arch-svg {
+    width: 100%;
+    height: auto;
+    display: block;
+  }
+
+  .block-note {
+    color: var(--muted);
+    font-size: 0.92rem;
+    margin-top: 14px;
+  }
+
+  /* "Built in the open" section. */
+  .open-stats {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-top: 8px;
+  }
+  .stat-card {
+    display: block;
+    padding: 22px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: var(--bg-2);
+    text-decoration: none;
+    color: var(--ink);
+    transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+  }
+  .stat-card:hover {
+    border-color: rgba(29, 78, 216, 0.3);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 18px rgba(11, 18, 32, 0.07);
+  }
+  .stat-num {
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: var(--accent);
+    line-height: 1;
+    margin-bottom: 8px;
+    letter-spacing: -0.02em;
+  }
+  .stat-name {
+    font-size: 0.98rem;
+    font-weight: 600;
+    margin-bottom: 6px;
+  }
+  .stat-desc {
+    font-size: 0.9rem;
+    color: var(--muted);
+    line-height: 1.5;
+  }
+  @media (max-width: 720px) {
+    .open-stats { grid-template-columns: 1fr; }
+  }
+
   /* Respect users who prefer no motion. */
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after {
@@ -503,17 +594,94 @@
   </div>
 </section>
 
-<section id="see">
-  <h2>See it in action</h2>
-  <p class="sub">The floating button on any Claude.ai or ChatGPT chat — one click and your conversation lands in your editor.</p>
-  <figure class="demo-figure">
-    <img src="screenshots/exportal-s1-fab-1280x800.png" alt="Exportal floating button on a claude.ai chat">
-    <figcaption>The Exportal floating button on claude.ai. Click → conversation imports to VS Code.</figcaption>
-  </figure>
-  <figure class="demo-figure" style="margin-top: 28px;">
-    <img src="screenshots/exportal-s6-chatgpt-1280x800.png" alt="Exportal supports Claude.ai, Claude Design, and ChatGPT">
-    <figcaption>One bridge, every chat: Claude.ai, Claude Design, and ChatGPT — all flow into the same Claude Code workspace.</figcaption>
-  </figure>
+<section id="under-the-hood">
+  <h2>Under the hood</h2>
+  <p class="sub">No mock screenshots — the actual file structure you receive, and the real architecture of the bridge.</p>
+
+  <h3 class="sub-heading">The Markdown you receive</h3>
+  <pre class="code-block"><code><span class="h"># Exportal — claude.ai conversation</span>
+
+- <span class="m">**Title:**</span> <span class="v">Refactoring the auth middleware</span>
+- <span class="m">**UUID:**</span> <span class="v">`7f3a4b9c-2d8e-4c11-a8d3-...`</span>
+- <span class="m">**Created:**</span> <span class="v">2026-04-22T14:32:11Z</span>
+- <span class="m">**Messages:**</span> <span class="v">14</span>
+- <span class="m">**Redaction:**</span> <span class="v">enabled</span>
+
+<span class="sp">## User</span>
+
+Can you read src/auth/middleware.ts and walk me through
+how the JWT verification works?
+
+<span class="sp">## Assistant</span>
+
+<span class="th">&gt; *thinking*
+&gt; Let me read the file first to understand the
+&gt; current implementation.</span>
+
+<span class="tu">[tool_use: read_file]
+{ "path": "src/auth/middleware.ts" }</span>
+
+The current implementation uses `jsonwebtoken` v9 with
+HS256. The `verifyToken` function on line 23 takes a
+request and...</code></pre>
+  <p class="block-note">A real export from a Claude.ai conversation. Tool-use blocks, thinking, and inline code are preserved verbatim — ready to paste into Claude Code as context, or auto-attached for you.</p>
+
+  <h3 class="sub-heading">How the bridge works</h3>
+  <div class="arch-wrap">
+    <svg viewBox="0 0 760 240" class="arch-svg" role="img" aria-labelledby="arch-title">
+      <title id="arch-title">Exportal bridges Chrome and VS Code through a local HTTP loopback at 127.0.0.1</title>
+      <defs>
+        <marker id="arrowhead" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto">
+          <path d="M 0 0 L 10 4 L 0 8 z" fill="#1d4ed8"/>
+        </marker>
+      </defs>
+
+      <g>
+        <rect x="180" y="0" width="400" height="32" rx="16" fill="#eff6ff" stroke="#1d4ed8"/>
+        <text x="380" y="21" text-anchor="middle" font-size="13" fill="#1d4ed8" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, system-ui, sans-serif">All on your machine — no remote server in the path</text>
+      </g>
+
+      <g transform="translate(20, 70)">
+        <rect width="200" height="100" rx="10" fill="#fff" stroke="#0b1220" stroke-width="2"/>
+        <text x="100" y="40" text-anchor="middle" font-size="14" font-weight="700" fill="#0b1220" font-family="-apple-system, BlinkMacSystemFont, system-ui, sans-serif">Chrome companion</text>
+        <text x="100" y="62" text-anchor="middle" font-size="11" fill="#4b5563" font-family="-apple-system, BlinkMacSystemFont, system-ui, sans-serif">FAB on claude.ai</text>
+        <text x="100" y="78" text-anchor="middle" font-size="11" fill="#4b5563" font-family="-apple-system, BlinkMacSystemFont, system-ui, sans-serif">FAB on chatgpt.com</text>
+      </g>
+
+      <g transform="translate(220, 110)">
+        <line x1="0" y1="10" x2="100" y2="10" stroke="#1d4ed8" stroke-width="2" marker-end="url(#arrowhead)"/>
+        <text x="50" y="0" text-anchor="middle" font-size="12" fill="#1d4ed8" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, system-ui, sans-serif">HTTP POST</text>
+        <text x="50" y="28" text-anchor="middle" font-size="11" fill="#64748b" font-family="-apple-system, BlinkMacSystemFont, system-ui, sans-serif">127.0.0.1</text>
+      </g>
+
+      <g transform="translate(330, 70)">
+        <rect width="200" height="100" rx="10" fill="#fff" stroke="#0b1220" stroke-width="2"/>
+        <text x="100" y="40" text-anchor="middle" font-size="14" font-weight="700" fill="#0b1220" font-family="-apple-system, BlinkMacSystemFont, system-ui, sans-serif">VS Code + Exportal</text>
+        <text x="100" y="62" text-anchor="middle" font-size="11" fill="#4b5563" font-family="-apple-system, BlinkMacSystemFont, system-ui, sans-serif">Local HTTP server</text>
+        <text x="100" y="78" text-anchor="middle" font-size="11" fill="#4b5563" font-family="-apple-system, BlinkMacSystemFont, system-ui, sans-serif">writes .md to workspace</text>
+      </g>
+
+      <g transform="translate(530, 110)">
+        <line x1="0" y1="10" x2="100" y2="10" stroke="#1d4ed8" stroke-width="2" marker-end="url(#arrowhead)"/>
+        <text x="50" y="0" text-anchor="middle" font-size="12" fill="#1d4ed8" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, system-ui, sans-serif">VS Code API</text>
+        <text x="50" y="28" text-anchor="middle" font-size="11" fill="#64748b" font-family="-apple-system, BlinkMacSystemFont, system-ui, sans-serif">@-mention</text>
+      </g>
+
+      <g transform="translate(640, 70)">
+        <rect width="100" height="100" rx="10" fill="#0b1220" stroke="#0b1220" stroke-width="2"/>
+        <text x="50" y="42" text-anchor="middle" font-size="13" font-weight="700" fill="#fff" font-family="-apple-system, BlinkMacSystemFont, system-ui, sans-serif">Claude</text>
+        <text x="50" y="60" text-anchor="middle" font-size="13" font-weight="700" fill="#fff" font-family="-apple-system, BlinkMacSystemFont, system-ui, sans-serif">Code</text>
+        <text x="50" y="82" text-anchor="middle" font-size="10" fill="#94a3b8" font-family="-apple-system, BlinkMacSystemFont, system-ui, sans-serif">@-mention</text>
+      </g>
+
+      <g transform="translate(0, 200)">
+        <text x="120" y="14" text-anchor="middle" font-size="11" fill="#4b5563" font-style="italic" font-family="-apple-system, BlinkMacSystemFont, system-ui, sans-serif">your browser session</text>
+        <text x="430" y="14" text-anchor="middle" font-size="11" fill="#4b5563" font-style="italic" font-family="-apple-system, BlinkMacSystemFont, system-ui, sans-serif">token-paired</text>
+        <text x="690" y="14" text-anchor="middle" font-size="11" fill="#4b5563" font-style="italic" font-family="-apple-system, BlinkMacSystemFont, system-ui, sans-serif">native VS Code</text>
+      </g>
+    </svg>
+  </div>
+  <p class="block-note">All traffic flows through your loopback address. There is no Exportal cloud, no analytics, no telemetry. The Chrome companion talks only to <code>127.0.0.1</code> — your own machine.</p>
 </section>
 
 <section id="features">
@@ -598,7 +766,6 @@
 
 <section id="who">
   <h2>Who built this</h2>
-  <p class="sub">Real person. Real repo. Real history.</p>
   <div class="author">
     <div class="author-avatar">DP</div>
     <div class="author-body">
@@ -616,6 +783,33 @@
       <a href="https://github.com/dioniipereyraa/ClaudeTool/blob/main/CHANGELOG.md">Changelog</a>
       <a href="https://github.com/dioniipereyraa/ClaudeTool/blob/main/ROADMAP.md">Roadmap</a>
     </div>
+  </div>
+</section>
+
+<section id="open">
+  <h2>Built in the open</h2>
+  <p class="sub">Every commit, decision, and roadmap item is public. The repo is the source of truth — not a polished landing page.</p>
+  <div class="open-stats">
+    <a class="stat-card" href="https://github.com/dioniipereyraa/ClaudeTool/blob/main/CHANGELOG.md">
+      <div class="stat-num">30+</div>
+      <div class="stat-name">CHANGELOG</div>
+      <div class="stat-desc">Tagged releases since April 2026, with notes per version. Active iteration, not abandonware.</div>
+    </a>
+    <a class="stat-card" href="https://github.com/dioniipereyraa/ClaudeTool/blob/main/DEVLOG.md">
+      <div class="stat-num">47</div>
+      <div class="stat-name">DEVLOG entries</div>
+      <div class="stat-desc">Decisions per session — the why behind the code, not just the what. Incidents and reversals included.</div>
+    </a>
+    <a class="stat-card" href="https://github.com/dioniipereyraa/ClaudeTool/blob/main/ROADMAP.md">
+      <div class="stat-num">→</div>
+      <div class="stat-name">ROADMAP</div>
+      <div class="stat-desc">What's coming, what's parked, and what got an explicit "no". Priorities are public so users can plan.</div>
+    </a>
+    <a class="stat-card" href="https://github.com/dioniipereyraa/ClaudeTool/blob/main/SECURITY.md">
+      <div class="stat-num">!</div>
+      <div class="stat-name">SECURITY</div>
+      <div class="stat-desc">Threat model, redaction defaults, pairing-token rationale, and explicitly out-of-scope items.</div>
+    </a>
   </div>
 </section>
 
