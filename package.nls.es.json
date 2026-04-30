@@ -1,4 +1,5 @@
 {
+  "extension.displayName": "Exportal — Puente entre Claude.ai/ChatGPT y Claude Code",
   "extension.description": "Puente entre claude.ai y Claude Code. Exportá cualquier chat a Markdown limpio en un click — adjuntado automáticamente como contexto. Requiere la extensión Exportal Companion en Chrome.",
   "command.importFromZip.title": "Exportal: Importar ZIP de claude.ai",
   "command.showPairingInfo.title": "Exportal: Mostrar token de emparejamiento",

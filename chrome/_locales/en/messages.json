@@ -1,7 +1,7 @@
 {
   "extName": {
-    "message": "Exportal Companion",
-    "description": "Extension name shown in the Chrome Web Store and chrome://extensions."
+    "message": "Exportal — Bridge between Claude.ai/ChatGPT and Claude Code",
+    "description": "Extension name shown in the Chrome Web Store and chrome://extensions. Includes the descriptive tagline so the listing matches search queries like 'claude.ai chrome extension', 'chatgpt export', 'claude code'."
   },
   "extDescription": {
     "message": "Export claude.ai chats to VS Code with one click. Needs the Exportal extension in VS Code (pair with its token).",

@@ -1,6 +1,6 @@
 {
   "name": "exportal",
-  "displayName": "Exportal",
+  "displayName": "%extension.displayName%",
   "version": "0.11.2",
   "description": "%extension.description%",
   "l10n": "./l10n",
