@@ -3,7 +3,7 @@
     "message": "Exportal — Puente entre Claude.ai/ChatGPT y Claude Code"
   },
   "extDescription": {
-    "message": "Exportá chats de claude.ai a VS Code con un click. Necesita la extensión Exportal en VS Code (emparejar con su token)."
+    "message": "Puente entre Claude.ai/ChatGPT y Claude Code. Exportá cualquier chat a tu workspace de VS Code como Markdown — y continuá."
   },
   "actionTooltipUnpaired": {
     "message": "Exportal Companion — click para emparejar con VS Code"

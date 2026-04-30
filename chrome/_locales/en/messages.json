@@ -4,8 +4,8 @@
     "description": "Extension name shown in the Chrome Web Store and chrome://extensions. Includes the descriptive tagline so the listing matches search queries like 'claude.ai chrome extension', 'chatgpt export', 'claude code'."
   },
   "extDescription": {
-    "message": "Export claude.ai chats to VS Code with one click. Needs the Exportal extension in VS Code (pair with its token).",
-    "description": "Extension description shown in store listings."
+    "message": "Bridge between Claude.ai/ChatGPT and Claude Code. Export any chat to your VS Code workspace as Markdown — and continue it.",
+    "description": "Short description shown under the extension name in Chrome Web Store search results and the listing card. Max 132 chars."
   },
   "actionTooltipUnpaired": {
     "message": "Exportal Companion — click to pair with VS Code",
