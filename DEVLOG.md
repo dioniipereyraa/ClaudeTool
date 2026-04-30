@@ -5307,5 +5307,82 @@ Verificación: lint ✓, zip 46.8 KB.
    hacer un export que falle AUTH → **el banner debería aparecer
    solo** en options sin recargar.
 
+---
+
+## 2026-04-30 — Hito 33 · FAB en Claude Design no debe tapar el submit
+
+### Qué hicimos
+El FAB del companion se posicionaba en `bottom: 20px, right: 20px`
+hardcoded para todas las rutas. En Claude Design (`/design/p/...`),
+el CTA de submit de la design-question está exactamente en
+bottom-right — el FAB tapaba ~85% del botón Send. El submit seguía
+clickeable pero la UX se rompía (parecía bloqueado).
+
+Fix mínimo en `chrome/content-script.js`, función `buildPanel`:
+detectar `route.kind === 'design'` y subir el bottom anchor a
+**100px** (en vez de 20px). El FAB sigue en su corner familiar
+bottom-right pero por encima del stack input + Send. Chat y ChatGPT
+siguen en `bottom: 20px` — nada en sus layouts choca con el FAB
+ahí.
+
+### Por qué bottom-right elevado y no top-right
+Iteración 1 del fix movió el panel a top-right (`top: 80px`,
+`flex-direction: column-reverse` para que el popover colgara hacia
+abajo). Funcionalmente correcto pero Dioni prefirió mantener el FAB
+en su esquina familiar (bottom-right) para no romper el muscle
+memory ni alinear con la vibe del producto. La opción "subir el
+bottom" mantiene todo como antes salvo el offset.
+
+100px es el numero mágico: el stack de Claude Design tiene un
+input de ~60px + padding + botón de ~40px = ~100-120px de altura
+desde el bottom. Subir el FAB a 100px lo deja arriba del stack
+pero todavía cerca del bottom-right donde el user lo busca.
+
+### Por qué no detección dinámica del CTA
+El scope original mencionaba "detectar el flow de design questions
+y reposicionar/auto-ocultar". Pero detectar el CTA por DOM
+signature es frágil — Anthropic puede cambiar las clases en
+cualquier release y el detect rompe silenciosamente.
+
+El offset estático para CUALQUIER ruta de design es mas robusto:
+- 0% overlap con el bottom CTA garantizado, esté visible o no.
+- Si el CTA no está visible (user solo navegando el proyecto), el
+  FAB queda flotando 100px más arriba — diferencia visual menor,
+  no se siente "raro".
+
+Fail-safe implícito: el detect es por route.kind, que viene del
+URL pattern (`/design/p/<UUID>`). Si Anthropic cambia la URL, el
+detect falla pero el FAB queda en bottom 20px (estado anterior),
+no peor que el bug actual.
+
+### Cambios concretos
+- [content-script.js:142-167](chrome/content-script.js): `buildPanel`
+  con `designLift = route.kind === 'design' ? '100px' : '20px'`.
+  Una sola línea de bottom dinámica, resto del style y flex
+  direction sin cambios.
+- 7 líneas modificadas (vs 11 en la iteración top-right). Sin
+  l10n nuevo, sin nuevas keys de storage, sin changes al manifest.
+
+### Verificación
+- `npm run lint` ✓
+- `npm run package:chrome` → 47.3 KB.
+- **Smoke test pendiente**: Dioni abrir un proyecto de Claude
+  Design, verificar que el FAB esté en bottom-right pero **subido
+  ~100px** del fondo. Probar el flow de design question → el
+  submit debería estar 100% visible. Click en el FAB → popover
+  arriba como siempre.
+
+### Decidido fuera de scope
+- **FAB más chico por default + expandirse en hover** (mencionado
+  en el scope del Hito 33 como adyacente): preferimos no tocar
+  chat normal — la posición bottom-right en chat funciona bien y
+  cambiar el tamaño es un cambio visual que afecta a todos los
+  users por un beneficio incierto. Si más adelante el scope
+  bottom-right en chat también molesta, se aborda en su propio
+  hito.
+- **Auto-ocultar mientras hay CTA activo**: requiere DOM polling +
+  detect frágil. La solución posicional cubre el caso sin esa
+  complejidad.
+
 
 

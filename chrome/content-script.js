@@ -144,9 +144,19 @@ function buildPanel(route) {
   panel.id = PANEL_ID;
   panel.dataset.routeKind = route.kind;
   panel.dataset.routeId = route.id;
+  // Hito 33: in Claude Design, the design-question CTA (Send button +
+  // input) sits at the bottom-right of the viewport — exactly where
+  // our FAB would land at the default `bottom: 20px`. Reported
+  // overlap was ~85% of the Send button covered by the FAB.
+  // Fix: bump the bottom anchor to 100px on design routes so the FAB
+  // clears the input/button stack but stays in its familiar bottom-
+  // right corner (Dioni preferred this over the more drastic move
+  // to top-right). Chat and ChatGPT routes keep the 20px default —
+  // nothing in their layouts collides with the FAB there.
+  const designLift = route.kind === 'design' ? '100px' : '20px';
   Object.assign(panel.style, {
     position: 'fixed',
-    bottom: '20px',
+    bottom: designLift,
     right: '20px',
     zIndex: '2147483647',
     display: 'flex',
