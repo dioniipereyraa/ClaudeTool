@@ -1,4 +1,7 @@
 User-agent: *
 Allow: /
+# Internal mockups for the Chrome Web Store promo tile, not meant to
+# rank in search.
+Disallow: /promo/
 
 Sitemap: https://exportal.dev/sitemap.xml
