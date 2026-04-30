@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Privacy Policy — Exportal</title>
+<meta name="description" content="Privacy policy for Exportal — local-first bridge between Claude.ai/ChatGPT and Claude Code. No analytics, no telemetry, no remote servers.">
+<meta name="theme-color" content="#0b1220">
+
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/favicon.png" type="image/png" sizes="128x128">
+<link rel="apple-touch-icon" href="/favicon.png">
+<link rel="canonical" href="https://exportal.dev/privacy">
+
+<meta property="og:title" content="Privacy Policy — Exportal">
+<meta property="og:description" content="Local-first bridge. No analytics, no telemetry, no remote servers.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://exportal.dev/privacy">
+
+<style>
+  :root {
+    --ink: #0b1220;
+    --ink-2: #1f2937;
+    --muted: #4b5563;
+    --line: #e5e7eb;
+    --bg: #ffffff;
+    --bg-2: #f8fafc;
+    --accent: #1d4ed8;
+    --accent-soft: #eff6ff;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, "Helvetica Neue", sans-serif;
+    color: var(--ink);
+    line-height: 1.65;
+    background: var(--bg);
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 880px; margin: 0 auto; padding: 0 24px; }
+
+  header.site {
+    border-bottom: 1px solid var(--line);
+    padding: 18px 0;
+    position: sticky;
+    top: 0;
+    background: rgba(255, 255, 255, 0.92);
+    backdrop-filter: blur(8px);
+    z-index: 10;
+    transition: box-shadow 0.2s ease, border-color 0.2s ease;
+  }
+  header.site.scrolled { box-shadow: 0 4px 14px rgba(11, 18, 32, 0.05); }
+  header.site .row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+  }
+  header.site .brand {
+    font-weight: 700;
+    font-size: 1.05rem;
+    letter-spacing: -0.01em;
+    color: var(--ink);
+    text-decoration: none;
+  }
+  header.site nav a {
+    color: var(--muted);
+    text-decoration: none;
+    margin-left: 18px;
+    font-size: 0.92rem;
+    transition: color 0.18s ease;
+  }
+  header.site nav a:hover { color: var(--ink); }
+  header.site nav a.current { color: var(--ink); font-weight: 600; }
+
+  .hero { padding: 72px 0 40px; }
+  .hero .eyebrow {
+    display: inline-block;
+    font-size: 0.78rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--accent);
+    background: var(--accent-soft);
+    padding: 4px 10px;
+    border-radius: 999px;
+    margin-bottom: 18px;
+  }
+  .hero h1 {
+    font-size: clamp(2.2rem, 5vw, 3.4rem);
+    line-height: 1.08;
+    letter-spacing: -0.02em;
+    margin-bottom: 18px;
+    font-weight: 700;
+  }
+  .hero .lede {
+    font-size: 1.18rem;
+    color: var(--muted);
+    margin-bottom: 14px;
+    max-width: 640px;
+  }
+  .hero .lede strong { color: var(--ink); font-weight: 600; }
+  .hero .updated {
+    font-size: 0.92rem;
+    color: var(--muted);
+    margin-top: 10px;
+  }
+  .hero .updated strong { color: var(--ink); font-weight: 600; }
+
+  section { padding: 48px 0; border-top: 1px solid var(--line); }
+  section h2 {
+    font-size: 1.7rem;
+    letter-spacing: -0.015em;
+    margin-bottom: 16px;
+    font-weight: 700;
+  }
+  section p {
+    color: var(--ink-2);
+    margin-bottom: 14px;
+    max-width: 720px;
+  }
+  section p strong { color: var(--ink); font-weight: 600; }
+  section ul, section ol {
+    padding-left: 22px;
+    margin: 4px 0 14px;
+    max-width: 720px;
+    color: var(--ink-2);
+  }
+  section ul li, section ol li { margin-bottom: 10px; }
+  section ul li strong, section ol li strong { color: var(--ink); font-weight: 600; }
+  section a { color: var(--accent); text-decoration: none; }
+  section a:hover { text-decoration: underline; }
+
+  code {
+    font-family: "SF Mono", Monaco, Consolas, monospace;
+    font-size: 0.88em;
+    background: rgba(0, 0, 0, 0.05);
+    padding: 1px 5px;
+    border-radius: 3px;
+  }
+
+  table.perms {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 8px;
+    font-size: 0.95rem;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  table.perms thead { background: var(--bg-2); }
+  table.perms th {
+    text-align: left;
+    padding: 12px 16px;
+    font-weight: 600;
+    font-size: 0.78rem;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+  table.perms td {
+    padding: 14px 16px;
+    border-top: 1px solid var(--line);
+    vertical-align: top;
+    color: var(--ink-2);
+  }
+  table.perms td:first-child {
+    white-space: nowrap;
+    width: 1%;
+    font-family: "SF Mono", Monaco, Consolas, monospace;
+    font-size: 0.85rem;
+    color: var(--ink);
+  }
+
+  footer.site {
+    padding: 36px 0 56px;
+    color: var(--muted);
+    font-size: 0.88rem;
+    border-top: 1px solid var(--line);
+    margin-top: 24px;
+  }
+  footer.site .row {
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 16px;
+  }
+  footer.site a { color: var(--muted); text-decoration: none; margin-right: 18px; }
+  footer.site a:hover { color: var(--ink); }
+  footer.site .disclaimer {
+    margin-top: 18px;
+    font-size: 0.82rem;
+    color: var(--muted);
+    line-height: 1.55;
+    max-width: 720px;
+  }
+
+  @media (max-width: 720px) {
+    .hero { padding: 48px 0 32px; }
+    header.site nav a { margin-left: 12px; font-size: 0.85rem; }
+    table.perms td:first-child { white-space: normal; width: auto; }
+    table.perms td, table.perms th { padding: 10px 12px; font-size: 0.85rem; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+</style>
+</head>
+<body>
+
+<header class="site">
+  <div class="wrap row">
+    <a href="/" class="brand">Exportal</a>
+    <nav>
+      <a href="/#how">How it works</a>
+      <a href="/privacy" class="current">Privacy</a>
+      <a href="/#faq">FAQ</a>
+      <a href="/support">Support</a>
+      <a href="https://github.com/dioniipereyraa/ClaudeTool">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<div class="wrap">
+
+<section class="hero" style="border-top: none;">
+  <span class="eyebrow">Privacy Policy</span>
+  <h1>Local-first by design.</h1>
+  <p class="lede">
+    <strong>Exportal</strong> does not collect, transmit, or store
+    personal data on remote servers. Conversation content stays on your
+    machine and is sent only to your own local VS Code installation via
+    the loopback address <code>127.0.0.1</code>.
+  </p>
+  <p class="updated">Last updated: <strong>2026-04-29</strong></p>
+</section>
+
+<section id="what-it-does">
+  <h2>What Exportal does</h2>
+  <p>
+    Exportal is a bidirectional bridge between AI chat services
+    (<strong>claude.ai</strong>, <strong>chatgpt.com</strong>) and
+    <strong>Claude Code</strong> in VS Code. It consists of two pieces:
+  </p>
+  <ul>
+    <li><strong>Exportal Companion</strong> (Chrome extension): adds a floating button to claude.ai and chatgpt.com. When you click it, the active conversation is sent to your local VS Code bridge.</li>
+    <li><strong>Exportal</strong> (VS Code extension): runs a local HTTP server on <code>127.0.0.1</code> that receives the conversation, writes a Markdown file in your workspace, and (optionally) attaches it to Claude Code as <code>@-mention</code>.</li>
+  </ul>
+  <p>Both extensions are MIT-licensed and open source. Use no external services for the export and import flows.</p>
+</section>
+
+<section id="export-flow">
+  <h2>What happens when you click "Export this chat"</h2>
+  <ol>
+    <li>You click the floating Exportal button on a chat at <code>claude.ai</code>, <code>claude.ai/design/p</code>, or <code>chatgpt.com</code> — or you use the keyboard shortcut <code>Alt+Shift+E</code>.</li>
+    <li>The Companion reads the active conversation using <strong>your existing browser session cookies</strong>, the same way the website renders the conversation for you. No automation, no scraping, no rate-limit abuse.</li>
+    <li>The conversation JSON is sent to <code>http://127.0.0.1:&lt;port&gt;/...</code> — the local bridge running inside your VS Code installation. <strong>It never reaches a remote server.</strong></li>
+    <li>VS Code receives it and writes a Markdown file to <code>&lt;workspace&gt;/.exportal/&lt;timestamp&gt;-&lt;slug&gt;.md</code>.</li>
+  </ol>
+</section>
+
+<section id="data-handled">
+  <h2>What data we handle</h2>
+  <p>The extensions handle the following data, <strong>only on your device</strong>:</p>
+  <ul>
+    <li><strong>Conversation content from claude.ai and chatgpt.com</strong>: messages, titles, and metadata of conversations you explicitly choose to export. Used only to generate the local Markdown file. Not stored, logged, or transmitted anywhere except your local VS Code bridge.</li>
+    <li><strong>Pairing token</strong>: a random 64-character hexadecimal token you copy from VS Code into the Companion (or via the auto-pair URL fragment). Used to authenticate requests to your local bridge. Stored in <code>chrome.storage.local</code> on your device only — never transmitted off-device.</li>
+    <li><strong>Pending conversation UUID</strong> (temporary): when you trigger the "official export" flow, the UUID of the chat you were on is stored briefly in <code>chrome.storage.local</code> so the Companion can open the correct conversation when the export ZIP finishes downloading. Overwritten on each use.</li>
+    <li><strong>Per-provider preferences</strong> (e.g. last-used pairing host): stored in <code>chrome.storage.local</code> for UX continuity. Trivial state, no personal data.</li>
+  </ul>
+</section>
+
+<section id="not-collected">
+  <h2>What we do NOT collect</h2>
+  <ul>
+    <li>No analytics, telemetry, or crash reporting.</li>
+    <li>No advertising identifiers.</li>
+    <li>No user accounts, profiles, or tracking of any kind.</li>
+    <li>Your <strong>claude.ai or ChatGPT credentials</strong> are never read, stored, or transmitted. The extensions rely on the browser's existing session cookies — they never see the credentials themselves.</li>
+    <li>No data is sent to the extension author or to any third party.</li>
+  </ul>
+</section>
+
+<section id="permissions">
+  <h2>Permissions explained</h2>
+  <p>The Chrome Web Store requires explicit declaration of every permission. Here is what each one is used for in Exportal Companion:</p>
+  <table class="perms">
+    <thead>
+      <tr><th>Permission</th><th>Why we need it</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>storage</code></td>
+        <td>Persist the pairing token, the pending conversation UUID, and per-provider preferences on your device. All stored in <code>chrome.storage.local</code>, never transmitted.</td>
+      </tr>
+      <tr>
+        <td><code>downloads</code></td>
+        <td>Detect when the official claude.ai or ChatGPT export ZIP finishes downloading, so the Companion can forward the file path to the local VS Code bridge for one-click import.</td>
+      </tr>
+      <tr>
+        <td><code>http://127.0.0.1/*</code></td>
+        <td>Communicate with the local VS Code bridge running on your machine. <code>127.0.0.1</code> is the loopback address — traffic never leaves your device.</td>
+      </tr>
+      <tr>
+        <td><code>https://claude.ai/*</code><br><code>https://chatgpt.com/*</code></td>
+        <td>Render the floating Exportal button on chat pages, read the active conversation when you click "Export", and consume the pairing URL fragment when you trigger auto-pair from VS Code.</td>
+      </tr>
+    </tbody>
+  </table>
+</section>
+
+<section id="retention">
+  <h2>Data retention</h2>
+  <p>All extension data is stored locally on your device — in <code>chrome.storage.local</code> for the Companion, and in your workspace's <code>.exportal/</code> folder for VS Code. Uninstalling either extension deletes all data managed by that extension. There is no remote storage to clear.</p>
+</section>
+
+<section id="third-parties">
+  <h2>Third parties</h2>
+  <p>The browser extensions (Exportal Companion + Exportal for VS Code) do not integrate with any third-party service. Conversation content you export is sent only to your local VS Code installation at <code>127.0.0.1</code>.</p>
+  <p><strong>The website <code>exportal.dev</code> uses one third-party service:</strong> the contact form on the <a href="/support">Support page</a> is backed by <a href="https://web3forms.com">Web3Forms</a>, which forwards form submissions to the maintainer's email. This is the only third-party service in the entire Exportal ecosystem, and it only applies if you choose to use the website's contact form. The browser extensions never interact with Web3Forms.</p>
+</section>
+
+<section id="open-source">
+  <h2>Open source</h2>
+  <p>Both extensions are open source under the MIT license. You can audit the entire codebase at <a href="https://github.com/dioniipereyraa/ClaudeTool">github.com/dioniipereyraa/ClaudeTool</a>.</p>
+</section>
+
+<section id="contact">
+  <h2>Contact</h2>
+  <p>Questions about this policy: <a href="mailto:support@exportal.dev">support@exportal.dev</a> (or <a href="mailto:dionipereyrab@gmail.com">dionipereyrab@gmail.com</a> directly).</p>
+  <p>For broader support questions, see the <a href="/support">Support page</a>.</p>
+</section>
+
+</div>
+
+<footer class="site">
+  <div class="wrap">
+    <div class="row">
+      <div>
+        <a href="https://github.com/dioniipereyraa/ClaudeTool">GitHub</a>
+        <a href="https://chromewebstore.google.com/detail/exportal-companion/lmnmekfphhpfaciehfdaonjfchbicdnm">Chrome Web Store</a>
+        <a href="https://marketplace.visualstudio.com/items?itemName=dioniipereyraa.exportal">VS Code Marketplace</a>
+        <a href="https://github.com/dioniipereyraa/ClaudeTool/blob/main/SECURITY.md">Security</a>
+        <a href="https://github.com/dioniipereyraa/ClaudeTool/blob/main/LICENSE">License</a>
+      </div>
+      <div>
+        Built by <a href="https://github.com/dioniipereyraa">Dioni Pereyra</a> · MIT
+      </div>
+    </div>
+    <p class="disclaimer">
+      Exportal is an independent open-source project. It is not
+      affiliated with, endorsed by, or sponsored by Anthropic (makers of
+      Claude / Claude Code) or OpenAI (makers of ChatGPT). "Claude",
+      "Claude Code", and "Claude.ai" are trademarks of Anthropic.
+      "ChatGPT" is a trademark of OpenAI.
+    </p>
+  </div>
+</footer>
+
+<script>
+(function () {
+  const header = document.querySelector('header.site');
+  if (!header) return;
+  const onScroll = () => {
+    if (window.scrollY > 4) header.classList.add('scrolled');
+    else header.classList.remove('scrolled');
+  };
+  onScroll();
+  window.addEventListener('scroll', onScroll, { passive: true });
+})();
+</script>
+
+</body>
+</html>
