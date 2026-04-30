@@ -18,28 +18,70 @@ importScripts('./pure.js');
 const TOKEN_KEY = 'exportal.pairingToken';
 const LAST_PORT_KEY = 'exportal.lastPort';
 const PENDING_CONVERSATION_KEY = 'exportal.pendingConversationId';
+// Persisted state of the toolbar badge so the click handler can route
+// the user to the right fix page without having to re-derive the
+// state from observable side effects (badge text isn't readable).
+// Lives in session storage — these are ephemeral runtime states, not
+// preferences. Cleared on browser restart, repopulated by the next
+// export attempt.
+const BADGE_STATE_KEY = 'exportal.badgeState';
+
+// Badge display config, keyed by state. Hito 32 promotes this from
+// the inline string-pair calls to a single source of truth so the
+// click handler, the tooltip, and the persisted state all stay in
+// lockstep when we add or rename a state.
+const BADGE_STATES = {
+  unpaired: { text: 'SET',  color: '#ca8a04', tooltipKey: 'actionTooltipUnpaired' },
+  ok:       { text: 'OK',   color: '#16a34a', tooltipKey: 'actionTooltipPaired'   },
+  auth:     { text: 'AUTH', color: '#dc2626', tooltipKey: 'actionTooltipAuth'     },
+  off:      { text: 'OFF',  color: '#dc2626', tooltipKey: 'actionTooltipOff'      },
+  old:      { text: 'OLD',  color: '#dc2626', tooltipKey: 'actionTooltipOld'      },
+  err:      { text: 'ERR',  color: '#dc2626', tooltipKey: 'actionTooltipErr'      },
+};
+
+// Subset that opens the options page with `?reason=<kind>` on click —
+// the page renders a state-specific banner with a fix and CTA.
+const ERROR_STATES = new Set(['auth', 'off', 'old', 'err']);
 
 chrome.downloads.onChanged.addListener((delta) => {
   if (delta.state?.current !== 'complete') return;
   void handleCompletedDownload(delta.id);
 });
 
-// Click on the toolbar icon: if the user hasn't paired yet, take them
-// straight to the options page so they can paste the token. Once paired
-// we let the click fall through (no popup) — the options page is still
-// reachable from chrome://extensions → Details → Extension options.
+// Click on the toolbar icon — Hito 32 dispatcher.
+//
+// In an idle/paired/unpaired/OK state, we open the options page as
+// before. In an error state (AUTH/OFF/OLD/ERR) we open the options
+// page with `?reason=<state>` so the page renders a banner with a
+// state-specific fix CTA. Critically: in error states we do NOT
+// clear the badge — let it resolve naturally when the user fixes
+// the underlying issue (e.g. pastes a fresh token, brings VS Code
+// back up). Pre-Hito-32 we cleared on every click, which silently
+// dropped the "AUTH" signal before the user could act on it.
 chrome.action.onClicked.addListener(() => {
   void (async () => {
-    const token = await getToken();
-    if (token === undefined) {
-      await chrome.runtime.openOptionsPage();
-    } else {
-      // Still open options — it's the only place the user can manage the
-      // token or see pairing status. The badge is also cleared here so
-      // a stale "SET"/"AUTH" doesn't linger after the user has dealt
-      // with whatever prompted it.
-      await chrome.runtime.openOptionsPage();
-      await chrome.action.setBadgeText({ text: '' });
+    const stored = await chrome.storage.session.get(BADGE_STATE_KEY);
+    const state = typeof stored[BADGE_STATE_KEY] === 'string'
+      ? stored[BADGE_STATE_KEY]
+      : undefined;
+
+    if (state !== undefined && ERROR_STATES.has(state)) {
+      // Open a tab with the reason param. We deliberately use
+      // tabs.create instead of openOptionsPage because the latter
+      // strips query strings — it computes the URL from the manifest
+      // entry on its own. Two options tabs in flight at once is fine;
+      // the page reads the reason on load and drives the banner.
+      const url = chrome.runtime.getURL(`options.html?reason=${state}`);
+      await chrome.tabs.create({ url });
+      return;
+    }
+
+    await chrome.runtime.openOptionsPage();
+    if (state === 'ok') {
+      // OK is a transient confirmation. Once the user has clicked
+      // through to options it has done its job — clear it so the
+      // toolbar goes back to neutral until the next export.
+      await setBadgeState('paired');
     }
   })();
 });
@@ -63,17 +105,7 @@ chrome.storage.onChanged.addListener((changes, area) => {
 
 async function refreshPairingBadge() {
   const token = await getToken();
-  if (token === undefined) {
-    await setBadge('SET', '#ca8a04');
-    await chrome.action.setTitle({
-      title: chrome.i18n.getMessage('actionTooltipUnpaired'),
-    });
-  } else {
-    await chrome.action.setBadgeText({ text: '' });
-    await chrome.action.setTitle({
-      title: chrome.i18n.getMessage('actionTooltipPaired'),
-    });
-  }
+  await setBadgeState(token === undefined ? 'unpaired' : 'paired');
 }
 
 // Messages from the claude.ai content script:
@@ -82,15 +114,30 @@ async function refreshPairingBadge() {
 //   - exportal:sendInline → POST the scraped conversation JSON to the
 //     VS Code bridge right now, no ZIP in the middle.
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  // Only accept from origins our content script runs on (manifest matches):
-  // claude.ai for chat + Claude Design, chatgpt.com for ChatGPT (Hito 30).
-  // Defense-in-depth against any other page that somehow tries to talk
-  // to us.
+  // Origin check — defense-in-depth against pages outside our
+  // declared content-script matches. Allowed senders:
+  //   1. claude.ai / chatgpt.com content scripts (the export flows).
+  //   2. Our own extension contexts (options page banner CTAs from
+  //      Hito 32). Chrome routes those with a chrome-extension://<id>
+  //      URL we can trust by construction.
   const url = sender.tab?.url ?? sender.url ?? '';
-  const ok = url.startsWith('https://claude.ai/') || url.startsWith('https://chatgpt.com/');
+  const ok =
+    url.startsWith('https://claude.ai/')
+    || url.startsWith('https://chatgpt.com/')
+    || url.startsWith(`chrome-extension://${chrome.runtime.id}/`);
   if (!ok) {
     sendResponse({ ok: false, error: 'bad_origin' });
     return false;
+  }
+
+  if (message?.type === 'exportal:clearBadge') {
+    // Sent by the options-page banner after a successful Retry ping
+    // (Hito 32). Resets the toolbar to neutral so the user sees the
+    // OFF state cleared without having to wait for the next export.
+    setBadgeState('paired')
+      .then(() => sendResponse({ ok: true }))
+      .catch((err) => sendResponse({ ok: false, error: String(err) }));
+    return true;
   }
 
   if (message?.type === 'exportal:setPending') {
@@ -205,7 +252,7 @@ async function handleCompletedDownload(id) {
 async function forwardToExportal(zipPath) {
   const token = await getToken();
   if (token === undefined) {
-    await setBadge('SET', '#ca8a04');
+    await setBadgeState('unpaired');
     console.warn('Exportal: token not configured. Open the extension Options.');
     return;
   }
@@ -224,7 +271,7 @@ async function forwardToExportal(zipPath) {
       if (conversationId !== undefined) {
         await chrome.storage.session.remove(PENDING_CONVERSATION_KEY);
       }
-      await setBadge('OK', '#16a34a');
+      await setBadgeState('ok');
       return;
     }
     if (result === 'auth') {
@@ -237,10 +284,10 @@ async function forwardToExportal(zipPath) {
   }
 
   if (sawAuthError) {
-    await setBadge('AUTH', '#dc2626');
+    await setBadgeState('auth');
     console.warn('Exportal: token rejected. Check Options.');
   } else {
-    await setBadge('OFF', '#dc2626');
+    await setBadgeState('off');
     console.warn('Exportal: could not reach the local server. Is VS Code running?');
   }
 }
@@ -268,7 +315,7 @@ async function tryPort(port, token, zipPath, conversationId) {
 async function forwardInlineConversation(conversation, assets, provider) {
   const token = await getToken();
   if (token === undefined) {
-    await setBadge('SET', '#ca8a04');
+    await setBadgeState('unpaired');
     return { ok: false, error: 'no_token' };
   }
   // Quick reachability probe BEFORE serializing + uploading the
@@ -278,7 +325,7 @@ async function forwardInlineConversation(conversation, assets, provider) {
   // the offline-detection latency drops from "depends on payload
   // size + N ports" to "10 instant ECONNREFUSED responses" (~50ms).
   if (!(await isBridgeReachable())) {
-    await setBadge('OFF', '#dc2626');
+    await setBadgeState('off');
     return { ok: false, error: 'bridge_offline' };
   }
   // Bundle the assets into the JSON body only when present — keeps
@@ -349,22 +396,22 @@ async function tryAllPortsForInline(body, token) {
 
 async function finalizeForwardResult(result) {
   if (result.kind === 'ok') {
-    await setBadge('OK', '#16a34a');
+    await setBadgeState('ok');
     return { ok: true };
   }
   if (result.kind === 'auth') {
-    await setBadge('AUTH', '#dc2626');
+    await setBadgeState('auth');
     return { ok: false, error: 'bridge_auth' };
   }
   if (result.kind === 'definite') {
-    await setBadge('ERR', '#dc2626');
+    await setBadgeState('err');
     return { ok: false, error: result.code };
   }
   if (result.kind === 'outdated') {
-    await setBadge('OLD', '#dc2626');
+    await setBadgeState('old');
     return { ok: false, error: 'bridge_outdated' };
   }
-  await setBadge('OFF', '#dc2626');
+  await setBadgeState('off');
   return { ok: false, error: 'bridge_offline' };
 }
 
@@ -522,7 +569,26 @@ async function pingBridge(token) {
   }
 }
 
-async function setBadge(text, color) {
-  await chrome.action.setBadgeText({ text });
-  await chrome.action.setBadgeBackgroundColor({ color });
+// Single source of truth for the toolbar badge. Sets text + color +
+// tooltip + persists the state key so the click handler can route
+// the user to the right fix page. Pass 'paired' (the implicit "all
+// good, idle" state) to clear the badge entirely.
+async function setBadgeState(kind) {
+  if (kind === 'paired') {
+    await chrome.action.setBadgeText({ text: '' });
+    await chrome.action.setTitle({
+      title: chrome.i18n.getMessage('actionTooltipPaired'),
+    });
+    await chrome.storage.session.remove(BADGE_STATE_KEY);
+    return;
+  }
+  const display = BADGE_STATES[kind];
+  if (display === undefined) {
+    console.warn('Exportal: unknown badge state', kind);
+    return;
+  }
+  await chrome.action.setBadgeText({ text: display.text });
+  await chrome.action.setBadgeBackgroundColor({ color: display.color });
+  await chrome.action.setTitle({ title: chrome.i18n.getMessage(display.tooltipKey) });
+  await chrome.storage.session.set({ [BADGE_STATE_KEY]: kind });
 }

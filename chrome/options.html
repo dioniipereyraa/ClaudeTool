@@ -373,6 +373,96 @@
         border-color: var(--exp-text-dim);
       }
 
+      /* State banner — Hito 32. Appears at the top of <main> when the
+       * options page was opened via a click on the toolbar icon while
+       * in an error state (badge AUTH/OFF/OLD/ERR). Hidden when the
+       * page is opened normally. Color tracks severity via [data-kind]. */
+      .banner {
+        display: none;
+        margin-bottom: 18px;
+        padding: 12px 14px;
+        border-radius: var(--exp-radius);
+        background: color-mix(in srgb, var(--exp-err) 9%, transparent);
+        border: 1px solid color-mix(in srgb, var(--exp-err) 38%, transparent);
+      }
+      .banner.shown {
+        display: block;
+      }
+      .banner[data-kind='success'] {
+        background: color-mix(in srgb, var(--exp-ok) 12%, transparent);
+        border-color: color-mix(in srgb, var(--exp-ok) 40%, transparent);
+      }
+      .banner-headline {
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--exp-text);
+        margin-bottom: 4px;
+        letter-spacing: -0.01em;
+      }
+      .banner-text {
+        font-size: 11px;
+        color: var(--exp-text-dim);
+        line-height: 1.5;
+      }
+      .banner-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-top: 10px;
+      }
+      /* When .banner-actions has no visible CTAs (e.g. for AUTH/ERR
+       * banners that rely on the explanation alone) the row collapses
+       * — `:has()` keeps the spacing clean without JS. */
+      .banner-actions:not(:has(button:not([hidden]))) {
+        display: none;
+      }
+      .banner-actions button {
+        padding: 6px 12px;
+        font-size: 11px;
+        font-weight: 600;
+        border-radius: 6px;
+        cursor: pointer;
+        font-family: inherit;
+        transition: background 120ms ease, border-color 120ms ease;
+        align-items: center;
+        gap: 5px;
+      }
+      /* Visible buttons get inline-flex; hidden ones honor their
+       * attribute. Without this override, the rule above would force
+       * `display: inline-flex` on `[hidden]` buttons too — that was
+       * the root cause of the "two empty pills" bug Dioni hit on the
+       * AUTH banner. */
+      .banner-actions button:not([hidden]) {
+        display: inline-flex;
+      }
+      .banner-actions button[hidden] {
+        display: none;
+      }
+      .banner-cta {
+        background: var(--exp-accent);
+        color: var(--exp-accent-ink);
+        border: none;
+      }
+      .banner-cta:hover {
+        background: var(--exp-accent-hover);
+      }
+      .banner-cta-secondary {
+        background: transparent;
+        color: var(--exp-text);
+        border: 1px solid var(--exp-line-strong);
+      }
+      .banner-cta-secondary:hover {
+        background: var(--exp-surface2);
+        border-color: var(--exp-text-dim);
+      }
+      /* Tiny shake when "Retry" fails — gives the user a "we tried"
+       * feedback without the friction of a full toast. */
+      @keyframes expBannerNudge {
+        0%, 100% { transform: translateX(0); }
+        25% { transform: translateX(-3px); }
+        75% { transform: translateX(3px); }
+      }
+
       /* Low-contrast "unpair" text button — only visible in the paired
        * state. Keeps the escape hatch without cluttering the happy path. */
       .unpair {
@@ -412,6 +502,19 @@
       </header>
 
       <main>
+        <!-- Hito 32 — state banner. Hidden unless the page was opened
+             with `?reason=auth|off|old|err`. The banner-actions row
+             holds 0-2 CTAs whose visibility is set by options.js based
+             on the reason; CSS collapses the row when both are hidden. -->
+        <div id="banner" class="banner" data-kind="error" role="status">
+          <div id="banner-headline" class="banner-headline"></div>
+          <div id="banner-text" class="banner-text"></div>
+          <div class="banner-actions">
+            <button id="banner-primary" type="button" class="banner-cta" hidden></button>
+            <button id="banner-secondary" type="button" class="banner-cta-secondary" hidden></button>
+          </div>
+        </div>
+
         <h2 class="headline" id="headline"></h2>
         <div class="subtitle" id="subtitle"></div>
 

@@ -11,6 +11,57 @@
   "actionTooltipPaired": {
     "message": "Exportal Companion — emparejado"
   },
+  "actionTooltipAuth": {
+    "message": "Token rechazado — click para arreglar"
+  },
+  "actionTooltipOff": {
+    "message": "VS Code no responde — click para reintentar"
+  },
+  "actionTooltipOld": {
+    "message": "Exportal de VS Code desactualizado — click para actualizar"
+  },
+  "actionTooltipErr": {
+    "message": "Último export falló — click para ver detalles"
+  },
+  "bannerAuthHeadline": {
+    "message": "VS Code rechazó el token"
+  },
+  "bannerAuthBody": {
+    "message": "El token no coincide. Pegá el correcto de VS Code abajo."
+  },
+  "bannerOffHeadline": {
+    "message": "VS Code no responde"
+  },
+  "bannerOffBody": {
+    "message": "El bridge local no es alcanzable. Asegurate de que VS Code esté abierto y la extensión Exportal activa. El botón Reintentar hace un ping al bridge."
+  },
+  "bannerOldHeadline": {
+    "message": "Exportal de VS Code está desactualizado"
+  },
+  "bannerOldBody": {
+    "message": "El companion es más nuevo que la extensión de VS Code. Actualizá Exportal en el VS Code Marketplace y reintentá el export."
+  },
+  "bannerErrHeadline": {
+    "message": "El último export falló"
+  },
+  "bannerErrBody": {
+    "message": "VS Code rechazó el payload de la conversación. Revisá la notificación de VS Code para ver la causa, y reintentá desde claude.ai o ChatGPT."
+  },
+  "bannerRetryButton": {
+    "message": "Reintentar"
+  },
+  "bannerOpenInVsCodeButton": {
+    "message": "Abrir en VS Code"
+  },
+  "bannerOpenMarketplaceButton": {
+    "message": "Abrir Marketplace"
+  },
+  "bannerRetryOkHeadline": {
+    "message": "VS Code responde"
+  },
+  "bannerRetryOkBody": {
+    "message": "Bridge alcanzable. Reintentá tu export desde claude.ai o ChatGPT."
+  },
   "optionsPageTitle": {
     "message": "Exportal Companion — opciones"
   },

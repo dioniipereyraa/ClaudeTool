@@ -4973,5 +4973,339 @@ con interés explícito de Dioni.
     el PAT (sigue bloqueado de releases anteriores).
 - Después: arrancar Hito 32 (badge inteligente del icono Chrome).
 
+---
+
+## 2026-04-30 — Hito 32 · Badge inteligente del icono Chrome
+
+### Qué hicimos
+El badge del companion ya mostraba estados (`SET`/`OK`/`AUTH`/`OFF`/
+`OLD`/`ERR`), pero el click sobre el icono siempre abría options
+page genérica y, peor, **borraba el badge** en estados de error
+antes de que el user pudiera actuar — el AUTH/OFF/OLD/ERR rojo
+desaparecía con el primer click sin que el user supiera qué
+arreglar. Hito 32 cambia eso: el click ruta al fix específico,
+y el badge se queda hasta que el estado se resuelve solo.
+
+### Arquitectura
+**Persistencia del estado**. Antes el badge era write-only
+(text + color) sin estado leíble. Ahora `chrome.storage.session`
+tiene `exportal.badgeState` con la kind del estado actual
+(`unpaired`/`ok`/`auth`/`off`/`old`/`err`). Lives en session
+storage porque es runtime state, no preferencia.
+
+**Single source of truth** para los estados:
+```js
+const BADGE_STATES = {
+  unpaired: { text: 'SET',  color: '#ca8a04', tooltipKey: '...' },
+  ok:       { text: 'OK',   color: '#16a34a', tooltipKey: '...' },
+  auth:     { text: 'AUTH', color: '#dc2626', tooltipKey: '...' },
+  off:      { text: 'OFF',  color: '#dc2626', tooltipKey: '...' },
+  old:      { text: 'OLD',  color: '#dc2626', tooltipKey: '...' },
+  err:      { text: 'ERR',  color: '#dc2626', tooltipKey: '...' },
+};
+```
+
+`setBadgeState(kind)` reemplaza al viejo `setBadge(text, color)` —
+una sola función que maneja text + color + tooltip + persiste
+storage en lockstep. Si después agregamos un estado, se cambia
+acá una sola vez y se actualiza todo.
+
+**Click handler** lee storage y dispatchea:
+- `auth`/`off`/`old`/`err` → abre `options.html?reason=<kind>` en
+  tab nuevo. NO borra el badge.
+- `ok` → abre options + borra el OK (transient confirm,
+  cumplió su propósito).
+- Resto → abre options sin más.
+
+`chrome.runtime.openOptionsPage` no acepta query strings (calcula
+el URL del manifest), así que para el caso de error usamos
+`chrome.tabs.create` con la URL completa. Worst case dos tabs
+de options abiertas al mismo tiempo, manejable.
+
+### Banner en options page
+Un solo banner al tope de `<main>`, hidden por default. Aparece
+cuando `?reason=` está en la URL. Color-coded por severidad
+(rojo error, verde success). Cada reason mappea a:
+- **`auth`**: headline "Token rejected by VS Code", body con
+  hint de verificar el token. **Sin CTA** — el fix está en el
+  input que ya está en la misma página.
+- **`off`**: headline "VS Code isn't responding". CTAs:
+  **Retry** (ping al bridge) + **Open in VS Code** (dispara
+  `vscode://dioniipereyraa.exportal/wake`).
+- **`old`**: headline "VS Code Exportal is outdated". CTA:
+  **Open Marketplace** (link a `marketplace.visualstudio.com/
+  items?itemName=dioniipereyraa.exportal`).
+- **`err`**: headline "Last export failed". **Sin CTA** — el
+  user tiene que ir a VS Code a ver la notification con el
+  error específico, después reintentar desde el origen.
+
+**Retry semantics**: el botón Retry de `off` envía un
+`exportal:pingBridge` al background. Si responde OK, el banner
+muta a state success ("Bridge is reachable. Try your export
+again from claude.ai") y limpia el badge OFF via un nuevo
+mensaje `exportal:clearBadge`. Si falla, sacudida sutil
+(`expBannerNudge` keyframe) sin tocar el banner.
+
+**No replay del export anterior**. La gente buena de UX a
+veces pide "retry the failed export" pero implementar eso
+requiere bufferear el payload, manejar TTL, evitar replay-
+attacks, etc. Demasiado scope para un fix de connectivity.
+El user re-dispara el export desde claude.ai/ChatGPT — el
+companion ya tiene la conexión validada por el ping.
+
+### Cambios concretos
+
+**`chrome/background.js`**:
+- Nueva constante `BADGE_STATE_KEY` + diccionario `BADGE_STATES`
+  + set `ERROR_STATES`.
+- Nueva función `setBadgeState(kind)` reemplaza la `setBadge(text,
+  color)` legacy. 11 callsites convertidos via sed.
+- Click handler reescrito para dispatchear por estado.
+- Origin check de `onMessage` extendido para aceptar también
+  `chrome-extension://<our-id>/` (la options page necesita
+  hablar con el SW para Retry y clearBadge).
+- Nuevo handler `exportal:clearBadge` que llama `setBadgeState('paired')`.
+- `refreshPairingBadge` simplificada (delega a `setBadgeState`).
+
+**`chrome/options.html`**:
+- Bloque `<div id="banner" class="banner" data-kind="error">` al
+  tope de `<main>`, hidden por default.
+- CSS para `.banner`, `.banner-icon`, `.banner-headline`,
+  `.banner-text`, `.banner-actions`, `.banner-cta`,
+  `.banner-cta-secondary`. Usa los `--exp-*` tokens del resto
+  de la página para mantener cohesión visual.
+- Keyframe `expBannerNudge` para el sacudón sutil del Retry
+  fallido (240ms, ±3px, ease).
+
+**`chrome/options.js`**:
+- Bloque "Hito 32 — state banner" con 3 funciones:
+  - `maybeShowBanner()`: lee `?reason=`, mappea al config del
+    banner, renderiza headline + body + CTAs.
+  - `handleBannerAction(action)`: ejecuta la acción del CTA
+    (retry, open-vscode, open-marketplace).
+- Listeners en los dos botones del banner (primary + secondary).
+
+**`chrome/_locales/{en,es}/messages.json`**:
+- 4 tooltips nuevos (`actionTooltipAuth`/`Off`/`Old`/`Err`).
+- 4 pares headline/body de banners (auth/off/old/err).
+- 4 strings de CTA buttons + 2 strings de success state después
+  del Retry OK (12 strings nuevas en cada locale).
+
+### Decisiones técnicas
+- **Storage en session, no local**: el estado del badge es
+  ephemeral — un restart del browser limpia naturalmente, y
+  el siguiente intento de export repuebla. No queremos que un
+  AUTH transient persista cross-session.
+- **`tabs.create` para reasoned URL**: alternativa habría sido
+  pasar el reason por `chrome.storage` y leerla en options al
+  arrancar. URL params es más explicit, debuggeable, y se
+  comparte entre tabs (si el user quiere abrir el banner
+  manualmente puede pegar el URL).
+- **`openOptionsPage` (sin tabs.create) para non-error**: tiene
+  el behavior built-in de focusear tab existente vs abrir nuevo.
+  Para error states perdemos eso (siempre abre nuevo) — costo
+  aceptable para no derivar el reason de otro canal.
+- **No cambio de version**: Hito 32 va a entrar en el próximo
+  release (probablemente 0.11.5 o 0.12.0). Por ahora no bumpeamos
+  — la versión 0.11.4 ya está cuteada.
+
+### Verificación
+- `npm run lint` ✓
+- `npm run package:chrome` → `exportal-companion-0.11.4.zip` 45.9 KB
+  (vs 41.3 KB antes — delta consistente con CSS + JS + l10n
+  agregados).
+- **Smoke test pendiente para Dioni**: ver sección abajo.
+
+### Smoke test
+Reload del companion en `chrome://extensions`. Después:
+
+1. **Tooltip dinámico** (sin reproducir error real): mirar el
+   icono — en estado `unpaired` (sin token) debería decir
+   *"Exportal Companion — click to pair with VS Code"*. En
+   estado `paired` (con token) debería decir *"Exportal
+   Companion — paired"*. Estos ya funcionaban antes pero
+   ahora pasan por `setBadgeState`.
+
+2. **Banner AUTH**: en options page, pegá un token de 64 hex
+   chars que no coincida con el que VS Code tiene (ej:
+   reemplazar 1 char con un dígito distinto). Andá a un
+   chat en claude.ai, tocá el FAB → debería fallar con badge
+   `AUTH`. Click sobre el icono del companion → debería
+   abrir options con el banner rojo *"Token rejected by VS
+   Code"*. **Verificar**: el badge sigue mostrando AUTH
+   (no se borró al click).
+
+3. **Banner OFF**: cerrá VS Code (kill the process). Andá a
+   un chat de claude.ai, tocá el FAB → fallará con badge
+   `OFF`. Click sobre el icono → banner rojo *"VS Code isn't
+   responding"* con dos botones: **Retry** y **Open in VS
+   Code**. Tocá **Open in VS Code** → debería abrir VS Code
+   (si no estaba) o traerlo al frente. Después tocá **Retry**
+   en el banner → debería pingear el bridge, mutar a banner
+   verde "Bridge is reachable", y limpiar el badge OFF.
+
+4. **Banner OLD/ERR**: difíciles de reproducir naturalmente
+   (requieren versión vieja del bridge o payload patológico).
+   Para validar que la HTML/CSS/i18n funciona, podés abrir
+   manualmente `chrome-extension://<your-id>/options.html?
+   reason=old` y `?reason=err` en tabs. Vista solamente.
+
+### Pendiente / iter 2
+- **Tests del banner rendering**: requeriría mockear
+  `URLSearchParams` y `chrome.i18n` — bajo valor, alto costo.
+  Diferido.
+- **Animación de entrada del banner**: hoy aparece instantáneo.
+  Un slide-in suave (~200ms) sería un detalle nice. Diferido.
+- **Banner cuando opciones se abre con VS Code activo**: si el
+  user clickea el icono después de OFF, abre el banner con
+  Retry. Si entre tanto VS Code volvió, el Retry funciona pero
+  ese ping es lo único que detecta el state. ¿Hacer un ping
+  en el load del banner? Iter 2 — agregaría latency al banner
+  initial render.
+
+### Próximo paso
+- Smoke test arriba.
+- Si OK: arrancar Hito 33 (FAB en Claude Design no debe tapar
+  el submit) o juntar más hitos antes del próximo release.
+
+### Iteración 2 — fix del banner + edit-in-place del token
+
+Smoke test de Dioni levantó dos cosas:
+
+**Bug en el banner AUTH**: aparecían dos pills vacíos debajo del
+texto explicativo. Causa: el CSS `.banner-actions button { display:
+inline-flex }` overrideaba el `hidden` attribute (que setea `display:
+none`). Los botones primary/secondary del HTML tienen el `hidden`
+attr para los reasons sin CTAs (auth/err), pero el rule más
+específico ganaba en la cascada y los hacía visibles igual.
+
+Fix: dos rules más específicas en `chrome/options.html`:
+```css
+.banner-actions button:not([hidden]) { display: inline-flex; }
+.banner-actions button[hidden] { display: none; }
+```
+Y un `:has()` para colapsar la `.banner-actions` row entera cuando
+todos los botones están hidden — sin esto la row dejaría un margin
+top vacío.
+
+**Pulido visual del banner**: Dioni pidió simplificar el texto y
+sacar el icono ("la flecha" en su descripción). Cambios:
+- Removido el `<div class="banner-icon">` y su SVG/CSS. El banner
+  ahora es solo headline + body + CTAs (cuando aplican).
+- Removido el wrapper `<div class="banner-body">` (no necesario sin
+  el icono).
+- `.banner` pasa de `display: flex` a `display: block`.
+- Texto del banner AUTH simplificado en en + es:
+  - antes: "VS Code's bridge rejected the pairing token. Verify it
+    matches the one shown in the Exportal panel of VS Code, then
+    paste it below to re-pair."
+  - ahora: "The token doesn't match. Paste the right one from VS
+    Code below."
+  - Spanish equivalent.
+
+**Bug separado: token bloqueado en estado paired**. Dioni notó
+que una vez pareado, editar el token en el input no permitía
+guardarlo de nuevo — había que tocar Unpair primero, vaciar el
+field, pegar el token nuevo, y recién ahí salía el botón Pair.
+La causa era un guard intencional (pre-Hito-32) en el listener
+`input` del `tokenInput`:
+
+```js
+// Old behavior:
+if (card.dataset.state === 'paired') return;
+```
+
+El reasoning original era "no degradar el UI por una pulsación
+accidental sobre un input ya pareado". En la práctica el costo
+(no poder cambiar tokens directo) supera el beneficio.
+
+Fix:
+- Nueva variable `savedToken` cacheada en módulo, sincronizada
+  con `chrome.storage.local` via `init`/`pair`/`unpair`/
+  `storage.onChanged`.
+- Listener `input` ahora compara contra `savedToken`:
+  - Si el valor actual coincide → vuelve a `paired` (no flicker).
+  - Si es válido y distinto → `detected` (activa botón Pair).
+  - Si inválido → `waiting`.
+- Validación implícita: el botón Pair solo se actualiza en
+  `detected`, que requiere los 64 hex chars del `TOKEN_PATTERN`.
+  No hace falta UI de validación adicional.
+
+### Verificación post-fixes
+- `npm run lint` ✓
+- `npm run package:chrome` → 46.2 KB.
+- **Smoke test pendiente**: ver siguientes secciones.
+
+### Smoke test del fix
+1. Abrir `chrome-extension://<extension-id>/options.html?reason=auth`
+   en un tab. **Verificar**: el banner aparece con headline corto,
+   body simple ("The token doesn't match..."), **sin botones vacíos
+   abajo y sin icono a la izquierda**.
+2. En la options page con un token pareado: hacer click en el
+   input del token y editarlo (cambiar 1 char, por ej). **Verificar**:
+   el botón "All connected" desaparece, aparece "Pair" → click →
+   el nuevo token queda guardado y volvemos a "All connected".
+3. En la options page con un token pareado: editar el input y
+   después tipear el token original de nuevo. **Verificar**: vuelve
+   a "All connected" sin tener que hacer click en nada.
+
+### Iteración 3 — banner real-time
+
+Smoke test de Dioni levantó: el banner AUTH no desaparecía cuando
+el user re-pareaba con un token correcto. La causa: el banner sólo
+se renderiza desde `?reason=` en la URL al cargar la página.
+Después no escucha cambios — queda colgado mostrando un estado
+que ya no aplica.
+
+Fix: extender el listener de `chrome.storage.onChanged` en
+`options.js` para escuchar también el área `session` y la key
+`exportal.badgeState` (la fuente de verdad del badge state que
+mantiene `background.js`):
+- Si el state nuevo es un error reason válido (`auth/off/old/err`)
+  → `showBannerForReason()` actualiza el banner en vivo.
+- Si el state se borra (badge → `paired`) o es `unpaired`/`ok` →
+  `hideBanner()` salvo que el banner esté en estado `success`
+  (post-Retry positivo) — ese state queda visible para que el
+  user lo lea antes de cerrar el tab.
+
+Refactor adyacente: `maybeShowBanner` quedó solamente como el
+entry point de URL. La lógica de render se movió a
+`showBannerForReason(reason)` + `hideBanner()`, ambas idempotentes
+y reutilizables por la escucha de storage.
+
+Cubre los flujos:
+- **Re-pair desde la options page**: pair() guarda → background's
+  storage.local listener llama `refreshPairingBadge` → state pasa
+  a `paired` → session storage cambia → options listener oculta
+  el banner. Real-time, sin necesidad de manualmente borrar el
+  banner desde pair().
+- **Export desde claude.ai mientras options está abierta**: éxito
+  → badge `ok` → banner se oculta. Falla AUTH → banner se muestra.
+  El user ve el state actualizado sin recargar.
+- **Retry CTA del banner OFF**: éxito → banner muta a success state
+  + sendMessage `exportal:clearBadge` → session storage cambia →
+  listener corre PERO `data-kind === 'success'` lo exime del
+  auto-hide (queda visible).
+
+Optimismo aceptado: si el user re-parea con un token también
+incorrecto, el banner se oculta (porque el badge va a `paired`
+optimistamente cuando el token se guarda). El próximo export
+fallaría AUTH y traería el banner de vuelta. Validación real
+(probe activo del bridge con el token nuevo después de pair)
+es un upgrade futuro — Dioni explícitamente dijo "o es mucho
+quilombo" sugiriendo OK con la versión simple.
+
+Verificación: lint ✓, zip 46.8 KB.
+
+### Smoke test del fix
+1. Abrir options con `?reason=auth` (vía click derecho icono →
+   Options → editar URL bar para agregar el param).
+2. Banner aparece. Editar el token a uno válido distinto del
+   actual → click "Pair" → **el banner debería desaparecer
+   inmediatamente** sin necesidad de recargar.
+3. (Opcional, real-time) Mantener options abierta. En otro tab,
+   hacer un export que falle AUTH → **el banner debería aparecer
+   solo** en options sin recargar.
+
 
 

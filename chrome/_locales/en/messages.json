@@ -15,6 +15,74 @@
     "message": "Exportal Companion — paired",
     "description": "Tooltip on the toolbar icon after successful pairing."
   },
+  "actionTooltipAuth": {
+    "message": "Token rejected — click to fix",
+    "description": "Tooltip on the toolbar icon when the badge shows AUTH (token rejected by VS Code bridge). Hito 32."
+  },
+  "actionTooltipOff": {
+    "message": "VS Code not responding — click to retry",
+    "description": "Tooltip on the toolbar icon when the badge shows OFF (bridge unreachable). Hito 32."
+  },
+  "actionTooltipOld": {
+    "message": "VS Code Exportal outdated — click to update",
+    "description": "Tooltip on the toolbar icon when the badge shows OLD (VS Code extension older than companion). Hito 32."
+  },
+  "actionTooltipErr": {
+    "message": "Last export failed — click for details",
+    "description": "Tooltip on the toolbar icon when the badge shows ERR (bridge accepted the request but rejected the payload). Hito 32."
+  },
+  "bannerAuthHeadline": {
+    "message": "Token rejected by VS Code",
+    "description": "Banner shown on the options page when opened with ?reason=auth. Hito 32."
+  },
+  "bannerAuthBody": {
+    "message": "The token doesn't match. Paste the right one from VS Code below.",
+    "description": "Body text for the auth banner."
+  },
+  "bannerOffHeadline": {
+    "message": "VS Code isn't responding",
+    "description": "Banner shown on the options page when opened with ?reason=off. Hito 32."
+  },
+  "bannerOffBody": {
+    "message": "The local bridge isn't reachable. Make sure VS Code is open and the Exportal extension is active. The Retry button pings the bridge once.",
+    "description": "Body text for the off banner."
+  },
+  "bannerOldHeadline": {
+    "message": "VS Code Exportal is outdated",
+    "description": "Banner shown on the options page when opened with ?reason=old. Hito 32."
+  },
+  "bannerOldBody": {
+    "message": "The companion is newer than the VS Code extension. Update Exportal in the VS Code Marketplace, then retry your export.",
+    "description": "Body text for the old banner."
+  },
+  "bannerErrHeadline": {
+    "message": "Last export failed",
+    "description": "Banner shown on the options page when opened with ?reason=err. Hito 32."
+  },
+  "bannerErrBody": {
+    "message": "VS Code rejected the conversation payload. Check the VS Code notification for the specific cause, then retry from claude.ai or ChatGPT.",
+    "description": "Body text for the err banner."
+  },
+  "bannerRetryButton": {
+    "message": "Retry",
+    "description": "Primary CTA in the off banner — pings the bridge."
+  },
+  "bannerOpenInVsCodeButton": {
+    "message": "Open in VS Code",
+    "description": "Secondary CTA in the off banner — opens vscode://...wake to bring VS Code to the foreground."
+  },
+  "bannerOpenMarketplaceButton": {
+    "message": "Open Marketplace",
+    "description": "Primary CTA in the old banner — opens the VS Code Marketplace listing for Exportal."
+  },
+  "bannerRetryOkHeadline": {
+    "message": "VS Code is responding",
+    "description": "Replaces the off banner headline after a successful Retry ping."
+  },
+  "bannerRetryOkBody": {
+    "message": "Bridge is reachable. Try your export again from claude.ai or ChatGPT.",
+    "description": "Replaces the off banner body after a successful Retry ping."
+  },
   "optionsPageTitle": {
     "message": "Exportal Companion — options",
     "description": "Browser tab title for the options page."
