@@ -5,7 +5,7 @@ Bridge between **claude.ai / ChatGPT** and **Claude Code** (VS Code). Export any
 https://github.com/user-attachments/assets/159f0c0a-e07c-46f2-b1b3-7d632460f820
 
 > **Status**: bidirectional (claude.ai / ChatGPT ↔ Claude Code). VS Code extension + Chrome companion + CLI.
-> Landing: [exportal.dev](https://exportal.dev). Support: [exportal.dev/support](https://exportal.dev/support). Changelog: [`CHANGELOG.md`](./CHANGELOG.md). Threat model: [`SECURITY.md`](./SECURITY.md). Detailed progress: [`DEVLOG.md`](./DEVLOG.md). What's coming: [`ROADMAP.md`](./ROADMAP.md).
+> Landing: [exportal.dev](https://exportal.dev). Support: [exportal.dev/support](https://exportal.dev/support). Privacy: [exportal.dev/privacy](https://exportal.dev/privacy). Changelog: [`CHANGELOG.md`](./CHANGELOG.md). Threat model: [`SECURITY.md`](./SECURITY.md). Detailed progress: [`DEVLOG.md`](./DEVLOG.md). What's coming: [`ROADMAP.md`](./ROADMAP.md).
 
 ## What it solves
 

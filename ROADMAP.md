@@ -8,11 +8,15 @@ Items concretos y cerrados se mueven al `DEVLOG.md`. Releases formales al
 
 - [ ] Verificar el flujo de instalación en una máquina limpia (vsix +
   zip del companion desde releases, emparejar, probar ambos sentidos).
-- [ ] Cuando Chrome Web Store apruebe el ciclo trabado actual
-  (0.5.7 → versión nueva con ChatGPT), reescribir el listing del
-  store con el copy en inglés (texto listo en `.exportal/3-exportal-ejemplos-copy.md`)
-  y subir las screenshots nuevas. README ya está en inglés —
-  Marketplace de VS Code lo recoge en el próximo `vsce publish`.
+- [ ] Esperar aprobación de Chrome Web Store de la submission 0.11.2
+  (enviada el 2026-04-29 reemplazando la 0.5.7 que llevaba semanas
+  trabada). Cuando apruebe: ejecutar el plan de visibilidad —
+  PRs/issues a awesome-lists, post r/ClaudeAI, thread X, Show HN
+  (copy listo en `.exportal/3-exportal-ejemplos-copy.md`).
+- [ ] `vsce publish` de la 0.11.2 al VS Code Marketplace para que
+  el nuevo `displayName` ("Exportal — Bridge between Claude.ai/
+  ChatGPT and Claude Code") tome efecto en el listing. Bloqueado
+  por: PAT de Microsoft, pendiente que Dioni lo configure local.
 - [ ] Verificar `exportal.dev` en Google Search Console (TXT record
   via Cloudflare DNS, 2 min) para activar el badge "URL oficial
   verificada" en el listing de Chrome Web Store. No es bloqueante

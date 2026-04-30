@@ -4227,3 +4227,159 @@ viajará con todos los silent patches acumulados sobre 0.11.2.
   Console (TXT record en Cloudflare) para activar el badge "URL
   oficial verificada" en el listing — agregado al ROADMAP near-term.
 
+---
+
+## 2026-04-29 (madrugada, después) — Chrome Web Store 0.11.2 enviado a revisión
+
+### Qué hicimos
+Cierre del loop completo de listing prep y submission a Chrome Web
+Store de la 0.11.2. La sesión anterior dejó la infra de canal de
+soporte (email custom + página /support); esta cierra el SEO,
+descripción multi-IA, política de privacidad pública, y el zip
+con todos los cambios de manifest. Al final: pre-flight check de
+7 items con OK del user, submit a review.
+
+### Pivot estratégico — Camino 2: reemplazar 0.5.7 con 0.11.2
+La estrategia previa (memory `project_exportal_strategy.md`) era
+"esperar que Google apruebe 0.5.7, después subir nueva versión".
+Llevaba semanas trabada. Cuando empezamos a llenar el form de
+review, surgió un problema concreto: las justificaciones del listing
+mencionan `chatgpt.com` (correctamente, multi-IA es la realidad),
+pero el manifest de 0.5.7 (pre-Hito 30) no declara
+`https://chatgpt.com/*`. El reviewer compara justificaciones contra
+manifest y la inconsistencia hubiera tirado un rebote o forzado a
+justificar permisos no declarados.
+
+**Decisión**: subir el zip de 0.11.2 ahora, reemplazar la 0.5.7 en
+la cola de Chrome Web Store. Pros: una sola review (código +
+listing en una pasada), manifest consistente con justificaciones,
+nuevo título descriptivo entra en este ciclo sin esperar otro
+upload, listing público refleja multi-IA. Contras: cancelar 0.5.7
+podía perder posición de cola — pero llevaba semanas sin moverse,
+así que cero costo real.
+
+### Listing title descriptivo (en + es localizados)
+- `chrome/_locales/en/messages.json` → `extName`:
+  *"Exportal — Bridge between Claude.ai/ChatGPT and Claude Code"*
+  (58 chars, dentro de los 75 que soporta el store).
+- `chrome/_locales/es/messages.json` → `extName`:
+  *"Exportal — Puente entre Claude.ai/ChatGPT y Claude Code"*.
+- VS Code Marketplace en paralelo: `package.json` `displayName`
+  cambiado de literal `"Exportal"` a `"%extension.displayName%"`
+  + nueva key `extension.displayName` en `package.nls.json` y
+  `package.nls.es.json` con el mismo título descriptivo (matching
+  el patrón ya usado por `description`).
+- **Why**: nadie busca "Exportal Companion" en stores. Buscan
+  "claude.ai chrome extension", "chatgpt export", "claude code".
+  Títulos descriptivos largos son patrón estándar (Loom, Honey,
+  Grammarly, etc.) y matchean queries reales.
+- **Brand intacto**: el nombre del producto sigue siendo "Exportal"
+  en todos lados (memory `project_exportal_strategy.md` decisión
+  cerrada el 2026-04-29 — no se vuelve a debatir). Lo que cambia
+  es solo cómo se renderiza la card del listing en el store.
+
+### Página /privacy en docs/privacy/index.html
+- Subpágina del landing matcheando design system de la home
+  (light + blue accent + system fonts). Servida por GH Pages,
+  URL clean `/privacy` via `docs/privacy/index.html`.
+- Contenido completo: single purpose, what we handle, what we don't
+  collect, permissions table cubriendo los 4 manifest entries
+  (storage, downloads, 127.0.0.1, content scripts en claude.ai +
+  chatgpt.com), retención, third parties (browser extensions = none,
+  website usa Web3Forms para el form de support), open source,
+  contacto.
+- `docs/PRIVACY.md` también actualizado: estaba stale (solo
+  claude.ai, sin Web3Forms disclosure). Ahora es mirror del HTML
+  con header que apunta al canonical en exportal.dev/privacy.
+- Sitemap actualizado, nav del home + /support pointing a /privacy
+  (en vez del anchor del home).
+- **Why**: campo "Política de privacidad" del Chrome Web Store es
+  obligatorio cuando declarás cualquier data collection (y vamos
+  a declarar Authentication info + Website content). Tener el doc
+  pre-existente como `.md` no era suficiente — Google necesita una
+  URL HTML pública estable.
+
+### Descripción larga: rewrite completo bilingüe
+- Reemplazamos los ~4000 chars que estaban en el dashboard (copy
+  pre-Hito 30, solo claude.ai, framing "exporter") con un bloque
+  ~7500 chars bilingüe ya preparado en
+  `.exportal/3-exportal-ejemplos-copy.md` (sección 1.3).
+- Estructura: hook ("Stop copy-pasting between your AI chat and
+  your editor"), 6 features con emoji ranges (📥🔗🎨📤📦🔁), how
+  it works, privacy (local-first/zero telemetry), who it's for,
+  FAQ con 5 dudas comunes (banneo de cuenta, permisos de red,
+  planes Pro), disclaimer Anthropic/OpenAI explícito.
+- Versión española traducida desde la inglesa, mismo formato y
+  separador `────Español────`.
+- **Why**: la descripción que estaba violaba 4 cosas: (a) framing
+  "exporter" contradice posicionamiento "bridge" decidido en
+  estrategia, (b) ChatGPT no aparecía pese a que el manifest lo
+  declara, (c) FAQ ausente — fricción al instalar para audiencia
+  preocupada por security/permisos, (d) sin disclaimer trademark
+  Anthropic/OpenAI, riesgo de nota del reviewer.
+
+### Short description (extDescription en messages.json)
+- en: *"Bridge between Claude.ai/ChatGPT and Claude Code. Export
+  any chat to your VS Code workspace as Markdown, and continue it."*
+  (122 chars, dentro de 132 max).
+- es: *"Puente entre Claude.ai/ChatGPT y Claude Code. Exportá
+  cualquier chat a tu workspace de VS Code como Markdown, y
+  continuá."*
+- **Tweak final del user**: la primera versión usaba em-dash
+  (`Markdown — and continue it`). User pidió swap por coma porque
+  el em-dash creaba un peso/pausa que no aportaba en una copy tan
+  corta. Swappeado a coma en ambos locales.
+- Ese campo se lee del `.crx` del manifest, no se puede editar
+  desde el dashboard. Por eso necesitó re-package + re-upload del
+  zip en la solapa Paquete.
+
+### Wiring final del manifest (Chrome)
+- `chrome/manifest.json` → `homepage_url: "https://exportal.dev"`
+  para que Chrome Web Store autocomplete el campo "URL oficial".
+- En el form: justificaciones de los 4 permisos ya alineadas con
+  el manifest 0.11.2 (incluyendo content scripts cubriendo los 3
+  match patterns: 127.0.0.1, claude.ai, chatgpt.com).
+- "¿Utilizas código remoto?" → **No** (debugged: el user había
+  marcado Sí inicialmente confundiendo content scripts con remote
+  code; aclarado que content scripts viajan bundleados en el .crx
+  y NO son código remoto).
+- Data usage: Authentication info ✓ (token) + Website content ✓
+  (chat content). Limited Use certifications: las 3 ✓.
+
+### Pre-flight check con OK del user (7/7)
+1. ✅ Zip 0.11.2 generado con `npm run package:chrome` y subido al
+   dashboard (con título nuevo + short description nuevo + coma).
+2. ✅ Descripción larga bilingüe pegada en el dashboard.
+3. ✅ Screenshots s1, s2, s3, s6 subidas en ese orden (s0 retirada
+   por nicho-dentro-de-nicho — Claude Design solo).
+4. ✅ URL página principal: `https://exportal.dev/`.
+5. ✅ URL asistencia: `https://exportal.dev/support`.
+6. ✅ URL privacy policy: `https://exportal.dev/privacy`.
+7. ✅ 3 certifications de Limited Use tildadas.
+
+### Submitted a revisión
+2026-04-29 (madrugada). 0.11.2 reemplazó a 0.5.7 en la cola.
+Cualquier rebote llegará por mail al user; trabajamos sobre el
+reason cuando llegue.
+
+### Release / distribución
+**Sin bump** — toda esta sesión es metadata + landing + locales,
+no toca código de runtime de la extensión. La 0.11.2 sigue siendo
+el version number tanto del manifest del .crx como del package.json
+del .vsix. Próximo bump (probable 0.11.3 o 0.12.0) cuando entre el
+auto-recovery + el auto-wake + cambios de listing en un release
+oficial con CHANGELOG entry.
+
+### Próximo paso
+- **Esperar aprobación Chrome Web Store** (1-3 días típico, pero
+  Google ha sido lento últimamente — tracking en ROADMAP near-term).
+- **vsce publish 0.11.2** al VS Code Marketplace cuando Dioni
+  configure el PAT de Microsoft (para que el `displayName` nuevo
+  tome efecto allá también). Bloqueante listado en ROADMAP.
+- **Cuando apruebe**: ejecutar plan de visibilidad — awesome-lists,
+  Reddit r/ClaudeAI, X thread, Show HN (copy ya preparado en
+  `.exportal/3-exportal-ejemplos-copy.md`).
+- **Post-aprobación opcional**: verificar exportal.dev en Search
+  Console (TXT record DNS) para activar badge "URL oficial
+  verificada" en el listing.
+
