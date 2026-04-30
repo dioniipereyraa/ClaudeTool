@@ -1,7 +1,7 @@
 {
   "name": "exportal",
   "displayName": "%extension.displayName%",
-  "version": "0.11.4",
+  "version": "0.11.5",
   "description": "%extension.description%",
   "l10n": "./l10n",
   "private": true,
@@ -86,6 +86,19 @@
           "type": "boolean",
           "default": false,
           "description": "%configuration.alsoWriteJsonl.description%"
+        },
+        "exportal.postImportTemplates": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [
+            "Continue this conversation.",
+            "Summarize the key points and plan the next steps.",
+            "Turn the discussion into GitHub issues.",
+            "Generate tests based on what was discussed."
+          ],
+          "description": "%configuration.postImportTemplates.description%"
         }
       }
     },

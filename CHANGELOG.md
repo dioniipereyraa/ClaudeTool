@@ -6,6 +6,82 @@ Companion (Chrome extension) are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 and versions follow [Semantic Versioning](https://semver.org/).
 
+## [0.11.5] — 2026-04-30
+
+UX-only release que cierra los Hitos 32 (badge inteligente del
+icono Chrome), 33 (FAB en Claude Design no tapa el submit) y 34
+(templates post-import) del cluster ergonomía. Sumado a eso, una
+limpieza de notificaciones que el cluster destapó: la pantalla
+quedaba saturada con 2-3 toasts por export. Ahora es un toast por
+import y cero toasts redundantes en el flujo. 252/252 tests verdes.
+
+### Added
+
+- **Templates post-import** (Hito 34) — nueva sección **After
+  import** que aparece arriba del panel del sidebar después de
+  cada import exitoso (claude.ai inline / ChatGPT inline /
+  claude.ai ZIP / ChatGPT ZIP). Muestra prompts clickables que
+  copian al clipboard + abren el sidebar de Claude Code + ponen
+  el cursor justo después del `@filename.md` que el extension ya
+  inyectó. Un solo Ctrl+V y queda *"@filename.md prompt"* listo
+  para enviar.
+  - Setting `exportal.postImportTemplates` (array de strings,
+    default 4 prompts en inglés). Power users editan en su
+    `settings.json` para fitear su workflow.
+  - **Persiste entre cambios de tab del activity bar**: si
+    exportás desde Chrome con el panel cerrado, la sección
+    aparece la primera vez que abrís el tab de Exportal después.
+    No persiste entre reinicios de VS Code (templates de
+    exports viejos no deberían quedar dando vueltas).
+  - **No se auto-pega ni se auto-envía**: Claude Code no expone
+    API pública para inyectar texto al input de su webview ni
+    para mandar mensajes programáticamente. El cursor en el
+    input + un Ctrl+V manual es lo más cerca que la API real
+    permite.
+  - Botón X para cerrar la sección. Si rotás el setting o
+    importás otra vez, vuelve a aparecer fresca.
+- **Badge inteligente del icono Chrome companion** (Hito 32) —
+  click en el icono cuando el badge está en estado de error
+  (`AUTH`/`OFF`/`OLD`/`ERR`) abre directo la página de fix con
+  un banner contextual explicando el problema. Estados verdes
+  (`OK`/`SET`) siguen abriendo el popover normal.
+- **FAB en Claude Design no tapa el submit** (Hito 33) — el
+  botón flotante de Exportal ahora se reposiciona automáticamente
+  en el flow de design questions de claude.ai/design (donde el
+  CTA de submit vive abajo) para no overlapping con el botón
+  principal de la página.
+
+### Changed
+
+- **Un toast por export, no dos o tres** — el flujo de import
+  consolidó las notificaciones:
+  - Si `alsoWriteJsonl` está OFF: 1 toast — *"Exportal: 'X' — Y
+    messages imported"*.
+  - Si `alsoWriteJsonl` está ON: 1 toast — *"Exportal: 'X' — Y
+    messages imported · also in /resume"* (el sufijo reemplaza
+    al toast secundario *"also wrote X.jsonl for /resume"* que
+    se emitía aparte).
+- **El toast de "paired with Chrome" ya no se dispara en cada
+  page load** — antes, el `/ping` que el companion envía cada
+  vez que se carga claude.ai/chatgpt.com hacía aparecer la
+  notificación con un cooldown insuficiente de 3 segundos. Ahora
+  persiste un flag `exportal.pairConfirmedForToken` en globalState
+  y el toast solo aparece la primera vez por token. Rotar el
+  token resetea el flag para que el siguiente pair reconfirme.
+
+### Internal
+
+- Singleton de módulo `activeControlPanel` en `extension.ts` para
+  que las funciones de import (que viven a nivel de módulo, no
+  como métodos) puedan disparar `notifyPostImport` sin acoplar
+  sus firmas a la clase del panel.
+- Variable de instancia `pendingImportFilename` en
+  `ExportalControlPanelProvider` que sobrevive al show/hide cycle
+  del webview y permite restaurar la sección After-import en
+  `resolveWebviewView` y `onDidChangeVisibility`.
+- Bump del Chrome companion también a 0.11.5 por simetría — sin
+  cambios funcionales en el companion en este release.
+
 ## [0.11.4] — 2026-04-30
 
 UX-only release: cierra los Hitos 30 (onboarding wizard de dos

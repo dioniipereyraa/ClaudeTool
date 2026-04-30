@@ -77,5 +77,9 @@
   "Exportal: copied to clipboard and saved. Paste with Ctrl+V into {0}, or drag the .md if the paste fails.": "Exportal: copiado al portapapeles y guardado. Pegá con Ctrl+V en {0}, o arrastrá el .md si el paste falla.",
   "Reveal file": "Mostrar archivo",
   "Pick a .zip or drop one": "Elegí un .zip o arrastrá uno",
-  "Opens a new chat in your browser": "Abre un chat nuevo en tu navegador"
+  "Opens a new chat in your browser": "Abre un chat nuevo en tu navegador",
+  "After import": "Después de importar",
+  "Click a template to copy it and open Claude Code.": "Click en un template para copiarlo y abrir Claude Code.",
+  "Dismiss": "Cerrar",
+  "Exportal: \"{0}\" — {1} messages imported · also in /resume": "Exportal: \"{0}\" — {1} mensajes importados · también en /resume"
 }

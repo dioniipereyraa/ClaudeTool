@@ -8,5 +8,6 @@
   "command.sendSessionToChatGpt.title": "Exportal: Enviar sesión de Claude Code a ChatGPT",
   "configuration.title": "Exportal",
   "configuration.autoAttachToClaudeCode.description": "Después de importar una conversación, abrir el panel de Claude Code y adjuntar el Markdown exportado como @-mención. Requiere la extensión oficial de Claude Code.",
-  "configuration.alsoWriteJsonl.description": "Además del .md, escribir un .jsonl compatible con Claude Code para que la conversación importada aparezca en /resume como si fuera una sesión local. Experimental: el formato .jsonl es ingeniería inversa y puede romperse entre versiones de Claude Code."
+  "configuration.alsoWriteJsonl.description": "Además del .md, escribir un .jsonl compatible con Claude Code para que la conversación importada aparezca en /resume como si fuera una sesión local. Experimental: el formato .jsonl es ingeniería inversa y puede romperse entre versiones de Claude Code.",
+  "configuration.postImportTemplates.description": "Prompts rápidos que aparecen en el panel de Exportal después de importar un chat. Click en uno y se copia al portapapeles + abre el sidebar de Claude Code — pegá con Ctrl+V para mandarlo. Editá la lista para adaptarla a tu flujo."
 }

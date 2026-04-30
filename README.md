@@ -18,8 +18,11 @@ With both extensions installed and paired:
 1. Open any chat at `claude.ai/chat/<uuid>`, a project at `claude.ai/design/p/<uuid>`, **or a chat at `chatgpt.com/c/<uuid>`**.
 2. Click the floating Exportal button (bottom-right corner) → **Export this chat**.
 3. VS Code saves the conversation to `<workspace>/.exportal/<timestamp>-<slug>.md`, opens the file, **and automatically opens the Claude Code panel with the Markdown attached as `@-mention`**. You just write your prompt and you're done.
+4. The Exportal panel surfaces an **After import** section with quick prompts (*"Continue this conversation"*, *"Summarize and plan next steps"*, etc.). Click one and the prompt is copied to the clipboard with the cursor already inside Claude Code's input — `Ctrl+V` sends *"@filename.md your-prompt"* in one go. Edit the list with the `exportal.postImportTemplates` setting.
 
 > **VS Code closed?** No problem — the FAB detects it and opens it automatically via `vscode://`. The conversation is imported as soon as the bridge starts, without you having to do anything. The first time, your browser may ask you to confirm *"Open this with Visual Studio Code?"* — click *"Remember"* and it disappears forever.
+
+> **Exportal tab on something else (Explorer, Search…)?** The After-import section restores the moment you switch back to the Exportal tab in the activity bar — you don't need to have it open *during* the export.
 
 For **Claude Design** projects, in addition to the chat, the generated assets (HTML, JSX, JSON, etc.) are downloaded to `<workspace>/.exportal/<timestamp>-<slug>/` (sibling folder of the `.md`). The `.md` starts with a *"Generated assets"* header listing the files so Claude Code sees them.
 
@@ -54,6 +57,7 @@ If you enable the `exportal.alsoWriteJsonl` setting, alongside the `.md` a `.jso
 
 There's an Exportal icon in the activity bar (the left vertical bar). The panel brings everything important together in a clear hierarchy:
 
+- **After import** — appears only after a successful import (and survives switching to other tabs in the meantime). Quick prompt templates that copy + drop the cursor into Claude Code's input. X to dismiss; reappears on the next import.
 - **Settings** — toggles for `autoAttachToClaudeCode` and `alsoWriteJsonl`.
 - **↓ Import to workspace** — one row per provider (claude.ai, ChatGPT, Gemini coming soon). Click → file picker, or direct import if it detected a fresh ZIP in Downloads.
 - **↑ Export current session** — mirror of Import. Click `claude.ai` or `ChatGPT` → sends the most recent Claude Code session to the provider's web chat.
@@ -75,16 +79,18 @@ npm run package:vsix
 code --install-extension exportal-*.vsix
 ```
 
-When you open VS Code for the first time, a panel opens with the **pairing token** and a **"Copy and open Chrome"** button. If you get distracted, you can reopen it with `Ctrl+Shift+P` → **Exportal: Show pairing token**.
+When you open VS Code for the first time, a two-step pairing wizard appears: **Step 1** sends you to the Chrome Web Store to install the companion; **Step 2** shows the pairing token with a **"Copy token and open Chrome"** button. If you skip it, you can reopen the wizard with `Ctrl+Shift+P` → **Exportal: Show pairing token**.
 
 ![Onboarding panel in VS Code](docs/screenshots/exportal-s2-onboarding-1280x800.png)
 
 ### Chrome companion
 
 1. Install **Exportal Companion** from the Chrome Web Store, or download `exportal-companion-<version>.zip` from [Releases](https://github.com/dioniipereyraa/ClaudeTool/releases) and load it unpacked in `chrome://extensions` (Developer mode enabled).
-2. In VS Code, run **Exportal: Show pairing token** → click **Copy and open Chrome**. The first time, we ask you whether you want to pair via **claude.ai** or **chatgpt.com** (the companion lives on both sites, either works as a bridge). The choice is remembered; to change it later, use **Exportal: Change pairing provider**. The companion detects the token automatically, opens its options page showing *"Done! — All connected"*, and VS Code notifies you with a pairing-complete notification. No copy, no paste.
+2. In VS Code, run **Exportal: Show pairing token** → click **Copy token and open Chrome**. This opens claude.ai with the token in the URL fragment; the companion's content script captures it automatically, opens its options page showing *"Done! — All connected"*, and VS Code shows a pairing-complete notification. No copy, no paste.
 
-The icon badge reflects the state: `OK` green (imported), `SET` yellow (token missing), `OFF` red (VS Code not responding), `AUTH` red (invalid token), `OLD` red (VS Code outdated), `ERR` red (others).
+The icon badge reflects the state: `OK` green (imported), `SET` yellow (token missing), `OFF` red (VS Code not responding), `AUTH` red (invalid token), `OLD` red (VS Code outdated), `ERR` red (others). Click the icon while in any error state and the options page opens with a banner explaining the fix.
+
+A short success chime plays when an export lands in VS Code (default ON, opt-out from the companion's options page).
 
 ![Companion connected in "Done" state](docs/screenshots/exportal-s3-success-1280x800.png)
 

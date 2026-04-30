@@ -13,10 +13,14 @@ Items concretos y cerrados se mueven al `DEVLOG.md`. Releases formales al
   trabada). Cuando apruebe: ejecutar el plan de visibilidad —
   PRs/issues a awesome-lists, post r/ClaudeAI, thread X, Show HN
   (copy listo en `.exportal/3-exportal-ejemplos-copy.md`).
-- [ ] `vsce publish` de la 0.11.2 al VS Code Marketplace para que
-  el nuevo `displayName` ("Exportal — Bridge between Claude.ai/
-  ChatGPT and Claude Code") tome efecto en el listing. Bloqueado
-  por: PAT de Microsoft, pendiente que Dioni lo configure local.
+- [ ] Re-empaquetar el companion 0.11.5 (`npm run package:chrome`)
+  y submitearlo al Chrome Web Store post-aprobación de la 0.11.2.
+  Sin cambios funcionales en el companion — el bump es por
+  simetría con la VS Code extension.
+- [ ] `vsce publish` de la 0.11.5 al VS Code Marketplace para que
+  el listing refleje los Hitos 32+33+34 + cleanup de toasts.
+  Bloqueado por: PAT de Microsoft, pendiente que Dioni lo
+  configure local.
 - [ ] Verificar `exportal.dev` en Google Search Console (TXT record
   via Cloudflare DNS, 2 min) para activar el badge "URL oficial
   verificada" en el listing de Chrome Web Store. No es bloqueante
@@ -45,86 +49,18 @@ Items concretos y cerrados se mueven al `DEVLOG.md`. Releases formales al
 El orden acá es deliberado: lo de arriba arranca antes que lo de
 abajo. Cambios al orden se discuten explícitamente.
 
-### Hitos 32-34 — Ergonomía y UX (prioridad inmediata)
+### Cluster ergonomía/UX — cerrado en 0.11.5
 
-Continuación del cluster ergonomía/UX. Hitos 30 (onboarding wizard
-de dos pasos) y 31 (sonido al exportar) cerraron en 0.11.4 — ver
-DEVLOG entries del 2026-04-30.
+Hitos 30 (onboarding wizard de dos pasos), 31 (sonido al exportar),
+32 (badge inteligente del icono Chrome), 33 (FAB en Claude Design
+no tapa el submit) y 34 (templates post-import) cerraron en
+0.11.4 + 0.11.5. Ver DEVLOG entries del 2026-04-30 y CHANGELOG.
 
-**Hito 32 — Badge inteligente del icono Chrome companion**
+**Pendiente**: smoke test del Hito 33 cuando Dioni tenga tokens
+de Claude Design. Sin bloqueante para el release — el path de
+chat normal de claude.ai/ChatGPT no quedó tocado por el cambio.
 
-Hoy el badge muestra estado (`OK`/`SET`/`OFF`/`AUTH`/`OLD`/`ERR`).
-El usuario que ve `AUTH` rojo no sabe qué hacer sin abrir el
-popover y leer. Fricción innecesaria de recuperación.
-
-**Scope**:
-- Click en el icono cuando hay estado de error abre directo a la
-  página de fix del error específico, no al popover genérico:
-  - `AUTH` → página de pairing con el token a la vista.
-  - `OFF` → instrucciones cortas de levantar el bridge en VS Code
-    + botón de reintentar.
-  - `OLD` → CTA de upgrade del companion / VSIX con el delta de
-    versión visible.
-  - `ERR` → log con el último error capturado y botón "Retry".
-- Estado verde (`OK`/`SET`) sigue abriendo el popover normal.
-- Tooltip al hover en estado de error: síntoma + acción primaria
-  en una línea.
-
-**Risk**: bajo. Cambio aislado al click handler del action +
-páginas dedicadas para cada error state (algunas ya existen
-parcialmente).
-
-**Hito 33 — FAB en Claude Design no debe tapar el submit**
-
-Bug observado por Dioni: en Claude Design (flow de design questions
-de claude.ai), el FAB tapa ~85% del submit button. El submit sigue
-siendo clickeable (la zona descubierta basta), pero visualmente
-está oculto y la UX se rompe — el user piensa que no puede enviar
-mientras Exportal esté activo.
-
-**Scope**:
-- Detectar el layout de Claude Design vs claude.ai chat normal
-  (URL pattern + DOM signature del flow de design questions y su
-  CTA inferior). Probar el detect en sesión real antes de shippear.
-- Cuando estamos en flow de design con CTA inferior, reposicionar
-  el FAB: arriba a la derecha, o más arriba que en chat normal,
-  o auto-ocultar mientras hay CTA activo (decidir cuál basado en
-  prueba real — el objetivo es 0% overlap visual con el submit).
-- Test manual: ciclo completo de design question respondiendo
-  con el submit visible al 100%.
-- Considerar también para chat normal: FAB más chico por default,
-  expandirse en hover. Decisión adyacente — puede salir en este
-  mismo hito o quedar como mejora de seguimiento.
-
-**Risk**: el detect "estamos en flow de design" puede ser frágil
-si Anthropic cambia el DOM. Fail-safe: si no detecta, mantener
-posición actual — peor caso queda como hoy (submit clickeable
-pero tapado), no peor que el bug actual.
-
-**Hito 34 — Templates post-import**
-
-Cuando el usuario importa un chat a Claude Code, lo siguiente que
-hace es escribir un prompt tipo "continuá esto, vengo de claude.ai".
-Si el extension le ofrece templates seleccionables después del
-import, reducimos fricción y educamos sobre qué se puede hacer
-con el contexto importado.
-
-**Scope**:
-- Después de un import exitoso, el panel de Exportal en VS Code
-  muestra 3-4 templates clickables:
-  - "Continuar la conversación"
-  - "Resumir y planear próximos pasos"
-  - "Convertir los puntos discutidos en issues de GitHub"
-  - "Generar tests basados en lo conversado"
-- Click en un template → genera el prompt en el textbox de Claude
-  Code (no auto-submit — el user revisa y dispara).
-- Templates editables vía setting `exportal.postImportTemplates`
-  (array de strings) para que power users los customicen.
-- Mostrar solo cuando el panel está abierto post-import; no como
-  toast modal.
-
-**Risk**: bajo. Feature aditiva, ignorable, no afecta a quien no
-la quiere usar.
+### Hitos 35+ — siguientes en cola
 
 **Hito 35 — Pairing landing en `exportal.dev/pair`**
 

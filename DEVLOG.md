@@ -5384,5 +5384,327 @@ no peor que el bug actual.
   detect frágil. La solución posicional cubre el caso sin esa
   complejidad.
 
+---
+
+## 2026-04-30 — Cierre de sesión · Hito 34 planeado, no codeado
+
+### Estado al cerrar sesión
+Sesión larga del 2026-04-30 que cerró cuatro hitos del cluster
+ergonomía/UX:
+
+- **Hito 30** (onboarding wizard de dos pasos) → released en 0.11.4
+  (commit `bbc5034`).
+- **Hito 31** (sonido al exportar, arpegio mayor en 432Hz) →
+  released en 0.11.4 (commit `bbc5034`).
+- **Hito 32** (badge inteligente con banner state-driven) →
+  committed local en `ea1364f`. Pendiente push.
+- **Hito 33** (FAB en Claude Design subido 100px del bottom) →
+  committed local en `fa3113b`. Pendiente push y smoke test
+  (Dioni reportó que no tiene tokens de Claude Design hasta el
+  próximo reset; verificará entonces).
+
+Quedan 2 commits adelante de `origin/main` esperando push.
+
+### Hito 34 — planeado, no codeado
+La conversación se quedó sin tokens antes de poder codear el Hito
+34. Las decisiones de diseño quedaron documentadas en `ROADMAP.md`
+con suficiente detalle para retomar en una sesión nueva sin
+re-planning desde cero. Resumen:
+
+- Setting `exportal.postImportTemplates` (array de strings, default
+  4 templates en inglés).
+- Sección "After import" en el panel del sidebar, hidden por
+  default, aparece al recibir mensaje del host post-import. X para
+  cerrar.
+- Click en template → clipboard + abre Claude Code sidebar +
+  toast. Sin auto-submit.
+- Sin persistencia entre reloads del panel — KISS para v1.
+- Trigger desde `extension.ts` después de cada
+  `persistAndOpenMarkdown` exitoso.
+- Cambios estimados: `package.json`, `package.nls.{json,es.json}`,
+  `l10n/bundle.l10n.es.json`, `src/extension/control-panel.ts`,
+  `src/extension/extension.ts`.
+
+### Documentación actualizada
+- **`ROADMAP.md`**: Hito 34 reescrito con el plan completo.
+- **`README.md` y `README.vsix.md`**: sincronizados con la realidad
+  post-0.11.4 (wizard de dos pasos, pairing sin QuickPick, badge
+  click → banner contextual, sonido al exportar).
+- **`DEVLOG.md`**: este cierre.
+
+### Próximo paso (sesión nueva)
+1. Push de los 2 commits locales (`ea1364f`, `fa3113b`) a `main`
+   cuando convenga.
+2. Smoke test del Hito 33 cuando Dioni tenga tokens de Claude
+   Design.
+3. Codear Hito 34 siguiendo el plan del ROADMAP.
+4. Después: cluster ergonomía cerrado. Decisiones a tomar:
+   - ¿Cortar release 0.11.5 con Hitos 32+33+34, o esperar más?
+   - ¿Arrancar Hito 35 (`exportal.dev/pair` landing)?
+
+Dioni cierra sesión para empezar una nueva conversación y ahorrar
+tokens. Toda la información operativa para retomar está en
+`ROADMAP.md` (qué hacer) y este DEVLOG entry (estado actual).
+
+---
+
+## 2026-04-30 — Hito 34 · Templates post-import
+
+### Qué hicimos
+Cerramos el Hito 34 siguiendo el plan dejado por la sesión anterior
+en el ROADMAP, sin desvíos. El usuario, después de importar un
+chat (Claude.ai inline / ChatGPT inline / Claude.ai ZIP / ChatGPT
+ZIP), ve aparecer arriba del panel de Exportal una sección **After
+import** con prompts clickables. Click en uno → copia al
+portapapeles + abre el sidebar de Claude Code + toast. Pega manual
+con Ctrl+V (no hay API pública para auto-submit).
+
+### Cambios concretos
+
+- **`package.json`** — nuevo setting `exportal.postImportTemplates`
+  (`array<string>`, default 4 prompts en inglés). Power users
+  editan en su `settings.json`. Defaults:
+  - *"Continue this conversation."*
+  - *"Summarize the key points and plan the next steps."*
+  - *"Turn the discussion into GitHub issues."*
+  - *"Generate tests based on what was discussed."*
+- **`package.nls.json` / `package.nls.es.json`** — descripción del
+  setting bilingüe.
+- **`l10n/bundle.l10n.es.json`** — 4 strings nuevas (label "After
+  import", aria del X "Dismiss", hint, toast).
+- **`src/extension/control-panel.ts`**:
+  - Método público `notifyPostImport(filename: string)`. Lee el
+    setting, filtra strings vacías, postMessage al webview.
+  - Handler nuevo `runTemplate` en `onDidReceiveMessage`: clipboard
+    write + `claude-vscode.sidebar.open` si está disponible (try/
+    catch — fallo silencioso, el clipboard ya está) + toast.
+  - Sección HTML `.post-import` arriba de Settings, hidden por
+    default. Header con dir-badge, label, botón X.
+  - CSS dedicado: chips a ancho completo, hover con border-color
+    en `--vscode-focusBorder`, estado `.copied` con tinte verde
+    para feedback visual del click.
+  - JS: handler de `postImport` que renderiza chips con
+    `textContent` (safe contra inyección), scrollIntoView nearest
+    para que el usuario lo vea aunque el panel esté scrolleado.
+    Dismiss limpia el `innerHTML` para que la próxima
+    `notifyPostImport` rebuilda fresco.
+- **`src/extension/extension.ts`**:
+  - Singleton de módulo `activeControlPanel` + helper
+    `notifyPostImportIfReady(savedUri)`. Lo más mínimamente
+    invasivo: las funciones de import están a nivel de módulo
+    (no son métodos), así que pasar el panel por parámetro hubiera
+    requerido cambiar 4 firmas más sus call sites.
+  - Set en `activate` justo después de construir el panel; clear
+    en una nueva subscription disposable.
+  - 4 call sites después de `attachToClaudeCodeIfAvailable`:
+    `handleClaudeAiInline` (línea ~318), `handleChatGptInline`
+    (~344), `openChatGptConversationFromZip` (~807),
+    `openConversationFromZip` (~908).
+
+### Decisiones de diseño (ratificadas, no cambiadas)
+- **Sin persistencia entre reloads**. Si el panel está cerrado en
+  el momento del import, los templates se pierden. KISS — el toast
+  del flujo principal ya confirma el import; los templates son
+  ergonomía pura.
+- **Sin auto-submit**. Claude Code no expone una API pública para
+  insertar+enviar texto en un solo paso. `claude-vscode.sidebar.open`
+  + clipboard + paste manual es lo más cerca que llegamos sin
+  hackear el webview de Claude Code.
+- **Solo en panel, no toast modal**. Toasts intrusivos en cada
+  import serían ruido. La sección aparece *donde el usuario ya
+  está mirando* (el panel de Exportal queda abierto durante los
+  imports cuando se usa el FAB).
+- **`section.scrollIntoView({ block: 'nearest' })`** post-render:
+  si el panel viene scrolleado por settings/imports/exports, el
+  user vería los toggles antes que la sección nueva. Forzando
+  scroll al elemento garantizamos visibilidad sin chocar con la
+  posición habitual.
+
+### Verificación
+- `npm run ci` — 252/252 tests pasan, lint ✓, typecheck ✓, build ✓.
+- Smoke manual pendiente (requiere VS Code con companion paired y
+  un import real). El path crítico es: companion → bridge →
+  `handleClaudeAiInline` → `attachToClaudeCodeIfAvailable` →
+  `notifyPostImportIfReady` → webview message → render chips.
+- No se agregaron tests automáticos: el `controlPanel` es webview
+  + DOM, no se cubre desde vitest sin armar harness pesado. La
+  lógica determinística (filtro de strings vacías en
+  `notifyPostImport`) es trivial y se valida en smoke.
+
+### No-tests rationale
+El método público `notifyPostImport` tiene 3 líneas de lógica:
+leer setting + filtrar empty + postMessage. Cubrir eso con un mock
+de `webview.postMessage` agregaría un archivo de test para una
+función que es fundamentalmente "envío de mensaje" — el bug si
+existe está en la integración (DOM, l10n, comando de Claude Code),
+no en la rama trivial. Si en el futuro este método crece (por ej:
+debouncing entre imports rápidos, o estado persistente), entra
+test.
+
+### Próximo paso
+1. Smoke test del Hito 34: importar un chat → ver sección → click
+   en un template → confirmar clipboard + apertura del sidebar.
+2. Smoke test del Hito 33 cuando reseteen los tokens de Claude
+   Design.
+3. Decidir corte de release 0.11.5 (Hitos 32+33+34 cerrados — el
+   cluster ergonomía estaría listo para shippear).
+4. Después del corte: Hito 35 (`exportal.dev/pair` landing) o el
+   trabajo de comunicación pre-lanzamiento (video, blog post).
+
+---
+
+## 2026-04-30 — Release 0.11.5 · cierre del cluster ergonomía + cleanup de toasts
+
+### Qué hicimos
+Lo que arrancó como un smoke test del Hito 34 sacó a la luz dos
+issues que justificaron sus propias iteraciones antes de cortar
+release. Esta entry cubre las dos iteraciones (notification spam
++ persistencia de la sección After-import) más el bump a 0.11.5.
+
+### Iteración 1 — Notification spam (3 toasts por export → 1)
+
+**Síntoma reportado por Dioni**: cada export tiraba 3 toasts
+seguidos en VS Code. Captura de pantalla mostró:
+
+1. *"Exportal: also wrote 9ba4743c.jsonl for /resume in Claude Code."*
+2. *"Exportal: 'Análisis del proyecto Exportal' — 6 messages imported"*
+3. *"Exportal: paired with Chrome. Try it now — open a chat..."*
+
+El sumatorio efectivo era **2 inevitables + 1 bug**:
+
+- (1) y (2) son legítimos pero redundantes: el `.jsonl` solo se
+  escribe si está activo el setting `alsoWriteJsonl`, y entonces
+  ese éxito merece comunicarse, pero un toast aparte para eso es
+  ruido cuando el flujo normal del `.md` ya tiró su propio toast.
+- (3) era un **bug**: el toast de "paired with Chrome" lo
+  disparaba `handlePairConfirmed` cada vez que el companion hacía
+  `/ping` al bridge, con un cooldown insuficiente de 3 segundos.
+  Como el companion hace ping en cada page load de claude.ai/
+  chatgpt.com, el toast aparecía esporádicamente intercalado
+  con los exports.
+
+**Fixes**:
+
+- **Consolidación de los toasts del .md y .jsonl**:
+  `maybeWriteClaudeCodeJsonl` cambió de retornar `void` a
+  retornar `Promise<boolean>` (true si escribió el .jsonl),
+  removí su `showInformationMessage` interno, e invertí el
+  orden en los call sites para que jsonl se escriba primero y
+  el resultado entre como argumento a `announceImport`. Ahora
+  `announceImport(conversation, alsoWroteJsonl)` arma el toast
+  con sufijo opcional `· also in /resume`. Un toast por import.
+- **Toast de pairing una sola vez por token**: agregué un flag
+  `exportal.pairConfirmedForToken` en globalState que guarda el
+  token actual cuando se muestra el toast. `handlePairConfirmed`
+  ahora recibe `(context, currentToken)` y compara: si ya está
+  guardado el mismo token, sigue actualizando el wizard panel
+  (si está abierto) pero no muestra el toast. Si rotás el token
+  desde el panel, el handler de `rotateToken` también limpia el
+  flag, así el siguiente pair vuelve a confirmar visualmente.
+- **Toast del template eliminado** del handler de `runTemplate`:
+  además de ser redundante con el feedback visual (`.copied`
+  class por 1.4s), descubrí que la información message **robaba
+  foco al input de Claude Code** justo después de que
+  `claude-vscode.focus` lo había puesto ahí — defeating el
+  beneficio entero del comando. Sin toast, `focus` queda como
+  última operación del handler y el cursor se mantiene en el
+  input listo para Ctrl+V.
+
+### Iteración 2 — Persistencia de la sección After-import
+
+**Caso reportado por Dioni**: si exportaba desde claude.ai con
+el tab de Exportal cerrado (o en Explorer/cualquier otro view),
+abrir el panel después no mostraba la sección. *"Quiero que al
+exportar, el after import aparezca en el tab aunque el usuario no
+lo tenga abierto, y si después lo abre, aparezcan ahí. ... Que
+sea como ahora y el usuario la pueda cerrar."*
+
+La implementación inicial era fire-and-forget: si `webviewView`
+era `undefined` al momento del `notifyPostImport`, el mensaje se
+perdía. KISS-by-default, pero el caso de uso real es justamente
+que el panel esté cerrado al momento del export (el FAB en
+claude.ai dispara el flujo sin tocar VS Code).
+
+**Solución**: variable de instancia `pendingImportFilename` en
+`ExportalControlPanelProvider`. Tres invariantes:
+
+1. `notifyPostImport(filename)` siempre la actualiza, postée o no
+   al webview.
+2. `resolveWebviewView` (cuando el panel se abre fresh) y
+   `onDidChangeVisibility` cuando se vuelve visible llaman a
+   `postPendingPostImport` si la variable tiene algo.
+3. El handler nuevo `dismissPostImport` (lo manda el JS del
+   webview cuando el usuario clickea X) la limpia.
+
+**Decisión deliberada**: NO persistir la variable a globalState.
+Si el usuario reinicia VS Code sin dismissar, los templates se
+pierden. Eso preserva la promesa "no permanente" del usuario:
+templates de un export viejo no deberían quedar haunting al
+usuario al día siguiente.
+
+**Re-lectura de templates en cada postée**: cada vez que se
+postée el message al webview, releo `exportal.postImportTemplates`
+del setting. Si el usuario edita el array entre el import y
+abrir el panel, ve los templates actualizados.
+
+### Cambios concretos por archivo
+
+- **`src/extension/extension.ts`**:
+  - `maybeWriteClaudeCodeJsonl` — firma cambió a `Promise<boolean>`,
+    sin toast interno.
+  - `announceImport(conversation, alsoWroteJsonl: boolean)` —
+    arma toast con sufijo opcional `· also in /resume`.
+  - `handlePairConfirmed(context, currentToken)` — flag por
+    token en globalState, no más cooldown de 3s.
+  - 2 call sites de `announceImport` actualizados con el orden
+    invertido (jsonl primero, announce después con el bool).
+- **`src/extension/control-panel.ts`**:
+  - Variable de instancia `pendingImportFilename`.
+  - `notifyPostImport` ahora siempre la actualiza; helper
+    privado `postPendingPostImport` re-postea cuando hace falta.
+  - `resolveWebviewView` y `onDidChangeVisibility` llaman al
+    helper.
+  - Handler nuevo `dismissPostImport` en `onDidReceiveMessage`.
+  - JS del webview: el dismiss button ahora postMessage al
+    backend además de ocultar la sección.
+  - `runTemplate` handler: removido el `showInformationMessage`,
+    `focus` reordenado como última operación.
+  - `rotateToken` handler: limpia también el flag
+    `pairConfirmedForToken`.
+- **`l10n/bundle.l10n.es.json`**:
+  - Removida string `Exportal: template ready. Press Ctrl+V...`
+    (toast eliminado).
+  - Agregada string `Exportal: "{0}" — {1} messages imported · also in /resume`.
+
+### Bump de versión y release
+
+- `package.json` y `chrome/manifest.json` a **0.11.5**.
+- Companion bumpeado por simetría aunque no tuvo cambios
+  funcionales — mantenemos las versiones en sync como en releases
+  anteriores.
+- CHANGELOG.md con entrada 0.11.5 cubriendo Hitos 32+33+34 +
+  cleanup de toasts.
+- README.md y README.vsix.md actualizados sincronizadamente
+  (memoria `feedback_dual_readme.md` en uso): mención de la
+  sección After-import en el happy path + en la lista de la
+  Dedicated tab.
+
+### Verificación
+- `npm run ci` — 252/252 tests pasan, lint ✓, typecheck ✓, build ✓.
+- VSIX empaquetado a `exportal-0.11.5.vsix` (256.5 KB).
+- Smoke test manual confirmó: 1 toast por export, click en
+  template lleva el cursor al input de Claude Code, sección
+  After-import sobrevive al cambio de tab del activity bar.
+
+### Próximo paso
+1. Smoke test del Hito 33 cuando Dioni tenga tokens de Claude
+   Design.
+2. `vsce publish` al VS Code Marketplace cuando esté el PAT
+   configurado.
+3. Re-empaquetar y subir el companion 0.11.5 al Chrome Web Store
+   (cero cambios funcionales pero versión bump por simetría).
+4. Después: Hito 35 (`exportal.dev/pair` landing) o el trabajo
+   de comunicación pre-lanzamiento (video, blog post).
+
 
 

@@ -61,6 +61,19 @@ const CHROME_COMPANION_STORE_URL =
 // trampoline to `exportal.dev/pair` so this dependency dissolves.
 const PAIRING_TRAMPOLINE_HOST = 'claude.ai';
 
+// Module-level handle to the live control panel so the import flows
+// (defined as standalone module functions, not class methods) can
+// nudge it after a successful import — Hito 34 templates section. Set
+// during `activate`, cleared on dispose. Stays undefined when the
+// extension hasn't activated yet (tests, partial loads).
+let activeControlPanel: ExportalControlPanelProvider | undefined;
+
+function notifyPostImportIfReady(savedUri: vscode.Uri | undefined): void {
+  if (savedUri === undefined || activeControlPanel === undefined) return;
+  const filename = savedUri.path.split('/').pop() ?? '';
+  activeControlPanel.notifyPostImport(filename);
+}
+
 /**
  * Open the trampoline host in the user's default browser with
  * `#exportal-pair=<token>` so the Companion's content script captures
@@ -162,11 +175,13 @@ export function activate(context: vscode.ExtensionContext): void {
     importClaudeZip: (filePath) => openConversationFromZip(filePath),
     importChatGptZip: (filePath) => openChatGptConversationFromZip(filePath),
   });
+  activeControlPanel = controlPanel;
   context.subscriptions.push(
     vscode.window.registerWebviewViewProvider(
       'exportal.controlPanel',
       controlPanel,
     ),
+    { dispose: () => { activeControlPanel = undefined; } },
   );
 
   const statusBar = vscode.window.createStatusBarItem(
@@ -226,7 +241,7 @@ async function startBridgeServer(
     return await startServer(token, {
       onImport: (payload) => handleBridgeImport(payload),
       onImportInline: (payload) => handleBridgeImportInline(payload),
-      onPing: () => handlePairConfirmed(),
+      onPing: () => handlePairConfirmed(context, token),
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
@@ -237,17 +252,33 @@ async function startBridgeServer(
   }
 }
 
-// Fires when Chrome confirms pairing. Debounced via a short cool-down:
-// Chrome may hit /ping twice in quick succession (e.g. on reload of
-// a tab whose fragment was already consumed) and we don't want two
-// notifications on top of each other.
-let lastPairConfirmedAt = 0;
-const PAIR_CONFIRM_COOLDOWN_MS = 3000;
+// Fires when Chrome confirms pairing. The Companion hits `/ping` on
+// every page load of claude.ai/chatgpt.com to verify the bridge is
+// alive — we used to surface a toast on every ping (debounced 3s),
+// but that meant a "paired" notification on top of every export. The
+// fix: persist a flag per-token in globalState. The toast fires only
+// the first time we see a successful ping for a given token (i.e.
+// freshly paired or freshly rotated). Subsequent pings stay silent.
+const PAIR_CONFIRMED_TOKEN_KEY = 'exportal.pairConfirmedForToken';
 
-function handlePairConfirmed(): void {
-  const now = Date.now();
-  if (now - lastPairConfirmedAt < PAIR_CONFIRM_COOLDOWN_MS) return;
-  lastPairConfirmedAt = now;
+function handlePairConfirmed(
+  context: vscode.ExtensionContext,
+  currentToken: string,
+): void {
+  const alreadyConfirmedFor = context.globalState
+    .get<string>(PAIR_CONFIRMED_TOKEN_KEY);
+  if (alreadyConfirmedFor === currentToken) {
+    // Already showed the toast for this token. Still nudge the
+    // pairing panel if it happens to be open (e.g. user just paired
+    // and the wizard is still up), but don't spam the notification.
+    if (pairingPanel !== undefined) {
+      const panel = pairingPanel;
+      void panel.webview.postMessage({ type: 'paired' });
+      setTimeout(() => { panel.dispose(); }, 2500);
+    }
+    return;
+  }
+  void context.globalState.update(PAIR_CONFIRMED_TOKEN_KEY, currentToken);
   void vscode.window.showInformationMessage(
     vscode.l10n.t(
       'Exportal: paired with Chrome. Try it now — open a chat in claude.ai or ChatGPT and click the Export button.',
@@ -312,9 +343,10 @@ async function handleBridgeImportInline(payload: ImportInlinePayload): Promise<v
     ? buildAssetsHeader(assets, baseName) + convMarkdown
     : convMarkdown;
   const savedUri = await persistAndOpenMarkdown(conversation.name, markdown, baseName, assets);
-  announceImport(conversation);
-  await maybeWriteClaudeCodeJsonl(conversation);
+  const wroteJsonl = await maybeWriteClaudeCodeJsonl(conversation);
+  announceImport(conversation, wroteJsonl);
   await attachToClaudeCodeIfAvailable(savedUri);
+  notifyPostImportIfReady(savedUri);
 }
 
 /**
@@ -341,6 +373,7 @@ async function handleChatGptInline(payload: ImportInlinePayload): Promise<void> 
     vscode.l10n.t('Exportal: "{0}" imported from ChatGPT.', title),
   );
   await attachToClaudeCodeIfAvailable(savedUri);
+  notifyPostImportIfReady(savedUri);
 }
 
 // Pre-pended block when the inline payload carries Claude Design assets.
@@ -371,17 +404,25 @@ function decodedBase64ByteLength(b64: string): number {
   return Math.floor((trimmed.length * 3) / 4) - padding;
 }
 
-function announceImport(conversation: ClaudeAiConversation): void {
-  // Toast after a successful import. The user often triggers the export
-  // from Chrome with VS Code in the background; without this toast the
-  // only confirmation is the new editor tab, which they may not see
-  // until they switch windows. Includes the title so a user who fires
-  // two exports back-to-back can tell them apart.
+function announceImport(conversation: ClaudeAiConversation, alsoWroteJsonl: boolean): void {
+  // Single toast after a successful import. The user often triggers the
+  // export from Chrome with VS Code in the background; without this
+  // toast the only confirmation is the new editor tab, which they may
+  // not see until they switch windows. Includes the title so a user
+  // who fires two exports back-to-back can tell them apart, and a
+  // `· also in /resume` suffix when alsoWriteJsonl is on so we can
+  // skip the secondary toast that maybeWriteClaudeCodeJsonl used to
+  // emit. One import = one notification.
   const title = conversation.name.length > 0 ? conversation.name : vscode.l10n.t('(untitled)');
   const count = conversation.chat_messages.length;
-  void vscode.window.showInformationMessage(
-    vscode.l10n.t('Exportal: "{0}" — {1} messages imported', title, String(count)),
-  );
+  const message = alsoWroteJsonl
+    ? vscode.l10n.t(
+        'Exportal: "{0}" — {1} messages imported · also in /resume',
+        title,
+        String(count),
+      )
+    : vscode.l10n.t('Exportal: "{0}" — {1} messages imported', title, String(count));
+  void vscode.window.showInformationMessage(message);
 }
 
 function showPairingInfoCommand(context: vscode.ExtensionContext): void {
@@ -803,6 +844,7 @@ async function openChatGptConversationFromZip(zipPath: string): Promise<void> {
     vscode.l10n.t('Exportal: "{0}" imported from ChatGPT.', title),
   );
   await attachToClaudeCodeIfAvailable(savedUri);
+  notifyPostImportIfReady(savedUri);
 }
 
 interface ChatGptConversationQuickPickItem extends vscode.QuickPickItem {
@@ -901,9 +943,10 @@ async function openConversationFromZip(
   const { markdown } = formatConversation(conversation, { redact: true });
 
   const savedUri = await persistAndOpenMarkdown(conversation.name, markdown);
-  announceImport(conversation);
-  await maybeWriteClaudeCodeJsonl(conversation);
+  const wroteJsonl = await maybeWriteClaudeCodeJsonl(conversation);
+  announceImport(conversation, wroteJsonl);
   await attachToClaudeCodeIfAvailable(savedUri);
+  notifyPostImportIfReady(savedUri);
 }
 
 async function pickZipFile(): Promise<vscode.Uri | undefined> {
@@ -1139,14 +1182,14 @@ function sanitizeAssetFilename(filename: string): string | undefined {
  */
 async function maybeWriteClaudeCodeJsonl(
   conversation: ClaudeAiConversation,
-): Promise<void> {
+): Promise<boolean> {
   const enabled = vscode.workspace
     .getConfiguration('exportal')
     .get<boolean>('alsoWriteJsonl', false);
-  if (!enabled) return;
+  if (!enabled) return false;
 
   const folder = vscode.workspace.workspaceFolders?.[0];
-  if (folder === undefined) return; // no workspace, no project dir to target
+  if (folder === undefined) return false; // no workspace, no project dir to target
 
   const cwd = folder.uri.fsPath;
   const gitBranch = await detectGitBranch(cwd);
@@ -1157,7 +1200,7 @@ async function maybeWriteClaudeCodeJsonl(
     gitBranch,
     version,
   });
-  if (jsonl.length === 0) return; // empty conversation, nothing to write
+  if (jsonl.length === 0) return false; // empty conversation, nothing to write
 
   // ~/.claude/projects/<encoded>/<sessionId>.jsonl — the encoded
   // segment matches Claude Code's own naming so /resume picks it up.
@@ -1168,15 +1211,11 @@ async function maybeWriteClaudeCodeJsonl(
   try {
     await vscode.workspace.fs.createDirectory(projectDir);
     await vscode.workspace.fs.writeFile(fileUri, new TextEncoder().encode(jsonl));
-    void vscode.window.showInformationMessage(
-      vscode.l10n.t(
-        'Exportal: also wrote {0} for /resume in Claude Code.',
-        `${sessionId.slice(0, 8)}.jsonl`,
-      ),
-    );
+    return true;
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     console.warn(`Exportal: could not write .jsonl: ${message}`);
+    return false;
   }
 }
 

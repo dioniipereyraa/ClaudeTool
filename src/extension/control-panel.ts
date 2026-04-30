@@ -98,6 +98,19 @@ export class ExportalControlPanelProvider implements vscode.WebviewViewProvider 
   private webviewView: vscode.WebviewView | undefined;
   private downloadWatchers: FSWatcher[] = [];
   private debounceTimer: NodeJS.Timeout | undefined;
+  /**
+   * In-memory record of the most recent successful import that the
+   * user has not yet dismissed. Persisted across panel show/hide
+   * cycles within the same VS Code session: when the user exports
+   * from Chrome with the Exportal tab on something else (Explorer,
+   * Search...) and then opens the Exportal tab afterwards, the
+   * After-import section is restored as if the panel had been
+   * visible all along. Cleared on the user's explicit dismiss
+   * (X button) or VS Code restart — never persisted to globalState
+   * because templates from a stale export shouldn't haunt the user
+   * across days.
+   */
+  private pendingImportFilename: string | undefined;
 
   constructor(
     private readonly context: vscode.ExtensionContext,
@@ -130,12 +143,20 @@ export class ExportalControlPanelProvider implements vscode.WebviewViewProvider 
     };
     webviewView.webview.html = this.renderHtml(webviewView.webview);
     void this.refreshDetectedZips();
+    // Restore the After-import section if there was a pending import
+    // queued while this panel was disposed/hidden. Posting after the
+    // HTML render is fine — VS Code buffers webview messages until
+    // the script finishes wiring its `message` listener.
+    this.postPendingPostImport();
     this.startDownloadWatching();
     this.listeners.push(
       webviewView.onDidChangeVisibility(() => {
         if (webviewView.visible) {
           this.startDownloadWatching();
           void this.refreshDetectedZips();
+          // Same reason as above: a hidden panel that becomes visible
+          // again may have missed an import in the meantime.
+          this.postPendingPostImport();
         } else {
           this.stopDownloadWatching();
         }
@@ -178,8 +199,17 @@ export class ExportalControlPanelProvider implements vscode.WebviewViewProvider 
         if (token !== undefined) {
           await pairAndOpenChrome(this.context, token);
         }
+      } else if (m.type === 'dismissPostImport') {
+        // The user clicked the X on the After-import section. Clear
+        // the pending state so a future show/hide cycle won't bring
+        // the templates back. Hito 34.
+        this.pendingImportFilename = undefined;
       } else if (m.type === 'rotateToken') {
         await this.context.globalState.update('exportal.pairingToken', undefined);
+        // Reset the "paired toast already shown" flag so the user sees
+        // the confirmation toast again the next time the Companion
+        // re-pairs with the freshly minted token.
+        await this.context.globalState.update('exportal.pairConfirmedForToken', undefined);
         this.refresh();
         void vscode.window.showInformationMessage(
           vscode.l10n.t(
@@ -198,6 +228,39 @@ export class ExportalControlPanelProvider implements vscode.WebviewViewProvider 
         const repoBase = 'https://github.com/dioniipereyraa/ClaudeTool';
         if (m.url === repoBase || m.url.startsWith(`${repoBase}/`)) {
           await vscode.env.openExternal(vscode.Uri.parse(m.url));
+        }
+      } else if (m.type === 'runTemplate' && typeof (m as { text?: unknown }).text === 'string') {
+        // Hito 34 — copy the chosen template + drop the cursor inside
+        // Claude Code's input so a single Ctrl+V appends the template
+        // right after the `@filename.md` that attachToClaudeCodeIfAvailable
+        // already injected. No auto-paste: Claude Code's input lives in
+        // a webview, and VS Code does not expose programmatic paste
+        // against webviews. The closest we can get is `focus` — one
+        // click less than reaching for the input by hand.
+        //
+        // No toast: an information message would steal focus from
+        // Claude Code's input the instant after we placed it there,
+        // defeating the whole point. The visual `.copied` flash on
+        // the chip + the cursor jumping into the input is enough
+        // confirmation. `focus` is the LAST awaited call so nothing
+        // can move the focus back to this panel.
+        const text = (m as { text: string }).text;
+        await vscode.env.clipboard.writeText(text);
+        const commands = await vscode.commands.getCommands(true);
+        if (commands.includes('claude-vscode.sidebar.open')) {
+          try {
+            await vscode.commands.executeCommand('claude-vscode.sidebar.open');
+          } catch {
+            // Claude Code present but sidebar.open failed — clipboard
+            // is already written, user can still paste manually.
+          }
+        }
+        if (commands.includes('claude-vscode.focus')) {
+          try {
+            await vscode.commands.executeCommand('claude-vscode.focus');
+          } catch {
+            // Same fail-soft logic — focus is nice-to-have, not load-bearing.
+          }
         }
       }
     });
@@ -323,6 +386,45 @@ export class ExportalControlPanelProvider implements vscode.WebviewViewProvider 
     this.webviewView.webview.html = this.renderHtml(this.webviewView.webview);
   }
 
+  /**
+   * Surface the "After import" section with the user's template list
+   * (Hito 34). Called by the import flows in extension.ts after each
+   * successful `persistAndOpenMarkdown` + `attachToClaudeCodeIfAvailable`.
+   *
+   * Always remembers the latest import — even when the panel is
+   * hidden — so that opening the Exportal tab afterwards still
+   * restores the section. Cleared on dismiss (X) or restart.
+   */
+  notifyPostImport(filename: string): void {
+    this.pendingImportFilename = filename;
+    this.postPendingPostImport();
+  }
+
+  /**
+   * Push the current `pendingImportFilename` (if any) to the webview.
+   * Re-reads `exportal.postImportTemplates` on every call so the
+   * shape matches whatever the user has configured RIGHT NOW — even
+   * if they edited the array between the import event and opening
+   * the panel.
+   */
+  private postPendingPostImport(): void {
+    if (this.webviewView === undefined) return;
+    if (this.pendingImportFilename === undefined) return;
+    const templates = vscode.workspace
+      .getConfiguration('exportal')
+      .get<readonly string[]>('postImportTemplates', []);
+    const cleaned = templates
+      .filter((t) => typeof t === 'string')
+      .map((t) => t.trim())
+      .filter((t) => t.length > 0);
+    if (cleaned.length === 0) return;
+    void this.webviewView.webview.postMessage({
+      type: 'postImport',
+      filename: this.pendingImportFilename,
+      templates: cleaned,
+    });
+  }
+
   private readToken(): string | undefined {
     return this.context.globalState.get<string>('exportal.pairingToken');
   }
@@ -396,6 +498,70 @@ export class ExportalControlPanelProvider implements vscode.WebviewViewProvider 
     user-select: none;
   }
   .section-h .label { flex: 1; }
+
+  /* Post-import section (Hito 34) — appears above Settings only after
+   * a successful import, hidden until the extension nudges the panel.
+   * Templates render as wrap-friendly chips; click copies + opens
+   * Claude Code's sidebar. */
+  .post-import {
+    border-bottom: 1px solid color-mix(in srgb, var(--vscode-foreground) 6%, transparent);
+    padding-bottom: 10px;
+    background: color-mix(in srgb, var(--vscode-focusBorder) 4%, transparent);
+  }
+  .post-import .post-import-close {
+    background: transparent;
+    border: none;
+    color: var(--vscode-descriptionForeground);
+    cursor: pointer;
+    padding: 2px 4px;
+    border-radius: 3px;
+    line-height: 1;
+  }
+  .post-import .post-import-close:hover {
+    background: var(--vscode-list-hoverBackground);
+    color: var(--vscode-foreground);
+  }
+  .post-import .post-import-close .codicon { font-size: 14px; }
+  .post-import-hint {
+    padding: 0 14px 8px;
+    font-size: 11px;
+    color: var(--vscode-descriptionForeground);
+    line-height: 1.4;
+  }
+  .post-import-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 0 8px;
+  }
+  .post-import-template {
+    display: block;
+    width: 100%;
+    text-align: left;
+    background: var(--vscode-input-background);
+    color: var(--vscode-foreground);
+    border: 1px solid color-mix(in srgb, var(--vscode-foreground) 8%, transparent);
+    border-radius: 5px;
+    padding: 7px 10px;
+    font-size: 12px;
+    font-family: var(--vscode-font-family);
+    cursor: pointer;
+    line-height: 1.35;
+    transition: background 100ms ease, border-color 100ms ease;
+  }
+  .post-import-template:hover {
+    background: var(--vscode-list-hoverBackground);
+    border-color: var(--vscode-focusBorder);
+  }
+  .post-import-template:focus-visible {
+    outline: none;
+    border-color: var(--vscode-focusBorder);
+    background: var(--vscode-list-inactiveSelectionBackground);
+  }
+  .post-import-template.copied {
+    background: color-mix(in srgb, var(--vscode-testing-iconPassed) 12%, transparent);
+    border-color: color-mix(in srgb, var(--vscode-testing-iconPassed) 50%, transparent);
+  }
 
   /* Direction badge — colored chip with arrow icon */
   .dir-badge {
@@ -733,6 +899,18 @@ export class ExportalControlPanelProvider implements vscode.WebviewViewProvider 
 
   <div class="scroll">
 
+    <div class="post-import" id="post-import" hidden>
+      <h2 class="section-h">
+        <span class="dir-badge in"><i class="codicon codicon-rocket"></i></span>
+        <span class="label">${t('After import')}</span>
+        <button id="post-import-dismiss" type="button" class="post-import-close" title="${t('Dismiss')}" aria-label="${t('Dismiss')}">
+          <i class="codicon codicon-close"></i>
+        </button>
+      </h2>
+      <div class="post-import-hint">${t('Click a template to copy it and open Claude Code.')}</div>
+      <div class="post-import-list" id="post-import-list"></div>
+    </div>
+
     <h2 class="section-h"><span class="label">${t('Settings')}</span></h2>
 
     <div class="toggle" data-on="${autoAttach ? 'true' : 'false'}" data-key="autoAttachToClaudeCode" tabindex="0">
@@ -870,6 +1048,33 @@ export class ExportalControlPanelProvider implements vscode.WebviewViewProvider 
           }, delay);
         }
       }
+    } else if (msg.type === 'postImport') {
+      // Hito 34 — the extension just finished an import and is asking
+      // us to surface the user's prompt templates. Render as plain
+      // buttons (textContent → safe from injection) inside the
+      // collapsible section.
+      const section = document.getElementById('post-import');
+      const list = document.getElementById('post-import-list');
+      if (!section || !list) return;
+      list.innerHTML = '';
+      const templates = Array.isArray(msg.templates) ? msg.templates : [];
+      for (const text of templates) {
+        if (typeof text !== 'string' || text.length === 0) continue;
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'post-import-template';
+        btn.textContent = text;
+        btn.addEventListener('click', () => {
+          vscode.postMessage({ type: 'runTemplate', text });
+          btn.classList.add('copied');
+          setTimeout(() => btn.classList.remove('copied'), 1400);
+        });
+        list.appendChild(btn);
+      }
+      if (list.children.length > 0) {
+        section.hidden = false;
+        section.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      }
     } else if (msg.type === 'detectedZips') {
       // Reset all import rows first so removed providers clear their hints.
       for (const r of document.querySelectorAll('.row[data-direction="in"]')) {
@@ -905,6 +1110,19 @@ export class ExportalControlPanelProvider implements vscode.WebviewViewProvider 
   document.getElementById('bridge-toggle').addEventListener('click', () => {
     const open = panel.getAttribute('data-bridge-open') === 'true';
     panel.setAttribute('data-bridge-open', String(!open));
+  });
+
+  // Post-import dismiss (Hito 34) — hide the section + clear its
+  // children so the next notifyPostImport rebuilds clean. Also tell
+  // the backend so the in-memory pendingImportFilename gets cleared
+  // and the section won't be re-surfaced if the user toggles the
+  // panel afterwards.
+  document.getElementById('post-import-dismiss').addEventListener('click', () => {
+    const section = document.getElementById('post-import');
+    const list = document.getElementById('post-import-list');
+    if (section) section.hidden = true;
+    if (list) list.innerHTML = '';
+    vscode.postMessage({ type: 'dismissPostImport' });
   });
 
   // Token actions
