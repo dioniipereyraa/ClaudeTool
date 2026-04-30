@@ -41,40 +41,39 @@ import {
 
 const PAIRING_TOKEN_KEY = 'exportal.pairingToken';
 // Bump the key whenever we redesign the onboarding flow so existing
-// users see the new experience once. v2 landed with the webview /
-// auto-pair rewrite (previous version was the blocking modal dialog).
-const ONBOARDING_SHOWN_KEY = 'exportal.onboardingShownV2';
-// Remembers which provider the user chose the last time they hit the
-// "Copy and open Chrome" button. The Companion's content script lives
-// on both claude.ai and chatgpt.com, so either host can act as the
-// trampoline for the `#exportal-pair=<hex>` fragment — we ask once
-// and reuse the choice on subsequent pairings.
-const LAST_PAIR_PROVIDER_KEY = 'exportal.lastPairProvider';
-
-type PairProvider = 'claude' | 'chatgpt';
-
-const PAIR_PROVIDER_HOSTS: Record<PairProvider, string> = {
-  claude: 'claude.ai',
-  chatgpt: 'chatgpt.com',
-};
+// users see the new experience once. v2 was the single-step webview /
+// auto-pair rewrite. v3 (Hito 30) splits the flow into two explicit
+// steps — install the Chrome companion, then pair — so first-time
+// users without the companion stop bouncing off the pairing button.
+const ONBOARDING_SHOWN_KEY = 'exportal.onboardingShownV3';
+// Public Chrome Web Store URL for the Companion. Stored as a constant
+// (not a setting) because there's no reason an end user would ever
+// override it. UTM params stripped — Google appended a share-button
+// tracker when the listing was first shared, but we don't need it.
+const CHROME_COMPANION_STORE_URL =
+  'https://chromewebstore.google.com/detail/lmnmekfphhpfaciehfdaonjfchbicdnm';
+// Trampoline host for the auto-pair flow. The Companion's content
+// script lives on `claude.ai` and `chatgpt.com`; we visit one of them
+// with `#exportal-pair=<token>` so the script reads the fragment and
+// pairs without manual paste. Hardcoded to claude.ai because (a) it's
+// the AI Exportal centers on, (b) asking the user "claude or chatgpt?"
+// every time was friction nobody wanted, (c) a future hito moves the
+// trampoline to `exportal.dev/pair` so this dependency dissolves.
+const PAIRING_TRAMPOLINE_HOST = 'claude.ai';
 
 /**
- * Open the configured pairing provider in the user's default browser
- * with `#exportal-pair=<token>` so the Companion's content script
- * captures it without manual paste. Always copies the token to the
- * clipboard first as a fallback (default browser may not be Chrome,
- * or the Companion may not yet be installed).
- *
- * Returns silently if the user cancels the QuickPick on first run.
+ * Open the trampoline host in the user's default browser with
+ * `#exportal-pair=<token>` so the Companion's content script captures
+ * the token automatically. Always copies the token to the clipboard
+ * first as a fallback — the default browser may not be Chrome, or the
+ * Companion may not yet be installed, in which case the user can
+ * paste the token into the Companion's options page manually.
  */
 export async function pairAndOpenChrome(
-  context: vscode.ExtensionContext,
+  _context: vscode.ExtensionContext,
   token: string,
 ): Promise<void> {
   await vscode.env.clipboard.writeText(token);
-  const provider = await pickPairingProvider(context);
-  if (provider === undefined) return;
-  const authority = PAIR_PROVIDER_HOSTS[provider];
   // URL construction uses Uri.from with explicit components, NOT
   // Uri.parse. Parsing "https://<host>/#x=y" works, but some VS Code
   // builds re-encode the "=" inside the fragment during .toString()
@@ -83,7 +82,7 @@ export async function pairAndOpenChrome(
   // Uri.from preserves the fragment verbatim.
   const pairingUri = vscode.Uri.from({
     scheme: 'https',
-    authority,
+    authority: PAIRING_TRAMPOLINE_HOST,
     path: '/',
     fragment: `exportal-pair=${token}`,
   });
@@ -91,35 +90,9 @@ export async function pairAndOpenChrome(
   void vscode.window.showInformationMessage(
     vscode.l10n.t(
       'Exportal: opened {0} in your browser — pairing completes automatically if the Companion is installed.',
-      authority,
+      PAIRING_TRAMPOLINE_HOST,
     ),
   );
-}
-
-/**
- * First call shows a QuickPick (claude.ai vs chatgpt.com). Subsequent
- * calls reuse the saved choice silently. Use the
- * `exportal.switchPairingProvider` command to clear the preference and
- * be asked again.
- */
-async function pickPairingProvider(
-  context: vscode.ExtensionContext,
-): Promise<PairProvider | undefined> {
-  const saved = context.globalState.get<unknown>(LAST_PAIR_PROVIDER_KEY);
-  if (saved === 'claude' || saved === 'chatgpt') return saved;
-  const items: readonly { label: string; value: PairProvider }[] = [
-    { label: 'claude.ai', value: 'claude' },
-    { label: 'chatgpt.com', value: 'chatgpt' },
-  ];
-  const picked = await vscode.window.showQuickPick(items, {
-    title: vscode.l10n.t('Where do you want to pair?'),
-    placeHolder: vscode.l10n.t(
-      'Pick the site the Companion should capture the token from. We remember your choice.',
-    ),
-  });
-  if (picked === undefined) return undefined;
-  await context.globalState.update(LAST_PAIR_PROVIDER_KEY, picked.value);
-  return picked.value;
 }
 
 /**
@@ -136,8 +109,9 @@ async function pickPairingProvider(
  *  - A local HTTP bridge (see `http-server.ts`) that accepts import
  *    requests from the Chrome companion — both providers supported
  *    via the `provider` field on the inline payload.
- *  - A pairing-token webview that surfaces the bridge token and the
- *    one-click "Copy and open Chrome" auto-pair flow.
+ *  - A two-step onboarding webview (Hito 30): step 1 opens the Chrome
+ *    Web Store to install the Companion, step 2 surfaces the pairing
+ *    token + the one-click "Copy and open Chrome" auto-pair flow.
  *
  * Redaction is forced on — there is deliberately no UI toggle.
  * Users who need raw output know where to find the CLI.
@@ -178,17 +152,6 @@ export function activate(context: vscode.ExtensionContext): void {
         // what guarantees that. `/wake` carries no payload by design,
         // keeping the protocol asymmetric and simple.
       },
-    }),
-    vscode.commands.registerCommand('exportal.switchPairingProvider', async () => {
-      // Clears the saved provider so the next pair-and-open call
-      // shows the QuickPick again. Useful when the user switches
-      // between claude.ai-heavy and chatgpt.com-heavy workflows.
-      await context.globalState.update(LAST_PAIR_PROVIDER_KEY, undefined);
-      void vscode.window.showInformationMessage(
-        vscode.l10n.t(
-          'Exportal: pairing provider preference cleared. Next pair-and-open will ask again.',
-        ),
-      );
     }),
   );
 
@@ -241,11 +204,12 @@ export function activate(context: vscode.ExtensionContext): void {
     else activeHandle = handle;
   });
 
-  // First-run onboarding: open the pairing webview with the token and
-  // the "Copy and open Chrome" one-click flow. Showing the panel is
-  // non-blocking — the user can close the tab whenever — but the flag
-  // we set in showOnboardingIfNeeded ensures we only do this once per
-  // install, so repeat activations are silent.
+  // First-run onboarding (Hito 30): open the two-step wizard webview.
+  // Step 1 sends the user to the Chrome Web Store to install the
+  // Companion; step 2 shows the pairing token + the one-click "Copy
+  // and open Chrome" flow. Non-blocking — the user can close the tab
+  // whenever — and the V3 flag in showOnboardingIfNeeded ensures we
+  // only show it once per install, so repeat activations stay silent.
   showOnboardingIfNeeded(context);
 }
 
@@ -285,7 +249,9 @@ function handlePairConfirmed(): void {
   if (now - lastPairConfirmedAt < PAIR_CONFIRM_COOLDOWN_MS) return;
   lastPairConfirmedAt = now;
   void vscode.window.showInformationMessage(
-    vscode.l10n.t('Exportal: pairing complete. Chrome is ready to export chats.'),
+    vscode.l10n.t(
+      'Exportal: paired with Chrome. Try it now — open a chat in claude.ai or ChatGPT and click the Export button.',
+    ),
   );
   // If the pairing panel is still open, swap it to the success state
   // and auto-dispose after a short beat so the user sees the confirmation
@@ -478,6 +444,13 @@ function showPairingPanel(context: vscode.ExtensionContext, token: string): void
       // token stored); no data leaks, no RCE. Users re-pair from
       // this panel.
       await pairAndOpenChrome(context, token);
+    } else if (type === 'open-store') {
+      // Step 1 of the onboarding wizard (Hito 30). Opens the Chrome
+      // Web Store listing for the Companion. We don't track whether
+      // the user actually installed it — Chrome doesn't expose that
+      // signal cross-extension, and `/ping` from the Companion is
+      // already the implicit "installed and paired" confirmation.
+      await vscode.env.openExternal(vscode.Uri.parse(CHROME_COMPANION_STORE_URL));
     } else if (type === 'dismiss') {
       panel.dispose();
     } else if (type === 'open-sidebar') {
@@ -496,6 +469,13 @@ function renderPairingHtml(webview: vscode.Webview, token: string): string {
   // works offline and doesn't need a separate asset pipeline. CSP
   // follows the VS Code webview recipe: nonce-gated inline <script>
   // and locked-down resource origins.
+  //
+  // Layout (Hito 30 — two-step wizard): two stacked sections, each
+  // owning a primary CTA. Step 1 opens the Chrome Web Store listing
+  // for the Companion; step 2 surfaces the pairing token + the one-
+  // click "Copy and open Chrome" auto-pair. The skip link at the
+  // bottom is the explicit "I know what I'm doing" exit; closing
+  // the editor tab works too.
   const nonce = randomNonce();
   const cspSource = webview.cspSource;
   const t = (key: string): string => escapeHtml(vscode.l10n.t(key));
@@ -533,36 +513,43 @@ function renderPairingHtml(webview: vscode.Webview, token: string): string {
   .titlebar-text { margin-left: 8px; font-size: 11px; color: var(--exp-text-mute); }
 
   main { padding: 22px 24px; }
-  .head { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+  .head { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; }
   .mark { width: 32px; height: 32px; display: inline-flex; flex-shrink: 0; }
   .headline { font-size: 18px; font-weight: 700; letter-spacing: -0.02em; margin: 0; }
   .subtitle { font-size: 11px; color: var(--exp-text-dim); margin: 2px 0 0; }
 
-  .stepper { display: flex; align-items: center; gap: 6px; margin-bottom: 18px; font-size: 11px; color: var(--exp-text-dim); font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
-  .stepper .line { flex: 1; height: 1px; background: var(--exp-line); margin: 0 4px; }
-  .dot { width: 8px; height: 8px; border-radius: 4px; background: var(--exp-line-strong); display: inline-block; margin-right: 4px; }
-  .dot.active { background: var(--exp-accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--exp-accent) 20%, transparent); }
+  /* Step sections — Hito 30 wizard. Two stacked steps, each owns
+   * its own primary action. Numbered circle badges replace the old
+   * single-row stepper. */
+  .step { padding: 16px 0; border-top: 1px solid var(--exp-line); }
+  .step:first-of-type { border-top: none; padding-top: 4px; }
+  .step-head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+  .step-num { width: 22px; height: 22px; border-radius: 11px; background: var(--exp-surface2); color: var(--exp-text); font-size: 11px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; border: 1px solid var(--exp-line-strong); }
+  .step-title { font-size: 14px; font-weight: 600; color: var(--exp-text); letter-spacing: -0.01em; }
+  .step-desc { font-size: 12px; color: var(--exp-text-dim); line-height: 1.5; margin: 0 0 12px; }
 
-  .token-card { padding: 16px; border-radius: var(--exp-radius); background: var(--exp-surface2); border: 1px dashed var(--exp-line-strong); }
-  .token-label { font-size: 11px; color: var(--exp-text-dim); margin-bottom: 8px; letter-spacing: 0.08em; text-transform: uppercase; }
-  .token-row { display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: var(--exp-surface); border-radius: 8px; border: 1px solid var(--exp-line); font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; color: var(--exp-text); letter-spacing: 0.02em; }
+  .token-row { display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: var(--exp-surface2); border-radius: 8px; border: 1px solid var(--exp-line); font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; color: var(--exp-text); letter-spacing: 0.02em; margin-bottom: 10px; }
   .token-row .value { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .copy-btn { padding: 6px 12px; border-radius: 6px; border: none; cursor: pointer; background: var(--exp-accent); color: var(--exp-accent-ink); font-size: 10px; font-weight: 700; letter-spacing: 0.06em; font-family: inherit; text-transform: uppercase; transition: background 120ms ease; }
   .copy-btn:hover { background: var(--exp-accent-hover); }
   .copy-btn.copied { background: var(--exp-ok); color: var(--exp-accent-ink); }
-  .token-hint { font-size: 11px; color: var(--exp-text-mute); margin-top: 10px; line-height: 1.5; }
 
-  .actions { display: flex; gap: 8px; margin-top: 18px; justify-content: flex-end; }
-  .actions button { padding: 9px 16px; border-radius: var(--exp-radius); font-size: 13px; font-weight: 600; cursor: pointer; letter-spacing: -0.01em; font-family: inherit; transition: background 120ms ease, color 120ms ease; }
-  .actions .ghost { background: transparent; color: var(--exp-text-dim); border: 1px solid var(--exp-line); }
-  .actions .ghost:hover { background: var(--exp-surface2); color: var(--exp-text); }
-  .actions .primary { background: var(--exp-accent); color: var(--exp-accent-ink); border: none; display: inline-flex; align-items: center; gap: 8px; }
-  .actions .primary:hover { background: var(--exp-accent-hover); }
-  .actions .primary.flashed { background: var(--exp-ok); }
-  .actions .primary:disabled { cursor: default; opacity: 0.85; }
+  /* Per-step primary CTA. Full-width inside the step body so it's
+   * unmistakably tied to that step's action. */
+  .step .primary { width: 100%; padding: 11px 14px; border-radius: var(--exp-radius); font-size: 13px; font-weight: 600; cursor: pointer; letter-spacing: -0.01em; font-family: inherit; transition: background 120ms ease; background: var(--exp-accent); color: var(--exp-accent-ink); border: none; display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+  .step .primary:hover { background: var(--exp-accent-hover); }
+  .step .primary.flashed { background: var(--exp-ok); }
+  .step .primary:disabled { cursor: default; opacity: 0.85; }
+
+  /* Skip row — subtle on purpose. Power users find it; newbies follow
+   * the steps above. The "X" on the editor tab is also a valid exit. */
+  .skip-row { display: flex; justify-content: center; margin-top: 18px; }
+  .skip-link { background: transparent; border: none; color: var(--exp-text-mute); font-size: 11px; font-family: inherit; cursor: pointer; padding: 6px 10px; border-radius: 6px; transition: color 120ms ease, background 120ms ease; }
+  .skip-link:hover { color: var(--exp-text-dim); background: var(--exp-surface2); }
+
   /* Success overlay — shown when the bridge receives Chrome's /ping.
-   * Covers the token card + actions so the user sees the state change
-   * even if they scrolled away from the buttons. */
+   * Covers the wizard so the user sees the state change even if they
+   * scrolled away from the buttons. */
   .success-overlay { position: absolute; inset: 0; display: none; align-items: center; justify-content: center; flex-direction: column; gap: 12px; background: var(--exp-surface); border-radius: var(--exp-radius-lg); animation: expPop 320ms cubic-bezier(.2,1.2,.4,1) both; }
   .success-overlay.shown { display: flex; }
   .success-check { width: 52px; height: 52px; border-radius: 26px; background: var(--exp-accent); color: var(--exp-accent-ink); display: flex; align-items: center; justify-content: center; animation: expCheckIn 360ms cubic-bezier(.2,1.5,.3,1) both; }
@@ -603,31 +590,35 @@ function renderPairingHtml(webview: vscode.Webview, token: string): string {
           </svg>
         </span>
         <div>
-          <h1 class="headline">${t('Connect your browser')}</h1>
-          <div class="subtitle">${t('One step and you are exporting chats with a single click.')}</div>
+          <h1 class="headline">${t('Set up Exportal')}</h1>
+          <div class="subtitle">${t('Two quick steps and you can export chats with one click.')}</div>
         </div>
       </div>
 
-      <div class="stepper">
-        <span class="dot active"></span> VS Code
-        <span class="line"></span>
-        <span class="dot"></span> Chrome
-        <span class="line"></span>
-        <span class="dot"></span> ${t('Done')}
-      </div>
+      <section class="step">
+        <div class="step-head">
+          <span class="step-num">1</span>
+          <span class="step-title">${t('Install the Chrome companion')}</span>
+        </div>
+        <div class="step-desc">${t('Exportal needs a small extension in Chrome to read your chats. It is free and reviewed by Google.')}</div>
+        <button class="primary" id="open-store"><span id="open-store-label">${t('Get from Chrome Web Store')}</span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12h14M13 6l6 6-6 6"/></svg></button>
+      </section>
 
-      <div class="token-card">
-        <div class="token-label">${t('Pairing token')}</div>
+      <section class="step">
+        <div class="step-head">
+          <span class="step-num">2</span>
+          <span class="step-title">${t('Pair with VS Code')}</span>
+        </div>
+        <div class="step-desc">${t('Click the button to copy this token and open Chrome — the companion picks it up automatically.')}</div>
         <div class="token-row">
           <span class="value" id="token">${escapeHtml(token)}</span>
           <button class="copy-btn" id="copy">${t('COPY')}</button>
         </div>
-        <div class="token-hint">${t('Copy it and paste it into the Exportal Companion options in Chrome. It stays on your machine — nothing is sent over the network.')}</div>
-      </div>
+        <button class="primary" id="pair-open"><span id="pair-open-label">${t('Copy token and open Chrome')}</span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12h14M13 6l6 6-6 6"/></svg></button>
+      </section>
 
-      <div class="actions">
-        <button class="ghost" id="dismiss">${t('Later')}</button>
-        <button class="primary" id="pair-open"><span id="pair-open-label">${t('Copy and open Chrome')}</span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12h14M13 6l6 6-6 6"/></svg></button>
+      <div class="skip-row">
+        <button class="skip-link" id="dismiss">${t('Skip — I will set this up later')}</button>
       </div>
 
       <div class="tip">
@@ -662,15 +653,36 @@ function renderPairingHtml(webview: vscode.Webview, token: string): string {
   }
   const copiedLabel = ${JSON.stringify(vscode.l10n.t('COPIED'))};
   const openedLabel = ${JSON.stringify(vscode.l10n.t('Opening Chrome…'))};
+  const openingStoreLabel = ${JSON.stringify(vscode.l10n.t('Opening store…'))};
   document.getElementById('copy').addEventListener('click', (e) => {
     vscode.postMessage({ type: 'copy' });
     flashCopied(e.currentTarget, copiedLabel);
   });
+  document.getElementById('open-store').addEventListener('click', (e) => {
+    // Step 1: opens the Chrome Web Store listing in the user's default
+    // browser. We don't track install state — Chrome doesn't expose it
+    // cross-extension, and the bridge's /ping is the implicit
+    // "installed and paired" signal we already react to in
+    // handlePairConfirmed.
+    const btn = e.currentTarget;
+    if (btn.disabled) return;
+    const label = document.getElementById('open-store-label');
+    const original = label.textContent;
+    vscode.postMessage({ type: 'open-store' });
+    label.textContent = openingStoreLabel;
+    btn.classList.add('flashed');
+    btn.disabled = true;
+    setTimeout(() => {
+      label.textContent = original;
+      btn.classList.remove('flashed');
+      btn.disabled = false;
+    }, 1800);
+  });
   document.getElementById('pair-open').addEventListener('click', (e) => {
-    // Host copies + opens claude.ai with the pairing fragment. It
-    // does NOT dispose the panel — if Chrome doesn't pick up the
-    // fragment (e.g. default browser isn't Chrome, or the Companion
-    // is out of date), the user can retry without reopening this view.
+    // Step 2: host copies the token + opens claude.ai/ChatGPT with the
+    // pairing fragment. Does NOT dispose the panel — if Chrome doesn't
+    // pick up the fragment (e.g. default browser isn't Chrome, or the
+    // Companion is out of date), the user can retry without reopening.
     const btn = e.currentTarget;
     if (btn.disabled) return;
     const label = document.getElementById('pair-open-label');

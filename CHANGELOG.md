@@ -6,6 +6,90 @@ Companion (Chrome extension) are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 and versions follow [Semantic Versioning](https://semver.org/).
 
+## [0.11.4] — 2026-04-30
+
+UX-only release: cierra los Hitos 30 (onboarding wizard de dos
+pasos) y 31 (sonido al exportar) del cluster ergonomía/UX que
+arrancó el 2026-04-30. También un cleanup post-Hito-30 del
+QuickPick de provider que sumaba fricción innecesaria al pairing.
+252/252 tests verdes.
+
+### Added
+
+- **Wizard de onboarding de dos pasos** (Hito 30) — el webview
+  de pairing se reescribió con dos secciones explícitas, cada una
+  con su CTA primario:
+  - **Step 1 — Install the Chrome companion**: botón "Get from
+    Chrome Web Store" que abre el listing oficial.
+  - **Step 2 — Pair with VS Code**: token + COPY + botón "Copy
+    token and open Chrome".
+  - Skip link discreto al pie ("Skip — I will set this up later").
+  - El flag de onboarding subió a `exportal.onboardingShownV3`
+    para que existing users vean el wizard nuevo una vez en su
+    próxima activación.
+- **Sonido opcional al completar export** (Hito 31) en el Chrome
+  companion. Default ON, opt-out con un toggle obvio en la options
+  page del companion.
+  - Generado por Web Audio API (sin asset binario): arpegio
+    mayor en tuning A=432Hz — 432 (A, root) → 540 (C#, tercera
+    mayor) → 648 (E, quinta perfecta). Sine wave con tails
+    superpuestos para un "swell" relajado de victoria, no tres
+    beeps discretos. ~700ms total, volumen capeado a 0.13,
+    attack de 25ms en cada nota para que respiren al entrar.
+  - 432Hz como base por preferencia del autor (referencia
+    cultural a la "frecuencia de la dopamina"). El tuning es
+    interno al sintetizador — no afecta nada externo.
+  - Botón "Test" al lado del toggle para previsualizar el sonido
+    antes de exportar (ignora el toggle a propósito).
+  - Honra el mute global del SO, el mute del tab del browser, y
+    el mixer del OS — el toggle del companion es solo una de
+    varias capas de silencio.
+  - Se dispara después de los dos paths de éxito del companion:
+    `showSuccessPulse` (FAB click) y el `showToast` del shortcut
+    Alt+Shift+E.
+
+### Changed
+
+- **Trampoline de pairing hardcodeado a `claude.ai`**: se removió
+  el QuickPick "claude.ai vs chatgpt.com" que aparecía la primera
+  vez que el user clickeaba "Copy token and open Chrome". El 99%
+  de los users tiene claude.ai abierto en algún momento (es el AI
+  principal de Exportal); pedir esa decisión sumaba fricción sin
+  valor. Hito 35 del ROADMAP plantea mover el trampoline a
+  `exportal.dev/pair` para eliminar la dependencia del dominio
+  del proveedor.
+- **Toast post-pairing actionable**: la notification que aparece
+  cuando el companion confirma el pairing ahora dice *"Exportal:
+  paired with Chrome. Try it now — open a chat in claude.ai or
+  ChatGPT and click the Export button"* en lugar del genérico
+  *"pairing complete. Chrome is ready to export chats"*.
+
+### Removed
+
+- **Comando `exportal.switchPairingProvider`**: junto con el
+  cleanup del QuickPick desaparece el comando que servía para
+  borrar la preferencia guardada (no tiene sentido sin QuickPick).
+  Removido de `package.json`, de `package.nls*.json`, y del
+  registro en `extension.ts`.
+- **Constantes `LAST_PAIR_PROVIDER_KEY`, `PAIR_PROVIDER_HOSTS`,
+  `pickPairingProvider`, type `PairProvider`**: dead code una vez
+  el QuickPick se fue.
+- **Strings del bundle l10n**: `'Where do you want to pair?'`,
+  `'Pick the site the Companion should capture the token from...'`,
+  `'Exportal: pairing provider preference cleared...'` removidas
+  de `l10n/bundle.l10n.es.json`.
+
+### Internal
+
+- **Memoria de Claude**: nueva `reference_chrome_store.md` con la
+  URL canónica del listing en Chrome Web Store + el extension ID
+  `lmnmekfphhpfaciehfdaonjfchbicdnm`. Sin params UTM.
+- **ROADMAP refresh** con el cluster Hitos 30-34 (ergonomía/UX)
+  + Hito 35 (`exportal.dev/pair` landing) + actualización de la
+  entry del flake del CI con datos frescos del 2026-04-30 (cache
+  clear con `rm -rf node_modules/.vite` resolvió cuando dos
+  retries directos no lo hicieron).
+
 ## [0.11.3] — 2026-04-29
 
 Cleanup release que cierra los hallazgos del code audit del

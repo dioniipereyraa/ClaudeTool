@@ -68,6 +68,15 @@
   "localFirstBody": {
     "message": "El puente corre en <code>127.0.0.1</code>. Nada sale de tu máquina."
   },
+  "exportSoundLabel": {
+    "message": "Sonido al exportar"
+  },
+  "exportSoundDesc": {
+    "message": "Reproduce un click corto cuando un export llega a VS Code. Apagarlo acá silencia sólo al companion — el mute del sistema y del tab siguen aplicando."
+  },
+  "testSoundButton": {
+    "message": "Probar"
+  },
   "fabAriaLabel": {
     "message": "Exportal — abrir acciones"
   },

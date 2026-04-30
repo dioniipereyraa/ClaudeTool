@@ -45,68 +45,11 @@ Items concretos y cerrados se mueven al `DEVLOG.md`. Releases formales al
 El orden acá es deliberado: lo de arriba arranca antes que lo de
 abajo. Cambios al orden se discuten explícitamente.
 
-### Hitos 30-34 — Ergonomía y UX (prioridad inmediata)
+### Hitos 32-34 — Ergonomía y UX (prioridad inmediata)
 
-Estos cinco salen antes que el avance multi-IA. Razón: el funnel
-real de adopción se rompe en onboarding y en detalles UX visibles
-(FAB que tapa el submit, estados rojos sin acción evidente, falta
-de feedback en el momento de éxito). Lo que ya funciona necesita
-pulido antes de sumar más superficie.
-
-**Hito 30 — Onboarding wizard de instalación**
-
-Hoy el flujo de primer uso es: instalar VS Code extension → ver
-panel con token → copiar token → instalar Chrome companion → abrir
-options page → pegar token → emparejar. Aún con el botón "Copiar
-y abrir Chrome" son dos instalaciones en dos lugares antes de
-ver valor. Funnel-killer #1.
-
-**Scope**:
-- En el primer activate del VS Code extension sin pairing previo,
-  disparar un wizard visual de dos pasos.
-- Step 1 of 2: "Install Chrome companion" — link directo al Chrome
-  Web Store (cuando apruebe la 0.11.2) o a las instrucciones de
-  sideload del ZIP mientras tanto. Detect del estado de la review
-  via setting (manual por ahora, eventualmente fetch del listing).
-- Step 2 of 2: "Pair" — el panel muestra el token con copy
-  automático al clipboard + botón "Open Chrome companion options".
-- Post-pairing: notificación "Probalo ahora — andá a un chat de
-  claude.ai/ChatGPT y tocá el botón Exportar". Una sola decisión
-  visible.
-- Setting `exportal.onboardingComplete` para no repetir.
-- Skippable con "Skip — ya sé lo que hago" para users avanzados.
-
-**Risk**: el wizard puede ser intrusivo si el user reinstala. El
-setting `onboardingComplete` debe ser per-machine, no per-workspace.
-
-**Hito 31 — Sonido al exportar (default ON, opt-out)**
-
-Feedback auditivo en el momento de éxito. Slack, GitHub Desktop
-y Stripe lo hacen — funciona como confirmación + dopamina chica.
-Default ON: la mayoría de la gente lo descubre solo si suena.
-Quien lo encuentre molesto lo apaga con un toggle obvio.
-
-**Scope**:
-- Setting `exportal.exportSound` (default `true`).
-- Toggle visible en Settings de la extensión y en el popover del
-  Chrome companion. Tiene que ser fácil de encontrar — el camino
-  para silenciarlo no debe requerir más de 2 clicks.
-- Primer export exitoso: toast no-bloqueante "Exported ✓ — silenciar
-  sonido" con link al toggle, para que quien quiera apagarlo lo
-  vea sin tener que ir a buscar.
-- Sonido corto (200-400ms), tipo "click" o "swoosh" sutil. Estilo
-  iMessage send, no notificación de WhatsApp. Asset WAV/MP3 ~5KB
-  embebido en el VSIX y en el ZIP del companion.
-- Donde dispara: Chrome (al confirmar export) y/o VS Code (al
-  recibir el archivo). Una sola fuente — probablemente Chrome,
-  más cerca del click del usuario.
-- Respetar mute global del SO / del browser: si el usuario tiene
-  el tab muteado o el sistema en silencio, no forzar sonido.
-
-**Risk**: el sonido elegido puede ser molesto. Mitigación: toggle
-obvio + probar con varios devs antes de shippear. Si la gente lo
-pide, agregar 1-2 alternativas ("click", "chime", "off") como
-setting separado.
+Continuación del cluster ergonomía/UX. Hitos 30 (onboarding wizard
+de dos pasos) y 31 (sonido al exportar) cerraron en 0.11.4 — ver
+DEVLOG entries del 2026-04-30.
 
 **Hito 32 — Badge inteligente del icono Chrome companion**
 
@@ -182,6 +125,62 @@ con el contexto importado.
 
 **Risk**: bajo. Feature aditiva, ignorable, no afecta a quien no
 la quiere usar.
+
+**Hito 35 — Pairing landing en `exportal.dev/pair`**
+
+Hoy el "Copy and open Chrome" del Step 2 abre `https://claude.ai/`
+con el fragment `#exportal-pair=<token>`. El content script del
+companion (declarado en `manifest.json` con `matches: ['*://claude.ai/*',
+'*://chatgpt.com/*']`) lee el fragment y completa el pairing.
+Costo: el user ve abrirse una pestaña de claude.ai sin razón
+visible, solo para servir de trampoline al token.
+
+**Scope**:
+- Landing `https://exportal.dev/pair` servida desde `docs/` del
+  propio repo (GH Pages). Página minimalista: "✓ Pairing complete
+  — you can close this tab" con el branding de Exportal.
+- Update al `chrome/manifest.json` del companion: agregar
+  `*://exportal.dev/pair*` a `host_permissions` y a
+  `content_scripts[].matches`.
+- Update al `chrome/content-script.js` del companion: aceptar
+  también `exportal.dev` como host válido para capturar el
+  fragment `#exportal-pair=<token>`.
+- En la VS Code extension: cambiar `PAIRING_TRAMPOLINE_HOST` de
+  `'claude.ai'` a `'exportal.dev'` y el `path` del Uri de `/` a
+  `/pair`.
+- Re-empaquetar el companion (`npm run package:chrome`) y
+  re-submitir al Chrome Web Store. Espera de review (1-3 días
+  típico, hasta 2 semanas en peor caso).
+- Versioning: bump del companion (no de la VS Code extension —
+  el cambio del trampoline host es trivial; el lift está en el
+  companion).
+
+**Por qué es valioso**:
+- UX: el usuario que pareó alguna vez no quiere ver claude.ai
+  abrirse cada vez que el wizard re-aparece. Una landing propia
+  comunica que el pairing es interno de Exportal, no algo que
+  involucra a Anthropic / OpenAI.
+- Independencia: hoy si Anthropic cambia algo en `claude.ai/` que
+  rompa nuestro content script (improbable pero posible), el
+  pairing falla. Con landing propia controlamos los dos extremos.
+- Branding: la landing es real estate marketing — "✓ Paired with
+  Exportal" con CTA a docs/exportal.dev es mucho más memorable
+  que la home de claude.ai con un fragment misterioso.
+
+**Risk**:
+- Latency del Chrome Web Store. La review puede demorar — durante
+  la espera, los usuarios ya en producción tienen el companion
+  viejo (sin el match `exportal.dev`). Mitigación: hasta que
+  apruebe, mantener `claude.ai` como trampoline. Cambio del
+  `PAIRING_TRAMPOLINE_HOST` se hace post-aprobación + después de
+  que la mayoría de usuarios reciba el update automático del
+  companion (24-48h después de la aprobación).
+- Si Cloudflare/GH Pages cae, el pairing rompe. El fallback a
+  claude.ai serviría de seguro: detectar el fail e intentar
+  abrir claude.ai como fallback. Trabajo extra pero defensivo.
+
+**Disparador**: Dioni mostró interés explícito el 2026-04-30. Sin
+bloqueante upstream.
 
 ### Hitos 20-23 — Soporte multi-IA (pausados)
 
@@ -313,6 +312,22 @@ en los 22 test files y la segunda pasa limpia.
 - Confirma la hipótesis original: race entre file system writes
   recientes y el bootstrap de vitest. Sigue intermitente — no
   reproduce siempre, solo bajo ciertas combinaciones de timing.
+
+**Datos frescos 2026-04-30** (durante el ciclo de Hito 30,
+iteración 3 del cleanup):
+- Reproducido **dos veces seguidas** (no resolvió con simple
+  reintento esta vez). Misma firma: 24 test files failed,
+  duration 1.67s y 1.69s.
+- `rm -rf node_modules/.vite node_modules/.vitest && npm run test`
+  → 252/252 limpio en 4.27s.
+- Refina la hipótesis del race: los caches `.vite` y `.vitest`
+  pueden llenarse de entries inconsistentes durante una cadena de
+  edits rápidos a varios archivos (`extension.ts`, `package.json`,
+  `package.nls*.json`, `bundle.l10n.es.json` en este caso). El
+  reintento sin clear del cache reusa los entries inconsistentes
+  y el flake persiste.
+- **Mitigación pragmática a probar**: si reaparece, primer paso
+  ahora es `rm -rf node_modules/.vite` antes del retry.
 
 **Conclusión**: sin reproducción confiable, cualquier fix sería
 cargo-culting. Las opciones consideradas y descartadas:

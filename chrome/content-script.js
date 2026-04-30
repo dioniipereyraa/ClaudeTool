@@ -524,6 +524,7 @@ async function handlePrimaryClick(btn) {
     const messages = countMessages(conversation);
     if (labelEl !== null) labelEl.textContent = originalLabel;
     showSuccessPulse({ ms, messages });
+    void maybePlayExportSound();
   } catch (err) {
     console.warn('Exportal: inline export failed.', err);
     if (labelEl !== null) labelEl.textContent = originalLabel;
@@ -577,6 +578,7 @@ async function runPrimaryFromShortcut() {
     const ms = Math.round(performance.now() - t0);
     const messages = countMessages(conversation);
     showToast(`${chrome.i18n.getMessage('feedbackOpenedInVsCode')} · ${ms}ms · ${messages}`, 'ok');
+    void maybePlayExportSound();
   } catch (err) {
     console.warn('Exportal: inline export failed.', err);
     showToast(explainError(err), 'err');
@@ -1149,6 +1151,70 @@ function showSuccessPulse({ ms, messages }) {
     if (p !== null) p.remove();
     setExpanded(false);
   }, 2200);
+}
+
+// Plays a short two-tone "success" chime after an export lands in
+// VS Code. Generated programmatically via Web Audio API — no asset
+// to ship, no licensing concern. Honors the `exportSound` setting
+// (default true) and the browser/OS mute layers that apply to all
+// web audio. AudioContext starts suspended without a user gesture,
+// but the FAB click and the keyboard shortcut both count, so the
+// resume() inside playSuccessTone succeeds.
+async function maybePlayExportSound() {
+  try {
+    const { exportSound = true } = await chrome.storage.local.get('exportSound');
+    if (exportSound === false) return;
+    await playSuccessTone();
+  } catch {
+    // Storage error, AudioContext unavailable, or autoplay blocked —
+    // silent failure. The rest of the export already worked.
+  }
+}
+
+// Pure tone generator. Major arpeggio in A=432Hz tuning:
+//   432Hz (A, root) → 540Hz (C#, major third) → 648Hz (E, perfect fifth).
+// 432 × 1.25 = 540, 432 × 1.5 = 648. Sine wave, ~700ms total with
+// overlapping tails so the three notes blend into a relaxed
+// "victory swell" rather than three discrete beeps.
+//
+// Why major chord: culturally reads as "achievement / completion".
+// Why these volumes: low (0.10-0.13) keeps it ambient — the user
+// hears it as a soft confirmation, not a notification demanding
+// attention. The system mute, browser tab mute, and OS mixer all
+// still apply downstream.
+//
+// Why 25ms attack instead of 5ms: at 5ms each note "punched" in;
+// at 25ms each note breathes in — feels relaxed, not abrupt.
+//
+// Duplicated near-verbatim in chrome/options.js so the "Test
+// sound" button works without loading the full content script —
+// keep the two in sync if the sound design changes.
+async function playSuccessTone() {
+  const Ctor = window.AudioContext || window.webkitAudioContext;
+  if (Ctor === undefined) return;
+  const ctx = new Ctor();
+  if (ctx.state === 'suspended') {
+    try { await ctx.resume(); } catch { return; }
+  }
+  const playTone = (freq, startTime, duration, volume) => {
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.value = freq;
+    gain.gain.setValueAtTime(0, startTime);
+    gain.gain.linearRampToValueAtTime(volume, startTime + 0.025);
+    gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
+    osc.connect(gain).connect(ctx.destination);
+    osc.start(startTime);
+    osc.stop(startTime + duration);
+  };
+  const t0 = ctx.currentTime;
+  playTone(432, t0,         0.30, 0.10);   // A — root
+  playTone(540, t0 + 0.08,  0.40, 0.11);   // C# — major third (432 × 5/4)
+  playTone(648, t0 + 0.16,  0.55, 0.13);   // E — perfect fifth (432 × 3/2)
+  // Free the AudioContext after the sound completes; the longest
+  // tone ends at t0 + 0.16 + 0.55 = 0.71s. 900ms covers it with margin.
+  setTimeout(() => { void ctx.close(); }, 900);
 }
 
 function showToast(text, kind) {

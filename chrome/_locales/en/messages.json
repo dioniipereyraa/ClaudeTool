@@ -91,6 +91,18 @@
     "message": "The bridge runs on <code>127.0.0.1</code>. Nothing leaves your machine.",
     "description": "Body of the reassurance block — contains a <code> span rendered via innerHTML."
   },
+  "exportSoundLabel": {
+    "message": "Sound on export",
+    "description": "Label for the export-sound toggle in the options page settings section."
+  },
+  "exportSoundDesc": {
+    "message": "Plays a short chime when an export lands in VS Code. Off here silences the companion only — your system mute and tab mute still apply.",
+    "description": "Description below the toggle explaining what the sound does and how it interacts with system audio."
+  },
+  "testSoundButton": {
+    "message": "Test",
+    "description": "Small button next to the toggle that plays the chime once so the user can preview it."
+  },
   "fabAriaLabel": {
     "message": "Exportal — open actions",
     "description": "Accessible label for the floating action button on claude.ai."

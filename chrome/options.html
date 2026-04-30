@@ -287,6 +287,92 @@
         color: var(--exp-text);
       }
 
+      /* Settings section — Hito 31. Sits below the local-first
+       * reassurance. Toggle + a small Test button so the user can
+       * preview the sound before deciding to keep it on. */
+      .settings {
+        margin-top: 16px;
+        padding: 12px 14px;
+        border-radius: var(--exp-radius);
+        background: var(--exp-surface2);
+        border: 1px solid var(--exp-line);
+      }
+      .settings-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .settings-row .label {
+        flex: 1;
+        font-size: 12px;
+        color: var(--exp-text);
+        font-weight: 500;
+      }
+      .settings-row .desc {
+        font-size: 11px;
+        color: var(--exp-text-dim);
+        margin-top: 4px;
+        line-height: 1.45;
+      }
+      .toggle-switch {
+        position: relative;
+        display: inline-block;
+        width: 32px;
+        height: 18px;
+        flex-shrink: 0;
+      }
+      .toggle-switch input {
+        opacity: 0;
+        width: 0;
+        height: 0;
+      }
+      .toggle-switch .slider {
+        position: absolute;
+        inset: 0;
+        background: var(--exp-line-strong);
+        border-radius: 9px;
+        transition: background 120ms ease;
+        cursor: pointer;
+      }
+      .toggle-switch .slider::before {
+        content: '';
+        position: absolute;
+        top: 2px;
+        left: 2px;
+        width: 14px;
+        height: 14px;
+        border-radius: 7px;
+        background: var(--exp-text);
+        opacity: 0.55;
+        transition: transform 120ms ease, opacity 120ms ease;
+      }
+      .toggle-switch input:checked + .slider {
+        background: var(--exp-accent);
+      }
+      .toggle-switch input:checked + .slider::before {
+        transform: translateX(14px);
+        background: var(--exp-accent-ink);
+        opacity: 1;
+      }
+      .test-btn {
+        padding: 5px 10px;
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        background: transparent;
+        color: var(--exp-text-dim);
+        border: 1px solid var(--exp-line-strong);
+        border-radius: 6px;
+        cursor: pointer;
+        font-family: inherit;
+        transition: color 120ms ease, border-color 120ms ease;
+      }
+      .test-btn:hover {
+        color: var(--exp-text);
+        border-color: var(--exp-text-dim);
+      }
+
       /* Low-contrast "unpair" text button — only visible in the paired
        * state. Keeps the escape hatch without cluttering the happy path. */
       .unpair {
@@ -363,6 +449,18 @@
             <strong data-i18n="localFirstLead"></strong>
             <span data-i18n="localFirstBody"></span>
           </div>
+        </div>
+
+        <div class="settings">
+          <div class="settings-row">
+            <div class="label" data-i18n="exportSoundLabel"></div>
+            <button id="test-sound" type="button" class="test-btn" data-i18n="testSoundButton"></button>
+            <label class="toggle-switch">
+              <input id="export-sound-toggle" type="checkbox" />
+              <span class="slider" aria-hidden="true"></span>
+            </label>
+          </div>
+          <div class="desc" data-i18n="exportSoundDesc"></div>
         </div>
 
         <button id="unpair" type="button" class="unpair" data-i18n="unpairButton"></button>

@@ -4494,5 +4494,484 @@ publishes desbloquean el nuevo título descriptivo en los listings.
   alternativa: dejar 0.11.2 en review y subir 0.11.3 cuando
   apruebe).
 
+---
+
+## 2026-04-30 — Hito 30 · Onboarding wizard de instalación (dos pasos)
+
+### Qué hicimos
+Reescribimos el webview de pairing (primer arranque + comando
+"Show pairing token") para separar la **instalación del companion
+de Chrome** del **paso de pairing**. El layout viejo asumía que el
+companion ya estaba instalado y solo mostraba el token + el botón
+"Copy and open Chrome" — un usuario nuevo sin companion clickeaba
+ese botón, abría claude.ai con el fragment de pairing, y como nadie
+capturaba el fragment se quedaba mirando claude.ai sin entender qué
+había pasado. Funnel-killer documentado en ROADMAP como prioridad
+inmediata del cluster Hitos 30-34 acordado el 2026-04-30 con Dioni.
+
+El wizard nuevo tiene dos secciones explícitas, cada una con su
+propio CTA primario:
+- **Step 1 — Install the Chrome companion**: botón "Get from Chrome
+  Web Store" que abre el listing oficial
+  (`https://chromewebstore.google.com/detail/lmnmekfphhpfaciehfdaonjfchbicdnm`).
+- **Step 2 — Pair with VS Code**: token visible + COPY + botón
+  "Copy token and open Chrome" (igual al anterior pero etiquetado
+  más descriptivamente).
+
+Al pie un skip link discreto ("Skip — I will set this up later")
+reemplaza al "Later" anterior, alineando con el copy del scope.
+
+### Cambios concretos en `extension.ts`
+- `ONBOARDING_SHOWN_KEY` bumpeado de `exportal.onboardingShownV2`
+  a `exportal.onboardingShownV3` para que existing users vean el
+  wizard nuevo una vez en su próxima activación.
+- Nueva constante `CHROME_COMPANION_STORE_URL`. Stripped el param
+  `?utm_source=item-share-cb` que venía en la URL que Dioni copió
+  del botón "Share" del store — ruido de tracking, no aporta.
+- Nuevo handler `'open-store'` en `showPairingPanel.onDidReceiveMessage`
+  que llama `vscode.env.openExternal` con la URL del store.
+- `renderPairingHtml` reescrito:
+  - Removido el `.stepper` inline (VS Code → Chrome → Done) que
+    duplicaba lo que ahora dicen las etiquetas "Step 1/Step 2".
+  - Removido el `.token-card` wrapper como concepto separado — el
+    token row ahora vive dentro del `<section class="step">` del
+    Step 2.
+  - Borrados los CSS rules `.actions`, `.token-card`, `.token-label`,
+    `.token-hint`, `.stepper`, `.dot`, `.line` que quedaron sin uso.
+  - Nuevos CSS para `.step`, `.step-head`, `.step-num` (badge
+    numerado circular), `.step-title`, `.step-desc`, `.step .primary`
+    (CTA full-width por step), `.skip-row`, `.skip-link`.
+- Toast post-pairing en `handlePairConfirmed` actualizado de
+  *"Exportal: pairing complete. Chrome is ready to export chats."*
+  al copy actionable que pidió el scope: *"Exportal: paired with
+  Chrome. Try it now — open a chat in claude.ai or ChatGPT and
+  click the Export button."*
+- JSDoc de `activate()` y comentario de `showOnboardingIfNeeded`
+  actualizados a la realidad de dos steps.
+
+### Decisiones técnicas
+- **No tratamos de detectar "companion ya instalado"**: Chrome no
+  expone cross-extension si otra extensión está instalada. La única
+  señal fiable es el `/ping` que el companion manda al bridge —
+  eso ya dispara `handlePairConfirmed`, que pinta el overlay de
+  éxito encima del wizard entero. No vale agregar una capa de
+  "skip to step 2 if installed" que adivinaría — el usuario que ya
+  tiene el companion ignora el Step 1 y baja al Step 2.
+- **`CHROME_COMPANION_STORE_URL` como constante, no setting**: no
+  hay caso real de un usuario que quisiera apuntar a otra URL.
+- **V3 bump del flag con OK explícito de Dioni**: existing users
+  (incluido él) ven el wizard nuevo una vez. Beneficio = audiencia
+  completa migra al nuevo flow sin reinstalar.
+- **Skip link subtle a propósito**: si fuera botón primario al
+  lado de los Step CTAs, los usuarios nuevos lo clickearían
+  pensando que es "next step". Como link gris-discreto al pie, los
+  power users lo encuentran y los nuevos siguen los steps.
+- **Etiqueta "Get from Chrome Web Store"**: dentro del store el
+  botón final dice "Add to Chrome", pero acá estamos en VS Code
+  y "Get" es el verbo correcto para enviar al store.
+
+### Verificación
+- `npm run ci` (lint + typecheck + test + build) ✓ — 252/252 tests
+  siguen pasando. Ningún test referenciaba el HTML viejo (no había
+  tests para `renderPairingHtml`).
+- Build de la extensión: 947 KB, sin cambio significativo de tamaño.
+- **Smoke test manual pendiente** para Dioni: reload window → ver
+  el wizard nuevo aparecer (V3 flag) → testear ambos botones (Step 1
+  abre el store, Step 2 dispara el flow viejo) → ver el toast
+  actionable cuando pairea.
+
+### Decidido fuera de scope para esta tanda
+- **Tests del HTML rendering**: no hay tests para `renderPairingHtml`
+  hoy. Agregarlos requeriría mockear el webview API. Bajo costo,
+  bajo valor — el HTML es contenido estático y las regresiones
+  serían visuales (no testeables sin snapshot/screenshot tests).
+- **Botón "Open companion options"**: el scope original lo mencionaba
+  pero `chrome://extensions/?id=...` no se puede abrir cross-app
+  desde fuera de Chrome. El user que necesita las options del
+  companion las abre desde el icono del companion en el toolbar.
+
+### Iteración 2 (post-smoke-test) — cleanup del QuickPick de provider
+
+Smoke test de Dioni pasó OK pero levantó una pregunta legítima:
+*"¿es necesario que pregunte si pareo con claude.ai o chatgpt.com?
+Prefiero que abra y linkee únicamente."*
+
+El `pickPairingProvider` mostraba un QuickPick la primera vez que
+el user clickeaba "Copy and open Chrome" para elegir el host del
+trampoline (claude.ai vs chatgpt.com). La elección quedaba en
+`globalState['exportal.lastPairProvider']` y se reusaba después.
+El comando `exportal.switchPairingProvider` permitía borrarla.
+
+Era trabajo y código innecesario: el 99% de los users tiene claude.ai
+abierto en algún momento (es el AI principal de Exportal); el comando
+`switchPairingProvider` lo había usado nadie según las menciones en
+el devlog; y la fricción del primer pairing al pedir esta decisión
+no aportaba valor.
+
+**Cambios del cleanup**:
+- `extension.ts`:
+  - Removida la `LAST_PAIR_PROVIDER_KEY`, `PAIR_PROVIDER_HOSTS`,
+    el type `PairProvider`, y la función `pickPairingProvider`.
+  - Reemplazadas por una sola constante `PAIRING_TRAMPOLINE_HOST = 'claude.ai'`.
+  - `pairAndOpenChrome` simplificada: copy al clipboard + abrir
+    `https://claude.ai/#exportal-pair=<token>` directo, sin QuickPick.
+  - El parámetro `_context` quedó marcado como unused (lo dejamos
+    en la signature para no romper la API pública del export).
+  - Removido el comando `exportal.switchPairingProvider` del
+    `activate()`.
+- `package.json`: removida la entry de `exportal.switchPairingProvider`
+  en `contributes.commands`.
+- `package.nls.json` + `package.nls.es.json`: removida la l10n
+  key `command.switchPairingProvider.title`.
+- `l10n/bundle.l10n.es.json`: removidas las 3 strings del QuickPick
+  (`'Where do you want to pair?'`, `'Pick the site...'`,
+  `'pairing provider preference cleared...'`).
+
+**Por qué hardcodear claude.ai específicamente**:
+- Es el AI sobre el que se centra Exportal — el dominio principal
+  de la herramienta. ChatGPT entró después como segundo proveedor.
+- Quien sólo usa ChatGPT puede instalar el companion igual; el
+  content script vive en ambos hosts. La diferencia es solo qué
+  pestaña se abre durante el pairing — irrelevante después de que
+  el companion está pareado.
+- El próximo paso (futuro hito) es mover el trampoline a
+  `exportal.dev/pair`, una landing page que servimos nosotros.
+  Eso disuelve la dependencia de tener que abrir claude.ai/ChatGPT
+  solo para parear, pero requiere update al manifest del companion
+  + nueva submission al Chrome Web Store.
+
+### Iteración 3 — flake del CI documentado, con dato fresco
+
+`npm run ci` después del cleanup falló con la firma exacta del
+flake registrado en ROADMAP: `TypeError: Cannot read properties
+of undefined (reading 'config')` en los 24 test files, duration
+1.69s (vs ~4-7s normal).
+
+**Dato fresco**:
+- El primer `npm run test` plain reintento NO resolvió (al contrario
+  de la nota del 2026-04-26 que decía "reintento inmediato → 210/210
+  limpio").
+- `rm -rf node_modules/.vite node_modules/.vitest && npm run test`
+  → 252/252 limpio en 4.27s.
+- Confirmación de la hipótesis del race fs-write/bootstrap-vitest:
+  los caches `.vite` y `.vitest` se llenaron de entries en estado
+  inconsistente durante la cadena de edits rápidas a extension.ts,
+  package.json, *.nls.json y bundle.l10n.es.json.
+- ROADMAP entry del flake actualizada con esta observación.
+
+### Verificación final post-cleanup
+- `npm run lint && npm run typecheck` ✓
+- `npm run test` ✓ (252/252, después del cache clear)
+- `npm run build` ✓ — extension.cjs bajó de 947.3 KB a 946.1 KB
+  (1.2 KB de delta consistentes con el código removido).
+
+### Próximo paso
+- Dioni reload + smoke test del flow ahora SIN QuickPick: clickear
+  "Copy token and open Chrome" → debería abrir claude.ai directo
+  con el fragment, sin pregunta intermedia.
+- Si OK: agregar al ROADMAP el hito futuro de la landing en
+  `exportal.dev/pair` (Dioni mostró interés explícito).
+- Decidir si commit + release como 0.11.4 (UX-only) o juntar con
+  los hitos 31-34 antes de cortar release.
+
+---
+
+## 2026-04-30 — Hito 31 · Sonido opt-out al exportar
+
+### Qué hicimos
+Sumamos un chime corto que dispara cuando un export aterriza en
+VS Code. El user pide "feedback inmediato de éxito" — antes el
+único signal era el success pulse visual, que se pierde si el
+user está mirando otra ventana cuando el export completa. Default
+ON con toggle obvio, alineado con la decisión que Dioni tomó el
+2026-04-30 ("quiero que ande siempre, pero que el usuario pueda
+desactivarlo si quiere").
+
+### Diseño del sonido
+Generado por **Web Audio API** — sin asset binario que shippear,
+sin licencia, customizable. Dos tonos ascendentes (E5 → B5,
+quinta perfecta), sine wave, ~200ms total. Volumen capeado a
+0.17 (subtle, no pretende competir con notificaciones del SO).
+Modelado en el espíritu de iMessage send / GitHub Desktop push,
+no de notificación de WhatsApp.
+
+Estructura de la curva por nota:
+- Attack lineal de 5ms (evita el "click" del valor 0 → volumen).
+- Sustain implícito al pico.
+- Decay exponencial al 0.001 hasta el final de `duration`.
+- Total: 100ms para E5, 140ms para B5 con 70ms de offset que las
+  hace solapar.
+
+### Cambios concretos
+- `chrome/content-script.js`:
+  - Nueva función `playSuccessTone()` (async — `AudioContext.resume()`
+    requiere await).
+  - Wrapper `maybePlayExportSound()` que lee `chrome.storage.local.exportSound`
+    (default `true`) y dispara solo si no está apagado.
+  - Llamadas `void maybePlayExportSound()` después de
+    `showSuccessPulse({ ms, messages })` (FAB click) y después
+    del `showToast(...feedbackOpenedInVsCode...)` (keyboard
+    shortcut Alt+Shift+E). Ambos paths de éxito cubiertos.
+- `chrome/options.html`:
+  - Nueva sección `.settings` debajo del bloque local-first.
+  - Toggle visual (custom-styled, no checkbox nativo) con sus
+    sliders en CSS (`.toggle-switch .slider`).
+  - Botón "Test" chico al lado del toggle para que el user pueda
+    previsualizar el sonido sin tener que exportar de verdad.
+  - CSS bajo `--exp-*` tokens para mantener cohesión con el resto
+    del options page.
+- `chrome/options.js`:
+  - `playSuccessTone()` duplicada del content script (≈20 líneas)
+    porque options.html no carga `pure.js` y movernos a un módulo
+    compartido era overkill para una función pura tan chica.
+    Comentario en ambos lados marca que tienen que mantenerse en
+    sync si la curva cambia.
+  - `init()` extendida para leer `SOUND_KEY` y reflejar el estado
+    en el toggle.
+  - `change` listener escribe a `chrome.storage.local.set({ exportSound })`
+    inmediatamente — el content script lee el storage en cada
+    export, no hace falta reload.
+  - Click del Test button siempre toca, incluso con el toggle off,
+    para que el user pueda escuchar antes de decidir.
+- `chrome/_locales/{en,es}/messages.json`: 3 nuevas strings
+  (`exportSoundLabel`, `exportSoundDesc`, `testSoundButton`) en
+  ambos locales. La copy del desc menciona explícitamente que
+  el system mute y tab mute siguen aplicando — no queremos que
+  el user piense que el toggle es la única vía para silenciar.
+
+### Decisiones técnicas
+- **Sonido generado, no asset**: zero-asset es coherente con el
+  resto de Exportal (zero-network, local-first). Además es 0 KB
+  más en el zip y eliminamos cualquier ambigüedad de licencia.
+- **AudioContext suspended → resume()**: Chrome arranca el
+  AudioContext en `suspended` si no hubo gesto de usuario reciente.
+  El gesto del FAB click / Alt+Shift+E satisface la regla, así
+  que `resume()` move el state a `running` y los tonos suenan.
+  Si por alguna razón el gesto no cuenta (test cases raros), el
+  await rechaza y caemos a `return` silencioso — peor caso, no
+  hay sonido pero el resto del export funciona.
+- **`ctx.close()` después de 300ms**: cada export crea un
+  AudioContext nuevo. Sin close() acumulamos contextos y
+  Chrome eventualmente loggea warnings ("max number of audio
+  contexts reached"). El timeout cubre los ~200ms de los tonos
+  + un buffer.
+- **Volumen 0.15-0.17 (no 1.0)**: probado en headphones, los
+  picos del oscilador puro a volumen completo son fuertes y
+  agresivos. 0.17 es subtle pero audible — siguiendo la guía
+  del scope original ("estilo iMessage send, no notificación de
+  WhatsApp").
+- **Toggle solo en companion (v1)**: el ROADMAP scope mencionaba
+  toggle también en VS Code Settings. Ese requeriría extender el
+  protocolo del bridge para sync (set/get de settings), trabajo
+  no trivial. Iteración 2 cuando haga falta — por ahora, el
+  toggle del companion + el `Test` button del options page
+  cubren el caso de uso.
+
+### Verificación
+- `npm run ci` falló en el primer intento por el flake del CI ya
+  registrado (cache stale de vitest). `rm -rf node_modules/.vite`
+  + retry → 252/252 limpio en 4.21s.
+- `npm run lint && npm run typecheck && npm run build` todo verde.
+- `npm run package:chrome` → `exportal-companion-0.11.3.zip`
+  generado limpio, 40.9 KB (vs ~40.7 KB anterior — delta consistente
+  con las strings nuevas + el CSS del toggle).
+- **Smoke test pendiente para Dioni**: reload del companion en
+  Chrome (chrome://extensions → reload Exportal Companion), abrir
+  options del companion → ver el nuevo bloque de settings → tocar
+  Test → escuchar el chime → tocar el toggle off → tocar Test
+  otra vez (sigue sonando porque el Test ignora el toggle a
+  propósito). Después: hacer un export real desde claude.ai y
+  confirmar que (a) con toggle ON suena, (b) con toggle OFF no.
+
+### Pendiente / iteración 2 (post-smoke-test)
+- **Toggle en VS Code panel**: requiere extender el protocolo del
+  bridge con un `GET/SET /settings`. Trabajo no trivial. Diferido
+  hasta que aparezca demanda real ("usuarios que prefieren abrir
+  VS Code antes que el options del companion para silenciar").
+- **Variantes de sonido** (click, chime, off): solo si el chime
+  default molesta a varios users. Default es siempre opcional —
+  el toggle ya cubre "off".
+- **First-export hint**: el ROADMAP scope mencionaba un toast
+  no-bloqueante "Exported ✓ — silenciar sonido" la primera vez.
+  Diferido — el toggle en options + el Test button ya dan
+  visibilidad. Si el feedback es "no sabía cómo silenciarlo",
+  agregamos el hint.
+
+### Próximo paso
+- Dioni hace el smoke test descrito arriba.
+- Si suena bien: pasamos a Hito 32 (badge inteligente del icono
+  Chrome) o decidimos cortar release ya con Hito 30 + 31.
+- Si el sonido molesta: ajustamos volumen / curva / frecuencias
+  hasta encontrar el "satisfactorio + no intrusivo".
+
+---
+
+## 2026-04-30 — Release 0.11.4
+
+### Smoke test pasó + tweak final
+
+Dioni reload del companion + smoke test del Hito 31 → "funciona
+perfecto". Pidió un ajuste único: mover el tuning del chime de
+A=440Hz (E5 / B5) a A=432Hz. Razón / preferencia personal — no
+es un cambio funcional, solo perceptual.
+
+**Cambio aplicado**:
+- `chrome/content-script.js` y `chrome/options.js` (la duplicada):
+  - `playTone(659.25, ...)` → `playTone(432, ...)` — A=432Hz root
+    en vez de E5 (a 440tuning).
+  - `playTone(987.77, ...)` → `playTone(648, ...)` — quinta
+    perfecta arriba (432 × 1.5 = 648), preserva el "ascendente
+    = éxito" del diseño original.
+  - Volúmenes ligeramente ajustados (0.16 / 0.18) para compensar
+    la ligera baja de loudness perceptual a frecuencias más bajas.
+  - Comentarios actualizados en ambos lados.
+
+Mantuve la estructura de dos tonos en lugar de cortar a un solo
+432Hz puro porque el "ascendente" es lo que comunica "success" —
+un solo tono se sentiría como un beep neutro. Le pregunté a Dioni
+en el commit anterior y la interpretación fue OK.
+
+### Iteración fina sobre la duración
+
+Smoke test de Dioni con las frecuencias ajustadas a 432Hz: "se
+escucha mal el sonido, se corta muy rápido". Diagnóstico — el
+exponential decay terminaba en `startTime + duration`, y con
+duraciones de 100/140ms el decay no alcanzaba a llegar a silencio
+de forma natural antes del corte de la envolvente. El resultado
+era un sonido punchy pero clipeado.
+
+**Cambio**:
+- Tono 1: duration 0.10 → 0.18 (180ms).
+- Tono 2: duration 0.14 → 0.32 (320ms).
+- Offset entre tonos: se mantuvo en 0.07s para conservar la
+  "rítmica" original del two-tone.
+- Total: ~390ms (todavía dentro del rango 200-400ms del scope).
+- `setTimeout` que cierra el AudioContext: 300 → 500ms para
+  cubrir el decay tail completo con margen.
+- `CHANGELOG.md` actualizado con la duración real (~390ms).
+
+No tocamos volúmenes ni envolvente shape — solo dimos espacio
+para que el decay exponential respire.
+
+### Iteración 3 — rediseño a arpegio mayor
+
+Después del fix de duración Dioni reportó: "ahí suena mejor.
+Necesito que el sonido se sienta relajado y como de victoria.
+Elegí 432Hz porque es la frecuencia de la dopamina." (referencia
+cultural a la teoría 432Hz tuning como "natural / armónico").
+
+El two-tone (root + quinta) sonaba "completo" pero no comunicaba
+bien "victoria" — falta el centro armónico que un acorde mayor
+da. Pasé el sintetizador a un **arpegio mayor de tres notas**:
+
+- A 432Hz (root) — t0
+- C# 540Hz (tercera mayor) — t0 + 80ms (432 × 5/4 = 540)
+- E 648Hz (quinta perfecta) — t0 + 160ms (432 × 3/2 = 648)
+
+Cambios adicionales para "relajado":
+- **Volúmenes bajados** de 0.16-0.18 a 0.10-0.13. Más ambiental,
+  menos demanda de atención.
+- **Attack subido** de 5ms a 25ms. Cada nota "respira" al entrar
+  en lugar de pegar; sigue lejos del threshold de "click pop"
+  que aparece sin attack alguno.
+- **Duraciones extendidas** (0.30 / 0.40 / 0.55s) para que las
+  tails se solapen y formen un "swell" continuo en vez de tres
+  notas separadas.
+- **Total**: ~710ms (excede el rango 200-400ms del scope
+  original, pero el rango era una guía aproximada — un sonido
+  de "victoria" verdadero necesita más tiempo para construir
+  el arco).
+- `setTimeout` que cierra el AudioContext: 500 → 900ms para
+  cubrir el tail completo del E.
+
+CHANGELOG.md actualizado con la descripción nueva del sonido y
+una nota corta sobre la elección de 432Hz por preferencia del
+autor (sin meterse en la discusión científica).
+
+### Iteración 4 — A/B/C/D entre variantes, elegimos el arpegio
+
+Después del rediseño a arpegio Dioni reportó "este sonido está
+bueno pero siento que molesta en vez de emitir relajación".
+Pidió un dev test con varias opciones para A/B comparar.
+
+Investigamos research sobre sonidos relajantes (Medium del UX
+designer Max Rovensky, SFX Engine sobre game UI, paper
+researchgate sobre 528Hz reduciendo cortisol + aumentando
+oxitocina en sesiones de 3-5 min). Conclusiones útiles para el
+rango de 700ms:
+- Low-end (200-1000Hz) feels pleasant; <200Hz muddy, >3kHz harsh.
+- Bells (fundamental + octava + octava-quinta shimmer) son
+  perceptualmente "naturales" porque las campanas reales tienen
+  esos overtones; sines puros pueden sonar clínicos.
+- Swells lentos (acorde con envolvente compartida, sin arpegio)
+  son "ambientales" porque no tienen estructura temporal que
+  trackear.
+
+Diseñamos 4 variantes contrastantes, sumamos un bloque DEV-only
+en el options page con 4 botones de test:
+- **Variant 1 — Bell 432**: campana en 432Hz con armónicos
+  octava + octava-quinta. Decay largo. "Contemplativo".
+- **Variant 2 — Swell**: acorde A mayor entero con envolvente
+  compartida lenta. Sin ritmo. "Etéreo".
+- **Variant 3 — Bell 528**: misma campana pero en 528Hz
+  solfeggio. "Brillante / matinal".
+- **Variant 4 — Current**: el arpegio del iter 3 (lo que ya
+  teníamos en producción), incluido para A/B directo.
+
+**Decisión de Dioni**: el Variant 4 (current arpegio mayor en
+432Hz). El arpegio comunica "ascendente = éxito" mejor que el
+swell o las campanas, sin ser intrusivo. Las campanas podrían
+ser demasiado "espirituales" para una herramienta dev; el swell
+podría ser demasiado pasivo.
+
+**Cleanup**:
+- Bloque `<!-- DEV ONLY -->` removido de `chrome/options.html`.
+- Bloque `// ─── DEV ONLY ───` (3 funciones variant + 4
+  listeners) removido de `chrome/options.js`.
+- CSS de `.settings.dev-only`, `.dev-label`, `.dev-row`
+  removido de `chrome/options.html`.
+- `playSuccessTone` queda intacto (es el variant elegido).
+
+### Cut de release
+
+`package.json` y `chrome/manifest.json` bumpeados a 0.11.4.
+Entry completa en `CHANGELOG.md` cubriendo:
+- Hito 30 (onboarding wizard de dos pasos + flag V3 + skip link).
+- Hito 31 (sonido a 432Hz, default ON, opt-out, Test button).
+- Cleanup post-Hito-30 (QuickPick → hardcoded claude.ai trampoline,
+  comando switchPairingProvider removido, dead code asociado).
+- Internal: `reference_chrome_store.md` memoria, ROADMAP refresh
+  con Hito 35 (`exportal.dev/pair`) y datos frescos del flake CI.
+
+ROADMAP limpio: Hitos 30 y 31 removidos del cluster "Próximos
+hitos — Ergonomía/UX". Sigue con 32, 33, 34. El Hito 35
+(`exportal.dev/pair` landing) sigue en su lugar como follow-up
+con interés explícito de Dioni.
+
+### Verificación
+- `npm run ci` → primer intento falló con el flake conocido del
+  bootstrap de vitest (1.72s, 24 files failed). `rm -rf
+  node_modules/.vite && npm run test` → 252/252 verde en 4.21s.
+- `npm run lint && npm run typecheck && npm run build` → todo
+  verde.
+- `npm run package:chrome` → `exportal-companion-0.11.4.zip`
+  generado limpio (~41 KB, sin cambio significativo vs 0.11.3).
+
+### Próximo paso
+- Generar `exportal-0.11.4.vsix` con `npm run package:vsix` para
+  tener el asset listo cuando Dioni quiera publicarlo.
+- **Pendiente de Dioni**:
+  - Decidir si commit todo en una sola tanda `chore(release):
+    0.11.4` o separar en `feat(onboarding): wizard de dos pasos`
+    + `feat(companion): sonido al exportar` + `chore(release):
+    0.11.4`. El segundo es más limpio en el git log; el primero
+    es más rápido.
+  - Subir el zip 0.11.4 al dashboard de Chrome Web Store (la
+    review nueva tomará 1-3 días). El user con la 0.11.3
+    instalada va a recibir el update automático cuando apruebe.
+  - `vsce publish` al VS Code Marketplace cuando Dioni configure
+    el PAT (sigue bloqueado de releases anteriores).
+- Después: arrancar Hito 32 (badge inteligente del icono Chrome).
+
 
 

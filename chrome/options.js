@@ -21,6 +21,7 @@
 
 const TOKEN_KEY = 'exportal.pairingToken';
 const TOKEN_PATTERN = /^[0-9a-f]{64}$/;
+const SOUND_KEY = 'exportSound';
 
 const card = /** @type {HTMLDivElement} */ (document.getElementById('card'));
 const tokenInput = /** @type {HTMLInputElement} */ (document.getElementById('token'));
@@ -30,6 +31,8 @@ const unpairBtn = /** @type {HTMLButtonElement} */ (document.getElementById('unp
 const chipText = document.getElementById('chip-text');
 const headlineEl = document.getElementById('headline');
 const subtitleEl = document.getElementById('subtitle');
+const soundToggle = /** @type {HTMLInputElement} */ (document.getElementById('export-sound-toggle'));
+const testSoundBtn = /** @type {HTMLButtonElement} */ (document.getElementById('test-sound'));
 
 function localizeStaticText() {
   // innerHTML is safe here: all translations ship with the extension
@@ -80,7 +83,10 @@ function setState(state) {
 }
 
 async function init() {
-  const stored = await chrome.storage.local.get(TOKEN_KEY);
+  const stored = await chrome.storage.local.get([TOKEN_KEY, SOUND_KEY]);
+  // Sound toggle defaults to ON. Only `false` flips the checkbox off —
+  // missing key (first install) and `true` both render checked.
+  soundToggle.checked = stored[SOUND_KEY] !== false;
   const saved = stored[TOKEN_KEY];
   if (typeof saved === 'string' && TOKEN_PATTERN.test(saved)) {
     tokenInput.value = saved;
@@ -88,6 +94,37 @@ async function init() {
     return;
   }
   setState('waiting');
+}
+
+// A=432Hz major arpeggio (A → C# → E). Duplicated near-verbatim
+// from chrome/content-script.js so the Test button works without
+// loading the full content script. Keep the two in sync if the
+// sound design changes — see comment over playSuccessTone in
+// content-script.js for the full design rationale.
+async function playSuccessTone() {
+  const Ctor = window.AudioContext || window.webkitAudioContext;
+  if (Ctor === undefined) return;
+  const ctx = new Ctor();
+  if (ctx.state === 'suspended') {
+    try { await ctx.resume(); } catch { return; }
+  }
+  const playTone = (freq, startTime, duration, volume) => {
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.value = freq;
+    gain.gain.setValueAtTime(0, startTime);
+    gain.gain.linearRampToValueAtTime(volume, startTime + 0.025);
+    gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
+    osc.connect(gain).connect(ctx.destination);
+    osc.start(startTime);
+    osc.stop(startTime + duration);
+  };
+  const t0 = ctx.currentTime;
+  playTone(432, t0,         0.30, 0.10);   // A — root
+  playTone(540, t0 + 0.08,  0.40, 0.11);   // C# — major third (432 × 5/4)
+  playTone(648, t0 + 0.16,  0.55, 0.13);   // E — perfect fifth (432 × 3/2)
+  setTimeout(() => { void ctx.close(); }, 900);
 }
 
 async function pair() {
@@ -130,6 +167,21 @@ primaryBtn.addEventListener('click', () => {
 
 unpairBtn.addEventListener('click', () => {
   void unpair();
+});
+
+// Sound toggle persists immediately to chrome.storage.local. The
+// content script reads the same key on each export, so the next
+// export reflects the new value without reloading the page.
+soundToggle.addEventListener('change', () => {
+  void chrome.storage.local.set({ [SOUND_KEY]: soundToggle.checked });
+});
+
+// Test button always plays — even when the toggle is off — so the
+// user can preview the sound before deciding to enable it. Treats
+// each click as a fresh user gesture so AudioContext.resume() works
+// reliably across browser autoplay rules.
+testSoundBtn.addEventListener('click', () => {
+  void playSuccessTone();
 });
 
 // Reflect external changes: if the auto-pair flow on claude.ai saves
