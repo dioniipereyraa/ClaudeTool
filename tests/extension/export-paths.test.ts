@@ -46,9 +46,9 @@ describe('slugify', () => {
   });
 
   it('returns a placeholder for strings with no alphanumeric content', () => {
-    expect(slugify('???')).toBe('conversacion');
-    expect(slugify('')).toBe('conversacion');
-    expect(slugify('   ')).toBe('conversacion');
+    expect(slugify('???')).toBe('conversation');
+    expect(slugify('')).toBe('conversation');
+    expect(slugify('   ')).toBe('conversation');
   });
 
   it('preserves numeric content', () => {

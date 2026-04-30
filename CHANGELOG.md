@@ -6,6 +6,100 @@ Companion (Chrome extension) are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 and versions follow [Semantic Versioning](https://semver.org/).
 
+## [0.11.3] — 2026-04-29
+
+Cleanup release que cierra los hallazgos del code audit del
+2026-04-29 (registro completo en `AUDIT-2026-04-29.md`). Cero
+features nuevos, cero cambios de UX visibles al usuario — solo
+seguridad reforzada, dos bugs cerrados, y limpieza de strings
+stale post-Hito 30 (multi-IA). 252/252 tests verdes.
+
+### Added
+
+- **Cobertura del redactor de secretos** ampliada de 5 a 10
+  patterns. Ahora también detecta y redacta: Google API keys
+  (`AIza...`), Stripe (sk/pk/rk live+test), Slack (`xoxb-`,
+  `xoxp-`, `xoxa-`, `xoxr-`, `xoxs-`), NPM tokens
+  (`npm_...`), y bloques PEM de claves privadas (RSA / EC /
+  OPENSSH / PKCS#8). 6 tests nuevos cubren los casos.
+- **Cobertura del redactor de paths** ampliada para incluir
+  prefijos Linux comunes (`/var/`, `/etc/`, `/opt/`, `/srv/`,
+  `/mnt/`, `/tmp/`) y el shortcut `~/`. El negative lookbehind
+  sigue protegiendo URLs (`https://example.com/etc/x` no se
+  redacta). 3 tests nuevos.
+- **Defensa-in-depth: Origin check** en el HTTP bridge. Si la
+  request trae `Origin` y NO empieza con `chrome-extension://`,
+  se rechaza con 403 `forbidden_origin`. Origin ausente sigue
+  permitido (curl, internal calls) — el bearer token sigue
+  siendo el security boundary real, esto es solo otra capa.
+- **Cap de tamaño en `readJsonl`**: 200 MB. Defensa contra
+  archivos `.jsonl` patológicamente grandes (no atacante real,
+  pero protege contra bugs de otra herramienta escribiendo en
+  `~/.claude/projects/`).
+
+### Changed
+
+- **`formatRelativeTime` ahora retorna inglés**: `'a few minutes
+  ago'`, `'3h ago'`, `'1 day ago'`, `'5 days ago'`. Antes era
+  español hardcoded — inconsistente con la decisión de inglés-
+  primario para listings tomada el 2026-04-29. Visible en el
+  panel de Exportal del sidebar de VS Code y en notifications.
+- **`slugify` fallback** cuando el conversation name es vacío
+  o solo contiene caracteres especiales: pasa de `'conversacion'`
+  a `'conversation'`. Visible en filenames del .md generado.
+- **Status bar tooltip**: `'Import claude.ai conversation'` →
+  `'Exportal — import an AI conversation'` (más preciso post-
+  multi-IA).
+- **Hint de Gemini** en el panel: `'En camino · Q3 2026'` →
+  `'Coming soon'`. Sin fecha-cristalbol que se va a vencer
+  silenciosamente, en inglés alineado con el resto.
+- **Companion content-script.js**: comentarios de cabecera
+  actualizados para describir las 3 surfaces que cubre el
+  script (claude.ai/chat, claude.ai/design, chatgpt.com) en
+  vez de solo claude.ai. Mismo cleanup en el JSDoc de
+  `activate()` en `extension.ts`.
+- **Companion content-script.js fallbacks de i18n**:
+  `pulseMessagesSuffix` fallback `'mensajes'` → `'messages'`;
+  `pulseHeadline` fallback `'Enviado a VS Code'` →
+  `'Sent to VS Code'`. Estos fallbacks solo se ven si la
+  i18n entry desaparece del bundle (no debería pasar) — pero
+  ahora son consistentes con la decisión de idioma primario.
+
+### Fixed
+
+- **Links muertos "docs" y "changelog"** en el panel Exportal
+  del sidebar. Tenían IDs pero cero event listener, los clicks
+  no hacían nada. Ahora abren el README y el CHANGELOG en el
+  browser via `vscode.env.openExternal`. URL whitelist al repo
+  de GitHub para que un futuro tweak del webview no pueda
+  convertir el handler en un open redirect.
+- **Comparación NaN en Content-Length** del HTTP bridge: si el
+  header llegaba con un valor no-numérico, `Number()` retornaba
+  `NaN`, y `NaN > maxBytes` es `false` — saltaba el early reject.
+  El stream-level limit todavía lo cachaba, pero `Number.isFinite`
+  como guard hace que el early reject funcione siempre.
+
+### Notes
+
+- Sin nuevos features ni cambios de protocolo. Las tres
+  responsabilidades (Companion, VS Code extension, CLI)
+  mantienen sus contratos exactos.
+- Los assets s0 (Claude Design slide) ya estaban retirados
+  desde 0.11.2 — no relacionado con este release.
+- 252 tests pasan (subió de 243 con los 9 nuevos para los
+  patterns extendidos del redactor).
+- Audit findings que NO se cerraron en este release y por qué:
+  - **Token plaintext en `chrome.storage.local`** (M3): threat
+    model documentado, riesgo solo si malware ya tiene acceso
+    a disco — escenario fuera de scope.
+  - **Zip-bomb decompression protection** (L2): el cap de 50 MB
+    de filesize upstream da defensa práctica; el costo de un
+    contador de bytes descomprimidos no se justifica con el
+    threat real (ZIPs vienen de Anthropic/OpenAI, no atacantes).
+  - **`actionInFlight` flag race en navigation rápida** (B3):
+    edge case difícil de reproducir; no tiene impacto de
+    seguridad ni de pérdida de datos. Cleanup futuro.
+
 ## [0.11.2] — 2026-04-26
 
 UX polish multi-IA: el flow de "Copiar y abrir Chrome" ya no

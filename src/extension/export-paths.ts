@@ -18,5 +18,5 @@ export function slugify(raw: string): string {
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '');
   const trimmed = base.slice(0, 40).replace(/-+$/g, '');
-  return trimmed.length > 0 ? trimmed : 'conversacion';
+  return trimmed.length > 0 ? trimmed : 'conversation';
 }

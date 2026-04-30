@@ -79,7 +79,7 @@ const PROVIDERS: readonly Provider[] = [
     iconPath: GEMINI_ICON,
     color: '#4285F4',
     disabled: true,
-    disabledHint: 'En camino · Q3 2026',
+    disabledHint: 'Coming soon',
   },
 ];
 
@@ -151,6 +151,7 @@ export class ExportalControlPanelProvider implements vscode.WebviewViewProvider 
         command?: unknown;
         provider?: unknown;
         filePath?: unknown;
+        url?: unknown;
       };
       if (m.type === 'toggleSetting'
           && typeof m.key === 'string'
@@ -191,6 +192,13 @@ export class ExportalControlPanelProvider implements vscode.WebviewViewProvider 
           && typeof m.provider === 'string'
           && typeof m.filePath === 'string') {
         await this.runDetectedImport(m.provider, m.filePath);
+      } else if (m.type === 'openExternal' && typeof m.url === 'string') {
+        // Whitelist only the GitHub repo so a future webview tweak can't
+        // accidentally turn this into an open redirect.
+        const repoBase = 'https://github.com/dioniipereyraa/ClaudeTool';
+        if (m.url === repoBase || m.url.startsWith(`${repoBase}/`)) {
+          await vscode.env.openExternal(vscode.Uri.parse(m.url));
+        }
       }
     });
 
@@ -931,6 +939,18 @@ export class ExportalControlPanelProvider implements vscode.WebviewViewProvider 
   });
   document.getElementById('open-logs').addEventListener('click', () => {
     vscode.postMessage({ type: 'openLogs' });
+  });
+  document.getElementById('docs-link').addEventListener('click', () => {
+    vscode.postMessage({
+      type: 'openExternal',
+      url: 'https://github.com/dioniipereyraa/ClaudeTool#readme',
+    });
+  });
+  document.getElementById('changelog-link').addEventListener('click', () => {
+    vscode.postMessage({
+      type: 'openExternal',
+      url: 'https://github.com/dioniipereyraa/ClaudeTool/blob/main/CHANGELOG.md',
+    });
   });
 </script>
 </body>

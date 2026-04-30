@@ -238,11 +238,27 @@ async function handleRequest(
     return;
   }
 
+  // Defense-in-depth: if the request carries an Origin header, only
+  // accept it from a chrome-extension origin (the Companion). The
+  // bearer token is the actual security boundary — this just rejects
+  // unauthenticated probes from a malicious page in the user's
+  // browser earlier in the pipeline. Origin is allowed to be absent
+  // (curl, the Companion's background fetch which sometimes omits it,
+  // VS Code-internal calls) since the bearer check still gates entry.
+  const origin = req.headers.origin ?? '';
+  if (origin.length > 0 && !origin.startsWith('chrome-extension://')) {
+    sendJson(res, 403, { error: 'forbidden_origin' });
+    return;
+  }
+
   // Early reject by Content-Length so we don't even start reading an
   // oversized body. Defense-in-depth streaming limit below catches
-  // clients that lie about Content-Length.
+  // clients that lie about Content-Length. `Number.isFinite` guards
+  // against non-numeric or absent headers parsing as NaN — NaN
+  // comparisons silently bypass this check, and we want to fall
+  // through to the streaming limit instead.
   const declaredLength = Number(req.headers['content-length'] ?? '0');
-  if (declaredLength > maxBytes) {
+  if (Number.isFinite(declaredLength) && declaredLength > maxBytes) {
     sendJson(res, 413, { error: 'payload_too_large' });
     return;
   }

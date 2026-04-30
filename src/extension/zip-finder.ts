@@ -82,11 +82,11 @@ export async function findRecentClaudeAiExports(
 export function formatRelativeTime(mtime: Date, now: Date = new Date()): string {
   const diffMs = Math.max(0, now.getTime() - mtime.getTime());
   const hours = Math.floor(diffMs / (60 * 60 * 1000));
-  if (hours < 1) return 'hace unos minutos';
-  if (hours < 24) return `hace ${String(hours)} h`;
+  if (hours < 1) return 'a few minutes ago';
+  if (hours < 24) return `${String(hours)}h ago`;
   const days = Math.floor(hours / 24);
-  if (days === 1) return 'hace 1 día';
-  return `hace ${String(days)} días`;
+  if (days === 1) return '1 day ago';
+  return `${String(days)} days ago`;
 }
 
 export function formatSize(bytes: number): string {

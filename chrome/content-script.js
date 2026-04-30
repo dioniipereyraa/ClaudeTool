@@ -1,21 +1,25 @@
-// Exportal Companion — content script for claude.ai.
+// Exportal Companion — content script for claude.ai and chatgpt.com.
 //
-// Activates on two surfaces (route detection in routeFromPath):
-//   - /chat/<UUID>          — claude.ai chat conversations
-//   - /design/p/<UUID>      — Claude Design projects (hito 27 + 28)
+// Activates on three surfaces (route detection in routeFromPath):
+//   - claude.ai/chat/<UUID>     — claude.ai chat conversations
+//   - claude.ai/design/p/<UUID> — Claude Design projects (hito 27 + 28)
+//   - chatgpt.com/c/<UUID>      — ChatGPT conversations (hito 30)
 //
-// Primary export ("Exportar este chat", Alt+Shift+E) on both surfaces:
-// fetches the active conversation from the internal API and forwards
-// the JSON to the VS Code bridge immediately. No ZIP, no email wait.
-// On Design pages the fetch also pulls the project's top-level files
-// via ListFiles + GetFile and bundles them as `assets` for the bridge
-// to write next to the .md.
+// Primary export ("Export this chat", Alt+Shift+E) on every surface:
+// fetches the active conversation from the host's internal API and
+// forwards the JSON to the VS Code bridge immediately. No ZIP, no
+// email wait. On Design pages the fetch also pulls the project's
+// top-level files via ListFiles + GetFile and bundles them as
+// `assets` for the bridge to write next to the .md.
 //
-// Secondary export ("Preparar export oficial", Alt+Shift+O) only
-// appears on /chat: stores the conversation UUID so the official
-// export ZIP — when it eventually downloads — auto-opens the right
-// conversation. Hidden on Design routes since the URL there exposes
-// a project UUID, not a chat UUID, and the ZIP matches by chat.
+// Secondary action varies per surface:
+//   - claude.ai/chat: "Prepare official export" (Alt+Shift+O) — stores
+//     the conversation UUID so the official export ZIP, when it
+//     eventually downloads, auto-opens the right conversation.
+//   - claude.ai/design: hidden — the URL exposes a project UUID, not
+//     a chat UUID, and the ZIP matches by chat.
+//   - chatgpt.com: "Download JSON" — saves the raw conversation JSON
+//     to the user's Downloads folder for offline / non-VS-Code use.
 //
 // UI: a small ambient orb sits at bottom-right; clicking it toggles a
 // popover card that matches the Graphite Citrus design (dark surface,
@@ -25,13 +29,15 @@
 // toast.
 //
 // This script DOES NOT read the DOM for conversation content. Every
-// path goes through internal JSON APIs — the same data the claude.ai
-// frontend itself consumes. CSRF/auth is enforced by Anthropic's
-// session cookies.
+// path goes through the host's internal JSON APIs — the same data
+// the claude.ai / chatgpt.com frontends themselves consume. Auth is
+// enforced by the host's own session cookies; no credentials are
+// read or stored by Exportal.
 //
-// claude.ai is a SPA with client-side navigation. Content scripts run
-// in an isolated world, so we can't wrap history.pushState — we poll
-// the URL instead (cheap: one regex + one string compare per tick).
+// Both claude.ai and chatgpt.com are SPAs with client-side navigation.
+// Content scripts run in an isolated world, so we can't wrap
+// history.pushState — we poll the URL instead (cheap: one regex +
+// one string compare per tick).
 
 const STYLE_ID = 'exportal-styles';
 const PANEL_ID = 'exportal-panel';
@@ -1127,14 +1133,14 @@ function showSuccessPulse({ ms, messages }) {
     borderRadius: TOKENS.radiusLg,
     animation: 'expPop 320ms cubic-bezier(.2,1.2,.4,1) both',
   });
-  const messagesLabel = chrome.i18n.getMessage('pulseMessagesSuffix') || 'mensajes';
+  const messagesLabel = chrome.i18n.getMessage('pulseMessagesSuffix') || 'messages';
   pulse.innerHTML = `
     <div style="width:44px;height:44px;border-radius:22px;background:${TOKENS.accent};color:${TOKENS.accentInk};display:flex;align-items:center;justify-content:center;animation:expCheckIn 360ms cubic-bezier(.2,1.5,.3,1) both">
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
         <path d="M20 6 9 17l-5-5" style="stroke-dasharray:24;stroke-dashoffset:24;animation:expDraw 280ms 120ms cubic-bezier(.2,1,.4,1) forwards"/>
       </svg>
     </div>
-    <div style="font-size:${TOKENS.fsSm};color:${TOKENS.text};font-weight:600;letter-spacing:-0.01em">${escapeHtml(chrome.i18n.getMessage('pulseHeadline') || 'Enviado a VS Code')}</div>
+    <div style="font-size:${TOKENS.fsSm};color:${TOKENS.text};font-weight:600;letter-spacing:-0.01em">${escapeHtml(chrome.i18n.getMessage('pulseHeadline') || 'Sent to VS Code')}</div>
     <div class="exp-mono" style="font-size:${TOKENS.fsXs};color:${TOKENS.textDim}">${ms}ms · ${messages} ${escapeHtml(messagesLabel)}</div>
   `;
   popover.appendChild(pulse);

@@ -115,20 +115,20 @@ describe('findRecentClaudeAiExports', () => {
 describe('formatRelativeTime', () => {
   const now = new Date('2026-04-17T12:00:00Z');
 
-  it('returns "hace unos minutos" for sub-hour differences', () => {
-    expect(formatRelativeTime(new Date('2026-04-17T11:45:00Z'), now)).toBe('hace unos minutos');
+  it('returns "a few minutes ago" for sub-hour differences', () => {
+    expect(formatRelativeTime(new Date('2026-04-17T11:45:00Z'), now)).toBe('a few minutes ago');
   });
 
   it('returns hours for same-day differences', () => {
-    expect(formatRelativeTime(new Date('2026-04-17T09:00:00Z'), now)).toBe('hace 3 h');
+    expect(formatRelativeTime(new Date('2026-04-17T09:00:00Z'), now)).toBe('3h ago');
   });
 
-  it('returns "hace 1 día" exactly at 24h', () => {
-    expect(formatRelativeTime(new Date('2026-04-16T12:00:00Z'), now)).toBe('hace 1 día');
+  it('returns "1 day ago" exactly at 24h', () => {
+    expect(formatRelativeTime(new Date('2026-04-16T12:00:00Z'), now)).toBe('1 day ago');
   });
 
   it('returns plural days for older files', () => {
-    expect(formatRelativeTime(new Date('2026-04-14T12:00:00Z'), now)).toBe('hace 3 días');
+    expect(formatRelativeTime(new Date('2026-04-14T12:00:00Z'), now)).toBe('3 days ago');
   });
 });
 

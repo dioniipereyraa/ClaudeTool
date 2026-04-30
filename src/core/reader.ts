@@ -1,7 +1,13 @@
-import { readFile } from 'node:fs/promises';
+import { readFile, stat } from 'node:fs/promises';
 
 import { parseEvent } from './schema.js';
 import { type Event } from './types.js';
+
+// Maximum .jsonl size we'll load into memory. Real Claude Code session
+// files are at most a few MB; 200 MB is a defense-in-depth ceiling that
+// catches bugs (e.g. another tool writing into ~/.claude/projects/) and
+// pathological growth without rejecting any legitimate session.
+const MAX_JSONL_BYTES = 200 * 1024 * 1024;
 
 /**
  * Read a .jsonl file and return validated events.
@@ -17,9 +23,26 @@ import { type Event } from './types.js';
  * `attachment`, `ai-title`).
  *
  * Loads the whole file in memory — acceptable for typical session sizes.
- * Swap for a stream-based implementation when sessions grow past tens of MB.
+ * A 200 MB ceiling enforced via `stat` keeps us from OOMing on a
+ * pathological file. Swap for a stream-based implementation when
+ * sessions legitimately grow past tens of MB.
  */
 export async function readJsonl(path: string): Promise<Event[]> {
+  let info;
+  try {
+    info = await stat(path);
+  } catch {
+    // Caller passed a path we can't stat — let readFile throw with the
+    // canonical ENOENT/EACCES error, no need to invent a new one.
+    info = undefined;
+  }
+  if (info !== undefined && info.size > MAX_JSONL_BYTES) {
+    throw new Error(
+      `JSONL file ${path} is ${(info.size / (1024 * 1024)).toFixed(1)} MB, ` +
+        `over the ${(MAX_JSONL_BYTES / (1024 * 1024)).toFixed(0)} MB safety limit.`,
+    );
+  }
+
   const raw = await readFile(path, 'utf8');
   const events: Event[] = [];
   for (const line of raw.split(/\r?\n/)) {

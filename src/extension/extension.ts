@@ -125,13 +125,19 @@ async function pickPairingProvider(
 /**
  * Exportal — VS Code extension entry point.
  *
- * Thin wrapper over the already-tested core: `readClaudeAiExport` and
- * `formatConversation`. Surfaces:
+ * Thin wrapper over the already-tested core: ZIP readers, importers,
+ * and formatters for both claude.ai and ChatGPT (Hito 30+). Surfaces:
  *  - A status bar button + command that auto-detects the most recent
  *    claude.ai export ZIP in Downloads/Desktop and opens it as Markdown.
+ *  - Companion commands (`exportal.importFromChatGptZip`,
+ *    `exportal.sendSessionToChatGpt`) for the ChatGPT side, plus the
+ *    bidirectional `sendSession*` flow that pushes a Claude Code
+ *    session back to claude.ai or ChatGPT as Markdown.
  *  - A local HTTP bridge (see `http-server.ts`) that accepts import
- *    requests from a future Chrome companion extension.
- *  - A command to reveal the pairing token used by the Chrome companion.
+ *    requests from the Chrome companion — both providers supported
+ *    via the `provider` field on the inline payload.
+ *  - A pairing-token webview that surfaces the bridge token and the
+ *    one-click "Copy and open Chrome" auto-pair flow.
  *
  * Redaction is forced on — there is deliberately no UI toggle.
  * Users who need raw output know where to find the CLI.
@@ -207,7 +213,7 @@ export function activate(context: vscode.ExtensionContext): void {
   // `$(export)` echoes the arrowhead/portal-bar motif of the Exportal
   // mark better than the generic cloud-download we shipped originally.
   statusBar.text = '$(export) Exportal';
-  statusBar.tooltip = vscode.l10n.t('Import claude.ai conversation');
+  statusBar.tooltip = vscode.l10n.t('Exportal — import an AI conversation');
   statusBar.command = 'exportal.importFromZip';
   statusBar.show();
   context.subscriptions.push(statusBar);
@@ -1203,9 +1209,14 @@ function detectClaudeCodeVersion(): string {
     const v = (pkg as { version?: unknown }).version;
     if (typeof v === 'string' && v.length > 0) return v;
   }
-  // Last seen on the test machine while reverse-engineering the
-  // format. Anthropic doesn't publish a version-compat matrix; this
-  // is a stable-looking fallback.
+  // Frozen baseline observed on the test machine while reverse-
+  // engineering the .jsonl envelope format. Anthropic doesn't publish
+  // a version-compat matrix, and Claude Code accepts older version
+  // strings without complaint, so this stays put intentionally even
+  // as Claude Code itself moves on. The real version is used whenever
+  // the extension is installed (the loop above) — this fallback only
+  // fires when the user wrote .jsonl without ever installing Claude
+  // Code, which is the workflow we're explicitly NOT optimizing for.
   return '2.1.114';
 }
 

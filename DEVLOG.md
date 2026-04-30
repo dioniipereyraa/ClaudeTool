@@ -4383,3 +4383,116 @@ oficial con CHANGELOG entry.
   Console (TXT record DNS) para activar badge "URL oficial
   verificada" en el listing.
 
+---
+
+## 2026-04-29 (madrugada, después aún) — Audit + parche 0.11.3
+
+### Qué hicimos
+Después de cerrar el ciclo de submission a Chrome Web Store, el
+user pidió un sweep profundo del código buscando bugs / vulns /
+stale code. Hice el audit completo (registro en
+`AUDIT-2026-04-29.md`), categoricé por severidad — 0 HIGH, 7
+MEDIUM, 10 LOW de 17 hallazgos totales — y después arreglé 14 de
+los 17 en una sola tanda, taggeada como release 0.11.3.
+
+### Audit findings cerrados
+**Seguridad (5/6)**:
+- Cobertura del secret redactor pasó de 5 a 10 patterns: agregamos
+  Google API keys, Stripe (sk/pk/rk live+test), Slack (xoxb/p/a/r/s),
+  NPM tokens, y bloques PEM de claves privadas. Cada uno con tests
+  cubriendo el happy case.
+- Cobertura del path redactor pasó a incluir `/var/`, `/etc/`,
+  `/opt/`, `/srv/`, `/mnt/`, `/tmp/` y el shortcut `~/`. El negative
+  lookbehind sigue protegiendo URLs (`https://example.com/etc/x` no
+  matchea — verificado en test).
+- Origin check defensa-in-depth en el HTTP bridge: si la request
+  trae `Origin` y NO es `chrome-extension://*`, retorna 403. Sin
+  Origin pasa (curl, internal). El bearer sigue siendo el security
+  boundary real, esto es solo otra capa.
+- Cap de 200 MB en `readJsonl` para defender contra archivos
+  `.jsonl` patológicos en `~/.claude/projects/`.
+- (Skipped) Token plaintext en `chrome.storage.local` — threat
+  model documentado, fuera de scope. (Skipped) Zip-bomb protection
+  — el cap de 50 MB upstream ya da defensa práctica.
+
+**Bugs (2/3)**:
+- Links muertos "docs" y "changelog" en el panel Exportal del
+  sidebar: tenían IDs pero ningún event listener. Ahora abren el
+  README/CHANGELOG en el browser con whitelist al repo de GitHub
+  para evitar que un futuro tweak los convierta en open redirect.
+- Comparación NaN en Content-Length: `Number.isFinite` guard para
+  que el early reject funcione cuando el header llega no-numérico.
+- (Skipped) `actionInFlight` race en navigation rápida — edge case
+  sin impacto de seguridad ni datos.
+
+**Código viejo / stale (8/8)**:
+- Comentarios de cabecera del companion `content-script.js`
+  ahora describen las 3 surfaces (claude.ai/chat, claude.ai/design,
+  chatgpt.com) en vez de solo claude.ai.
+- JSDoc de `activate()` en `extension.ts` actualizado a multi-IA.
+- Status bar tooltip: `'Import claude.ai conversation'` →
+  `'Exportal — import an AI conversation'`.
+- `formatRelativeTime` traducido al inglés (`'3h ago'`, `'1 day
+  ago'`, etc.) per la decisión de inglés-primario del 2026-04-29.
+  Tests reescritos.
+- `slugify` fallback `'conversacion'` → `'conversation'`. Tests
+  reescritos.
+- Hint de Gemini `'En camino · Q3 2026'` → `'Coming soon'`. Cero
+  fecha-cristalbol que se vence silenciosamente.
+- Fallbacks de i18n en `content-script.js` (pulseMessagesSuffix,
+  pulseHeadline) traducidos del español al inglés.
+- Comentario del fallback de `detectClaudeCodeVersion` reescrito
+  para clarificar por qué la versión hardcoded queda frozen
+  intencionalmente (no es bug, es contrato).
+
+### Decisiones técnicas
+- **Origin check con allow-on-empty**: Origin ausente sigue
+  permitido porque (a) los tests automated del HTTP server no
+  envían Origin, (b) hay clientes legítimos sin Origin (curl
+  para diagnóstico), (c) el bearer ya bloquea cualquier ataque
+  real. La defensa solo cierra el caso de un sitio malicioso
+  con `Origin: https://evil.com` — improbable pero "para qué no".
+- **PEM regex con `[\s\S]*?` lazy** en vez del flag `s` (multi-
+  line dot) por compatibilidad con vitest's vm sandbox que en
+  algunos paths no acepta el flag.
+- **Stripe pattern incluye sk/pk/rk × live/test**: cubre las 6
+  variantes válidas que documenta Stripe sin extender a
+  webhook signing keys (`whsec_`) por riesgo de FP.
+- **Tests del PEM check** verifican que el contenido entre
+  BEGIN/END también desaparece — protege contra una regresión
+  en la que la regex matchee solo el envelope.
+
+### Verificación
+- `npm run lint` ✓
+- `npm run typecheck` ✓
+- `npm test` ✓ — 252/252 tests pasan (subió de 243 con los 9
+  nuevos para patterns extendidos del redactor).
+- `npm run ci` (lint + typecheck + test + build) ✓ end-to-end.
+
+### Release / distribución
+**Bump a 0.11.3** — primer bump después de toda la cadena de
+silent patches sobre 0.11.2 (auto-recovery del companion, parallel
+org probing, listings rebrand, /support page, /privacy page, multi-
+IA descriptive title, audit-driven cleanup). El bump consolida
+todo eso en un release version oficial con CHANGELOG entry
+detallada.
+
+- `package.json`: 0.11.2 → 0.11.3
+- `chrome/manifest.json`: 0.11.2 → 0.11.3
+
+Marketplace + Chrome Web Store quedan pendientes de publish del
+user (vsce PAT + zip upload manual respectivamente). Ambos
+publishes desbloquean el nuevo título descriptivo en los listings.
+
+### Próximo paso
+- `npm run package:vsix` y `npm run package:chrome` para generar
+  los assets de release.
+- `vsce publish` cuando Dioni configure PAT.
+- Subir el zip 0.11.3 al dashboard de Chrome Web Store para
+  reemplazar el 0.11.2 que entró a review hace un rato (asume
+  que el user prefiere mandar la versión más limpia a la review;
+  alternativa: dejar 0.11.2 en review y subir 0.11.3 cuando
+  apruebe).
+
+
+

@@ -41,4 +41,40 @@ describe('redactPaths', () => {
     const out = redactPaths(input);
     expect(out.text).toBe('Edit `<PATH>` now');
   });
+
+  it('redacts /var, /etc, /opt, /srv, /mnt, /tmp on Linux', () => {
+    const cases = [
+      { input: 'Edit /var/log/nginx/access.log please', want: 'Edit <PATH> please' },
+      { input: 'Read /etc/passwd carefully', want: 'Read <PATH> carefully' },
+      { input: 'Build artifact at /opt/myapp/bin/app', want: 'Build artifact at <PATH>' },
+      { input: 'Mount lives at /mnt/data/foo', want: 'Mount lives at <PATH>' },
+      { input: 'Tmp file: /tmp/foo.txt removed', want: 'Tmp file: <PATH> removed' },
+      { input: 'Service at /srv/www/index.html', want: 'Service at <PATH>' },
+    ];
+    for (const c of cases) {
+      const out = redactPaths(c.input);
+      expect(out.text).toBe(c.want);
+      expect(out.redactedCount).toBe(1);
+    }
+  });
+
+  it('does NOT redact /etc-like fragments inside URLs', () => {
+    const input = 'See https://example.com/etc/foo and https://docs.x.org/var/y for refs';
+    const out = redactPaths(input);
+    expect(out.text).toBe(input);
+    expect(out.redactedCount).toBe(0);
+  });
+
+  it('redacts the ~/ home shortcut', () => {
+    const out = redactPaths('Tail ~/.bashrc and ~/projects/x.md');
+    expect(out.text).toBe('Tail <PATH> and <PATH>');
+    expect(out.redactedCount).toBe(2);
+  });
+
+  it('does NOT redact ~/ when prefixed with alphanumeric (URL fragment, etc.)', () => {
+    const input = 'visit https://example.com/~user is fine';
+    const out = redactPaths(input);
+    expect(out.text).toBe(input);
+    expect(out.redactedCount).toBe(0);
+  });
 });
