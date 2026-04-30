@@ -6,6 +6,115 @@ Companion (Chrome extension) are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 and versions follow [Semantic Versioning](https://semver.org/).
 
+## [0.11.7] — 2026-04-30
+
+Hardening release. Closes every actionable finding from the deep
+audit (`AUDIT-2026-04-30-deep-fases-2-6.md`): all 6 BAJA + 5
+INFORMATIVA. F-401 (sharp postinstall) and F-502 (release artifact
+signing) remain accepted by threat model. 313/313 tests verdes.
+
+### Added
+
+- **`exportal.postImportTemplates`** stays as before. New on the
+  redaction surface: **`--redact-pii` flag** in the CLI for
+  `exportal export` and `exportal import show`. Opt-in. Adds
+  email + IPv4 + IPv6 redaction on top of the always-on path
+  and secret redactors. Closes F-601 (the SECURITY.md drift on
+  the phantom flag).
+- **PII redactor module** (`src/redactors/pii.ts`): conservative
+  regex coverage. Email (RFC 5322-lite, requires TLD), IPv4
+  (octet-validated 0-255), IPv6 (canonical 8-group form plus
+  shortened with `::`). Phone numbers and personal names are
+  out of scope (precision insufficient with regex alone), the
+  scope is documented in the new SECURITY.md.
+- **8 new secret patterns** (closes F-206): OpenAI service-account
+  / admin keys, AWS STS session keys (`ASIA`/`AGPA`/`AROA`/
+  `AIDA`), DigitalOcean PATs, Twilio account SIDs, Mailgun
+  keys, SendGrid API keys, Discord bot tokens, Slack app tokens
+  (`xapp-`), MongoDB Atlas connection URIs with embedded
+  password.
+- **5 new path prefixes** in the path redactor (closes F-207):
+  Windows UNC (`\\server\share`), `file://` URIs, `/Volumes/`
+  (macOS external drives), `/private/` (macOS firmlinks),
+  `/root/` (Linux root home).
+- **Windows reserved-name rejection** in `sanitizeAssetFilename`
+  (closes F-201): `CON`, `PRN`, `AUX`, `NUL`, `COM1-9`, `LPT1-9`
+  with or without extension. Cierra el último edge case en la
+  pipeline de filenames.
+- **CLI `--project` traversal guard** (closes F-204):
+  `assertSafeProjectName` rechaza `..`, separadores de path,
+  null bytes y strings vacíos. Aplicado en `list` y `export`.
+- **ZIP size cap on the file-picker import path** (closes
+  F-205): 100 MB hard cap en `readClaudeAiExport` y
+  `readChatGptExport`. Una elección manual de un ZIP de 4 GB
+  ya no crashea el extension host, surface un error claro
+  con el tamaño y el cap.
+- **CLI strips ANSI / control characters before stdout**
+  (closes F-302): `stripTerminalControl` filtra C0/C1 control
+  chars (excepto TAB, LF, CR) y DEL antes de `process.stdout.
+  write` en `exportal export` y `exportal import show`. El
+  output a `--out` preserva los datos para inspección. Cierra
+  el vector de window-title spoofing y OSC 52 clipboard
+  injection desde una conversación con escape codes.
+
+### Changed
+
+- **Webview `runCommand` whitelist** (closes F-202): el handler
+  acepta solo `exportal.importFromZip`, `exportal.
+  importFromChatGptZip`, `exportal.sendSessionToClaudeAi`,
+  `exportal.sendSessionToChatGpt`. Comandos fuera de la lista
+  se descartan silenciosamente. Cierra el path en que un
+  webview compromise hipotético podría invocar
+  `workbench.action.terminal.sendSequence` (RCE shape) u otros
+  comandos sensibles.
+- **`importDetectedZip` valida el path contra el último set
+  publicado** (closes F-203): el handler ahora mantiene un
+  `Set<string>` con los paths que `refreshDetectedZips`
+  acaba de emitir. Solo paths conocidos son honored. Cierra
+  el path teórico en el que un webview compromise podría
+  pedirle a la extensión que lea cualquier ZIP del disco.
+- **Pairing webview `localResourceRoots`** (closes F-301):
+  `createWebviewPanel` ahora pasa `localResourceRoots:
+  [context.extensionUri]`. Belt-and-suspenders sobre la CSP
+  ya estricta. Matchea la config del control panel.
+- **CI workflow least privilege** (closes F-501):
+  `.github/workflows/ci.yml` declara `permissions: contents:
+  read` a nivel workflow. Una dependency comprometida que
+  intente leer el `GITHUB_TOKEN` durante `npm ci` ya no
+  puede usar permisos de write contra el repo aunque la
+  política default fuera permisiva.
+- **SECURITY.md reescrito** para reflejar la implementación
+  real: cobertura completa de redactores secrets (15 patterns)
+  y paths (12 prefixes), bridge HTTP threat model (auth +
+  rate limit + Slowloris + Origin guard), webview integrity
+  model, filename sanitization layered (bidi override +
+  Windows reserved + drive letter + dot segments), zero-network
+  promise validada por audit. PII redaction documentada como
+  opt-in via `--redact-pii` con scope explícito (email + IP).
+
+### Internal
+
+- **Redactor composer** acepta `RedactOptions { pii?: boolean }`
+  threaded a través de los 3 formatters (claudeai, chatgpt,
+  Claude Code .jsonl) via nuevos `redactPii?: boolean` en cada
+  `FormatOptions`.
+- **`writeSummary`** (CLI `io.ts`) ahora reporta PII counts
+  cuando hay matches.
+- **29 tests nuevos** sobre los patterns de secrets/paths/PII
+  + `stripTerminalControl`. Coverage del redactor sube a
+  todas las clases de patterns nuevas.
+- Bump del Chrome companion también a 0.11.7 por simetría,
+  sin cambios funcionales en el companion.
+
+### Accepted (no fix this release)
+
+- **F-401** sharp postinstall fetches binaries from
+  `sharp.pixelplumbing.com`. Dev-only dep, no envío a end
+  users. Documentado.
+- **F-502** Release VSIX y companion zip no están firmados con
+  cosign / GPG. Single-developer project, ROI bajo. Documentado
+  como TODO futuro.
+
 ## [0.11.6] — 2026-04-30
 
 Security release. Closes the open findings from the second-pass

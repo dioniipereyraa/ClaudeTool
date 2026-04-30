@@ -73,4 +73,59 @@ describe('redactSecrets', () => {
     expect(out.redactedCount).toBe(0);
     expect(out.text).toBe('plain prose without secrets');
   });
+
+  it('redacts OpenAI service-account keys', () => {
+    const key = `sk-svcacct-${'a'.repeat(40)}`;
+    const out = redactSecrets(`x ${key} y`);
+    expect(out.text).toContain('<REDACTED:openai>');
+  });
+
+  it('redacts OpenAI admin keys', () => {
+    const key = `sk-admin-${'b'.repeat(40)}`;
+    const out = redactSecrets(`x ${key} y`);
+    expect(out.text).toContain('<REDACTED:openai>');
+  });
+
+  it('redacts AWS STS session keys', () => {
+    const out = redactSecrets('session=ASIA0123456789ABCDEF end');
+    expect(out.text).toContain('<REDACTED:aws-session-key>');
+  });
+
+  it('redacts DigitalOcean PATs', () => {
+    const token = `dop_v1_${'a'.repeat(64)}`;
+    const out = redactSecrets(`do=${token}`);
+    expect(out.text).toContain('<REDACTED:digitalocean>');
+  });
+
+  it('redacts Twilio account SIDs', () => {
+    const out = redactSecrets(`twilio AC${'1'.repeat(32)} ok`);
+    expect(out.text).toContain('<REDACTED:twilio-sid>');
+  });
+
+  it('redacts Mailgun keys', () => {
+    const out = redactSecrets(`key-${'a'.repeat(32)} end`);
+    expect(out.text).toContain('<REDACTED:mailgun>');
+  });
+
+  it('redacts SendGrid API keys', () => {
+    const out = redactSecrets(`SG.${'a'.repeat(22)}.${'b'.repeat(43)} end`);
+    expect(out.text).toContain('<REDACTED:sendgrid>');
+  });
+
+  it('redacts Discord bot tokens', () => {
+    const token = `M${'a'.repeat(23)}.${'b'.repeat(6)}.${'c'.repeat(38)}`;
+    const out = redactSecrets(`bot=${token} end`);
+    expect(out.text).toContain('<REDACTED:discord-bot>');
+  });
+
+  it('redacts MongoDB Atlas connection strings with embedded password', () => {
+    const out = redactSecrets('mongodb+srv://admin:s3cr3t@cluster0.mongodb.net/db');
+    expect(out.text).toContain('<REDACTED:mongodb-uri>');
+  });
+
+  it('redacts Slack app tokens', () => {
+    const token = `xapp-1-${'A'.repeat(11)}-${'1'.repeat(10)}-${'b'.repeat(40)}`;
+    const out = redactSecrets(`slack=${token} end`);
+    expect(out.text).toContain('<REDACTED:slack-app>');
+  });
 });

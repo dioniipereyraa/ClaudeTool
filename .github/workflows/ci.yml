@@ -6,6 +6,14 @@ on:
   pull_request:
     branches: [main]
 
+# Least privilege: this workflow only reads the repo to lint, typecheck,
+# test and build. Never pushes, never creates issues, never publishes.
+# A compromised dependency running during npm ci cannot exercise
+# write permissions on the GITHUB_TOKEN even if the repo's default
+# token policy is "Read and write".
+permissions:
+  contents: read
+
 jobs:
   ci:
     runs-on: ubuntu-latest

@@ -77,4 +77,34 @@ describe('redactPaths', () => {
     expect(out.text).toBe(input);
     expect(out.redactedCount).toBe(0);
   });
+
+  it('redacts Windows UNC paths', () => {
+    const out = redactPaths('Saved to \\\\server01\\share\\folder\\file.txt today.');
+    expect(out.text).toBe('Saved to <PATH> today.');
+    expect(out.redactedCount).toBe(1);
+  });
+
+  it('redacts file:// URIs', () => {
+    const out = redactPaths('Open file:///Users/alice/notes.md right now.');
+    expect(out.text).toBe('Open <PATH> right now.');
+    expect(out.redactedCount).toBe(1);
+  });
+
+  it('redacts /Volumes/ macOS external drive paths', () => {
+    const out = redactPaths('Backup is at /Volumes/Backup/db/dump.sql daily.');
+    expect(out.text).toBe('Backup is at <PATH> daily.');
+    expect(out.redactedCount).toBe(1);
+  });
+
+  it('redacts /private/ macOS firmlink paths', () => {
+    const out = redactPaths('See /private/etc/hosts for the override.');
+    expect(out.text).toBe('See <PATH> for the override.');
+    expect(out.redactedCount).toBe(1);
+  });
+
+  it('redacts /root/ Linux root home paths', () => {
+    const out = redactPaths('Logs in /root/.bash_history were rotated.');
+    expect(out.text).toBe('Logs in <PATH> were rotated.');
+    expect(out.redactedCount).toBe(1);
+  });
 });

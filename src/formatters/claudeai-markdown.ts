@@ -17,6 +17,7 @@ import {
 
 export interface ClaudeAiFormatOptions {
   readonly redact: boolean;
+  readonly redactPii?: boolean;
   readonly includeTools?: boolean;
   readonly includeAttachments?: boolean;
 }
@@ -70,7 +71,7 @@ export function formatConversation(
   for (const message of conversation.chat_messages) {
     const body = renderMessage(message, ctx);
     if (body.length === 0) continue;
-    const redacted = options.redact ? redact(body, report) : body;
+    const redacted = options.redact ? redact(body, report, { pii: options.redactPii === true }) : body;
     const role: 'user' | 'assistant' = message.sender === 'human' ? 'user' : 'assistant';
     if (lastRole !== role) {
       lines.push('', role === 'user' ? '## User' : '## Assistant', '');
@@ -85,7 +86,7 @@ export function formatConversation(
     // patterns (no file paths, no secrets), but just in case we redact
     // them through the same pipeline.
     const footnoteBlock = ctx.footnotes.join('\n');
-    lines.push(options.redact ? redact(footnoteBlock, report) : footnoteBlock, '');
+    lines.push(options.redact ? redact(footnoteBlock, report, { pii: options.redactPii === true }) : footnoteBlock, '');
   }
 
   const markdown = lines.join('\n').replace(/\n{3,}/g, '\n\n').trim() + '\n';

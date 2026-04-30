@@ -93,11 +93,33 @@ export interface PanelImportHandlers {
   readonly importChatGptZip: (filePath: string) => Promise<void>;
 }
 
+// Webview-invokable commands. The control panel renders provider rows
+// whose `data-cmd` attribute holds one of these strings, and the
+// webview JS posts back `{type:'runCommand', command}`. Anything not
+// on this list is rejected. Locks down a hypothetical webview
+// compromise from invoking arbitrary VS Code commands like
+// `workbench.action.terminal.sendSequence` (RCE shape).
+const ALLOWED_WEBVIEW_COMMANDS: ReadonlySet<string> = new Set([
+  'exportal.importFromZip',
+  'exportal.importFromChatGptZip',
+  'exportal.sendSessionToClaudeAi',
+  'exportal.sendSessionToChatGpt',
+]);
+
 export class ExportalControlPanelProvider implements vscode.WebviewViewProvider {
   private readonly listeners: vscode.Disposable[] = [];
   private webviewView: vscode.WebviewView | undefined;
   private downloadWatchers: FSWatcher[] = [];
   private debounceTimer: NodeJS.Timeout | undefined;
+  /**
+   * Snapshot of the last set of ZIP paths we discovered in
+   * Downloads/Desktop and offered to the webview. The
+   * `importDetectedZip` handler only forwards a path if it
+   * matches one of these. A compromised webview that posts an
+   * arbitrary path on disk gets rejected before jszip ever sees
+   * the file.
+   */
+  private lastDetectedPaths = new Set<string>();
   /**
    * In-memory record of the most recent successful import that the
    * user has not yet dismissed. Persisted across panel show/hide
@@ -190,7 +212,12 @@ export class ExportalControlPanelProvider implements vscode.WebviewViewProvider 
           .getConfiguration('exportal')
           .update(m.key, m.value, vscode.ConfigurationTarget.Global);
       } else if (m.type === 'runCommand' && typeof m.command === 'string') {
-        await vscode.commands.executeCommand(m.command);
+        if (ALLOWED_WEBVIEW_COMMANDS.has(m.command)) {
+          await vscode.commands.executeCommand(m.command);
+        }
+        // else: silently drop. A future console.warn could help debug
+        // legitimate UI bugs but logging the raw command name from a
+        // potentially compromised webview is its own minor leak.
       } else if (m.type === 'copyToken') {
         const token = this.readToken();
         if (token !== undefined) {
@@ -236,7 +263,14 @@ export class ExportalControlPanelProvider implements vscode.WebviewViewProvider 
       } else if (m.type === 'importDetectedZip'
           && typeof m.provider === 'string'
           && typeof m.filePath === 'string') {
-        await this.runDetectedImport(m.provider, m.filePath);
+        // Only honour paths we ourselves emitted via `refreshDetectedZips`.
+        // A compromised webview otherwise could ask us to read any
+        // absolute path on disk and surface its contents in
+        // `.exportal/` (info disclosure) if it happens to be a ZIP
+        // shaped like a claude.ai/chatgpt export.
+        if (this.lastDetectedPaths.has(m.filePath)) {
+          await this.runDetectedImport(m.provider, m.filePath);
+        }
       } else if (m.type === 'openExternal' && typeof m.url === 'string') {
         // Whitelist only the GitHub repo so a future webview tweak can't
         // accidentally turn this into an open redirect.
@@ -382,6 +416,7 @@ export class ExportalControlPanelProvider implements vscode.WebviewViewProvider 
     }
     if (this.webviewView === undefined) return; // disposed mid-scan
     const payload: Partial<Record<ExportProvider, { filename: string; folder: string; ageLabel: string; path: string }>> = {};
+    const fresh = new Set<string>();
     for (const provider of Object.keys(zips) as ExportProvider[]) {
       const c = zips[provider];
       if (c === undefined) continue;
@@ -391,7 +426,11 @@ export class ExportalControlPanelProvider implements vscode.WebviewViewProvider 
         ageLabel: formatRelativeTime(c.mtime),
         path: c.path,
       };
+      fresh.add(c.path);
     }
+    // Replace the trust set so a path that was offered earlier but
+    // is no longer detected stops being honoured.
+    this.lastDetectedPaths = fresh;
     void this.webviewView.webview.postMessage({ type: 'detectedZips', zips: payload });
   }
 

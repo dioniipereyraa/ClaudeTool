@@ -8,6 +8,34 @@ import { confirm, stdinIsTTY } from './prompt.js';
 const PREVIEW_HEAD = 15;
 const PREVIEW_TAIL = 15;
 
+// C0 control chars (U+0000-U+001F) except TAB (0x09), LF (0x0A) and
+// CR (0x0D), plus DEL (0x7F). Built via RegExp constructor with
+// escape sequences so the source code stays plain ASCII. ESLint
+// flags `no-control-regex` here because matching control chars is
+// the entire point of the regex.
+const TERMINAL_CONTROL_CHARS =
+  // eslint-disable-next-line no-control-regex
+  new RegExp('[\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F\\u007F]', 'g');
+
+/**
+ * Strip ASCII control characters from text headed to a terminal.
+ *
+ * A model can be coaxed (or a malicious upstream message can plant)
+ * content with ANSI escape sequences (`[...`) or other control
+ * codes. Most modern terminals interpret them, allowing window-title
+ * spoofing, color tricks, OSC 52 clipboard injection, etc. Stripping
+ * before writing to stdout keeps the markdown intact while neutering
+ * the terminal-side hijack vector.
+ *
+ * Preserves TAB, LF, CR so the markdown formatting (paragraphs, code
+ * fences, tables) renders normally. Apply ONLY at the stdout boundary,
+ * file outputs under `--out` should preserve the data faithfully so
+ * the user can inspect it in their editor.
+ */
+export function stripTerminalControl(text: string): string {
+  return text.replace(TERMINAL_CONTROL_CHARS, '');
+}
+
 export interface WriteWithPreviewOptions {
   readonly out: string;
   readonly redact: boolean;
@@ -111,6 +139,12 @@ export function writeSummary(report: RedactionReport, redactionDisabled: boolean
       .map(([type, count]) => `${String(count)}x${type}`)
       .join(', ');
     parts.push(`${String(report.secrets)} secret(s) [${detail}]`);
+  }
+  if (report.pii > 0) {
+    const detail = Object.entries(report.piiByType)
+      .map(([type, count]) => `${String(count)}x${type}`)
+      .join(', ');
+    parts.push(`${String(report.pii)} PII [${detail}]`);
   }
   const summary = parts.length > 0 ? `Redacted: ${parts.join(', ')}.` : 'No sensitive patterns found.';
   process.stderr.write(`\n${summary}\n`);

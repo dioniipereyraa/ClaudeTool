@@ -1,6 +1,13 @@
-import { readFile } from 'node:fs/promises';
+import { readFile, stat } from 'node:fs/promises';
 
 import JSZip from 'jszip';
+
+// Hard cap for the ZIP loaded into memory. Big ChatGPT accounts can
+// run hundreds of MB but anything past 100 MB is almost certainly
+// not a real export and would crash the extension host. The
+// auto-discover path already caps at 50 MB; this is the file-picker
+// safety net.
+const MAX_ZIP_BYTES = 100 * 1024 * 1024;
 
 import {
   parseConversationOrIssues,
@@ -57,6 +64,14 @@ const CHUNK_PATTERN = /^conversations-\d+\.json$/i;
  * MB; defer streaming until we see real-world OOMs.
  */
 export async function readChatGptExport(zipPath: string): Promise<ChatGptExport> {
+  const stats = await stat(zipPath);
+  if (stats.size > MAX_ZIP_BYTES) {
+    const mb = (stats.size / 1024 / 1024).toFixed(1);
+    const cap = (MAX_ZIP_BYTES / 1024 / 1024).toFixed(0);
+    throw new Error(
+      `ChatGPT export is ${mb} MB which exceeds the ${cap} MB cap. Refusing to load to avoid crashing the extension host.`,
+    );
+  }
   const buf = await readFile(zipPath);
   const zip = await JSZip.loadAsync(buf);
 

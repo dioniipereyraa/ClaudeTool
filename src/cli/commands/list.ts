@@ -40,9 +40,26 @@ export function registerList(program: Command): void {
 }
 
 async function resolveProjects(opts: ListOptions): Promise<string[]> {
-  if (opts.project !== undefined) return [opts.project];
+  if (opts.project !== undefined) {
+    assertSafeProjectName(opts.project);
+    return [opts.project];
+  }
   if (opts.all) return listProjectDirs();
   return [encodeProjectDir(process.cwd())];
+}
+
+// `--project` is joined under `~/.claude/projects/`. Reject anything
+// that would let the user list a directory above the projects root,
+// even though the CLI is local and the user already has read access:
+// the goal is documented behaviour, not silent traversal that prints
+// unrelated files.
+function assertSafeProjectName(name: string): void {
+  if (name.length === 0) throw new Error('--project must be a non-empty folder name');
+  if (name.includes('..')) throw new Error('--project must not contain `..` segments');
+  if (name.includes('/') || name.includes('\\')) {
+    throw new Error('--project must be a single folder name, not a path');
+  }
+  if (name.includes('\0')) throw new Error('--project contains a null byte');
 }
 
 function truncate(value: string, max = 60): string {

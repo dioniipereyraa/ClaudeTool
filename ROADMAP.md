@@ -13,15 +13,18 @@ Items concretos y cerrados se mueven al `DEVLOG.md`. Releases formales al
   trabada). Cuando apruebe: ejecutar el plan de visibilidad —
   PRs/issues a awesome-lists, post r/ClaudeAI, thread X, Show HN
   (copy listo en `.exportal/3-exportal-ejemplos-copy.md`).
-- [ ] Re-empaquetar el companion 0.11.6 (`npm run package:chrome`)
+- [ ] Re-empaquetar el companion 0.11.7 (`npm run package:chrome`)
   y submitearlo al Chrome Web Store post-aprobación de la 0.11.2.
-  Sin cambios funcionales en el companion, el bump es por simetría
-  con la VS Code extension.
-- [ ] Subir `exportal-0.11.6.vsix` al VS Code Marketplace (portal
-  web o `vsce publish` con PAT). La 0.11.6 incluye el cluster
-  ergonomía completo (Hitos 32+33+34) más el security release
-  (rate limiting, Slowloris timeouts, URL whitelist, RTL filter,
-  CSP en docs).
+  Sin cambios funcionales en el companion en este release, el bump
+  es por simetría con la VS Code extension.
+- [ ] Subir `exportal-0.11.7.vsix` al VS Code Marketplace (portal
+  web o `vsce publish` con PAT). La 0.11.7 incluye el cluster
+  ergonomía completo (Hitos 32+33+34) más dos releases de
+  seguridad: 0.11.6 (rate limiting, Slowloris, URL whitelist,
+  RTL filter, CSP en docs) y 0.11.7 (cleanup completo del deep
+  audit: PII redactor opt-in, Windows reserved names, ZIP size
+  cap, webview command whitelist, ANSI strip en CLI, CI least
+  privilege).
 - [ ] Verificar `exportal.dev` en Google Search Console (TXT record
   via Cloudflare DNS, 2 min) para activar el badge "URL oficial
   verificada" en el listing de Chrome Web Store. No es bloqueante

@@ -22,6 +22,7 @@ const INTERNAL_CONTENT_TYPES: ReadonlySet<string> = new Set([
 
 export interface ChatGptFormatOptions {
   readonly redact: boolean;
+  readonly redactPii?: boolean;
   readonly includeTools?: boolean;
 }
 
@@ -55,7 +56,13 @@ export function formatChatGptConversation(
   lines.push('');
 
   for (const message of activeBranchMessages(conversation)) {
-    const block = renderMessage(message, includeTools, options.redact, report);
+    const block = renderMessage(
+      message,
+      includeTools,
+      options.redact,
+      options.redactPii === true,
+      report,
+    );
     if (block === undefined) continue;
     lines.push(block);
     lines.push('');
@@ -68,6 +75,7 @@ function renderMessage(
   message: ChatGptMessage,
   includeTools: boolean,
   shouldRedact: boolean,
+  redactPii: boolean,
   report: RedactionReport,
 ): string | undefined {
   const role = message.author.role;
@@ -81,7 +89,7 @@ function renderMessage(
 
   if (role === 'tool') {
     if (!includeTools) return undefined;
-    const body = renderBody(message, shouldRedact, report);
+    const body = renderBody(message, shouldRedact, report, redactPii);
     if (body.trim().length === 0) return undefined;
     return [
       '<details><summary><strong>tool_result</strong></summary>',
@@ -97,7 +105,7 @@ function renderMessage(
   // not user-facing replies.
   if (role === 'assistant' && recipient !== 'all') {
     if (!includeTools) return undefined;
-    const body = renderBody(message, shouldRedact, report);
+    const body = renderBody(message, shouldRedact, report, redactPii);
     if (body.trim().length === 0) return undefined;
     return [
       `<details><summary><strong>tool_use</strong>: <code>${recipient}</code></summary>`,
@@ -108,7 +116,7 @@ function renderMessage(
     ].join('\n');
   }
 
-  const body = renderBody(message, shouldRedact, report);
+  const body = renderBody(message, shouldRedact, report, redactPii);
   if (body.trim().length === 0) return undefined;
   const heading = role === 'user' ? '## User' : '## Assistant';
   return `${heading}\n\n${body}`;
@@ -118,9 +126,11 @@ function renderBody(
   message: ChatGptMessage,
   shouldRedact: boolean,
   report: RedactionReport,
+  redactPii: boolean,
 ): string {
   const content = message.content;
-  const maybeRedact = (s: string): string => shouldRedact ? redact(s, report) : s;
+  const maybeRedact = (s: string): string =>
+    shouldRedact ? redact(s, report, { pii: redactPii }) : s;
 
   switch (content.content_type) {
     case 'text':

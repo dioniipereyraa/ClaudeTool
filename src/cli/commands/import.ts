@@ -3,7 +3,7 @@ import { type Command } from 'commander';
 import { formatConversation } from '../../formatters/claudeai-markdown.js';
 import { readClaudeAiExport } from '../../importers/claudeai/reader.js';
 import { type ClaudeAiConversation } from '../../importers/claudeai/schema.js';
-import { writeSummary, writeWithPreview } from '../io.js';
+import { stripTerminalControl, writeSummary, writeWithPreview } from '../io.js';
 
 interface ImportListOptions {
   readonly source: string;
@@ -13,6 +13,7 @@ interface ImportShowOptions {
   readonly source: string;
   readonly out?: string;
   readonly redact: boolean;
+  readonly redactPii?: boolean;
   readonly includeTools?: boolean;
   readonly includeAttachments?: boolean;
   readonly yes?: boolean;
@@ -70,6 +71,7 @@ export function registerImport(program: Command): void {
     )
     .option('--out <file>', 'Write to file instead of stdout')
     .option('--no-redact', 'Disable redaction (not recommended)')
+    .option('--redact-pii', 'Also redact email addresses and IP addresses (opt-in)', false)
     .option('--include-tools', 'Render tool_use and tool_result blocks as collapsibles')
     .option(
       '--include-attachments',
@@ -96,12 +98,13 @@ export function registerImport(program: Command): void {
 
       const { markdown, report } = formatConversation(conversation, {
         redact: opts.redact,
+        ...(opts.redactPii === true && { redactPii: true }),
         ...(opts.includeTools === true && { includeTools: true }),
         ...(opts.includeAttachments === true && { includeAttachments: true }),
       });
 
       if (opts.out === undefined) {
-        process.stdout.write(markdown);
+        process.stdout.write(stripTerminalControl(markdown));
         writeSummary(report, !opts.redact);
         return;
       }

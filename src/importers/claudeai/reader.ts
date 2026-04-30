@@ -1,6 +1,13 @@
-import { readFile } from 'node:fs/promises';
+import { readFile, stat } from 'node:fs/promises';
 
 import JSZip from 'jszip';
+
+// Hard cap for the ZIP loaded into memory. Real claude.ai exports
+// land well under 50 MB even for power users. The auto-discover
+// path already caps at 50 MB; the file-picker path was uncapped, so
+// a user picking a 4 GB ZIP would crash the extension host. 100 MB
+// is generous headroom for huge accounts plus media.
+const MAX_ZIP_BYTES = 100 * 1024 * 1024;
 
 import {
   parseConversations,
@@ -51,6 +58,14 @@ const PROJECTS_ENTRY = 'projects.json';
  * the code. If that changes, swap for `jszip.loadAsync(stream)`.
  */
 export async function readClaudeAiExport(zipPath: string): Promise<ClaudeAiExport> {
+  const stats = await stat(zipPath);
+  if (stats.size > MAX_ZIP_BYTES) {
+    const mb = (stats.size / 1024 / 1024).toFixed(1);
+    const cap = (MAX_ZIP_BYTES / 1024 / 1024).toFixed(0);
+    throw new Error(
+      `claude.ai export is ${mb} MB which exceeds the ${cap} MB cap. Refusing to load to avoid crashing the extension host.`,
+    );
+  }
   const bytes = await readFile(zipPath);
   const zip = await JSZip.loadAsync(bytes);
 

@@ -457,7 +457,16 @@ function showPairingPanel(context: vscode.ExtensionContext, token: string): void
     'exportal.pairing',
     vscode.l10n.t('Exportal — pairing'),
     vscode.ViewColumn.Active,
-    { enableScripts: true, retainContextWhenHidden: false },
+    {
+      enableScripts: true,
+      retainContextWhenHidden: false,
+      // Belt-and-suspenders to the webview CSP. Constrains which
+      // local files the webview can load, so a future regression
+      // that adds an `<img>` or `<link>` tag without realising the
+      // CSP `img-src` / `style-src` already gate it has a second
+      // wall to hit. Matches the control-panel webview config.
+      localResourceRoots: [context.extensionUri],
+    },
   );
   panel.iconPath = vscode.Uri.joinPath(context.extensionUri, 'assets', 'icon.png');
   panel.webview.html = renderPairingHtml(panel.webview, token);
@@ -1160,6 +1169,14 @@ const BIDI_OVERRIDE_REGEX = new RegExp(
   '[\\u202A-\\u202E\\u2066-\\u2069\\uFEFF]',
 );
 
+// Windows reserved device names. On Windows, any path segment that
+// resolves to one of these (with or without an extension) maps to
+// the literal device. `vscode.workspace.fs.writeFile` against
+// `<workspace>/.exportal/CON.md` either errors opaquely or, on
+// legacy Windows, writes to the device. Reject before we ever ask
+// the FS layer about it. Case-insensitive per the Windows spec.
+const WINDOWS_RESERVED_NAMES = /^(?:CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])(?:\..*)?$/i;
+
 // Defense-in-depth: assets come from a Chrome companion that we
 // authenticate via Bearer, but the bridge is still a trust boundary
 // and `vscode.workspace.fs` will happily write to any path the URI
@@ -1182,6 +1199,7 @@ function sanitizeAssetFilename(filename: string): string | undefined {
   const normalized = filename.replace(/\\/g, '/');
   for (const segment of normalized.split('/')) {
     if (segment === '..' || segment === '.' || segment.length === 0) return undefined;
+    if (WINDOWS_RESERVED_NAMES.test(segment)) return undefined;
   }
   return normalized;
 }

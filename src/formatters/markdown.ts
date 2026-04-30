@@ -11,6 +11,7 @@ import { renderToolResult, renderToolUse } from './markdown-shared.js';
 
 export interface FormatOptions {
   readonly redact: boolean;
+  readonly redactPii?: boolean;
   readonly skipPrecompact?: boolean;
   readonly includeTools?: boolean;
   readonly includeThinking?: boolean;
@@ -68,7 +69,7 @@ export function formatAsMarkdown(
     if (event.type === 'user' && isCompactSummaryUser(event)) {
       const body = renderBlocks(event.message.content, { includeTools: false, includeThinking: false });
       if (body.length === 0) continue;
-      const redacted = options.redact ? redact(body, report) : body;
+      const redacted = options.redact ? redact(body, report, { pii: options.redactPii === true }) : body;
       lines.push('', '## Compact summary', '', redacted, '');
       lastRole = 'summary';
       continue;
@@ -76,7 +77,7 @@ export function formatAsMarkdown(
     if (event.type === 'user') {
       const body = renderBlocks(event.message.content, render);
       if (body.length === 0) continue;
-      const redacted = options.redact ? redact(body, report) : body;
+      const redacted = options.redact ? redact(body, report, { pii: options.redactPii === true }) : body;
       if (lastRole !== 'user') {
         lines.push('', '## User', '');
         lastRole = 'user';
@@ -85,7 +86,7 @@ export function formatAsMarkdown(
     } else if (event.type === 'assistant') {
       const body = renderBlocks(event.message.content, render);
       if (body.length === 0) continue;
-      const redacted = options.redact ? redact(body, report) : body;
+      const redacted = options.redact ? redact(body, report, { pii: options.redactPii === true }) : body;
       if (lastRole !== 'assistant') {
         lines.push('', '## Assistant', '');
         lastRole = 'assistant';

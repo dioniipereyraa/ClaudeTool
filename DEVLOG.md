@@ -5835,5 +5835,90 @@ observable.
    ciclo, structured según OWASP/CWE format. Esa es la próxima
    tarea de seguridad.
 
+---
+
+## 2026-04-30 — Release 0.11.7 · deep audit cleanup completo
+
+### Qué hicimos
+
+Dioni pidió un audit estructurado siguiendo Fases 1-6 después de la
+0.11.6. El sub-agent corrió Fase 1 (reconnaissance, mapeo, sinks,
+outbound) y luego Fases 2-6 (per-file Q&A, attack surfaces, supply
+chain, CI, threat model residual). Ver `AUDIT-2026-04-30-deep-fase1.md`
+y `AUDIT-2026-04-30-deep-fases-2-6.md`. Resultado: 0 HIGH, 0 MEDIUM,
+6 BAJA, 7 INFORMATIVA. Dioni dijo "dale a TODO, el proyecto debe
+quedar limpio y sin vulnerabilidades". Esta entry cubre los 11 fixes
+implementados (5 INFORMATIVA pasaron a "fixed", 2 quedan como
+"accepted" por threat model).
+
+### Findings cerrados
+
+| ID | Categoría | Patch |
+|---|---|---|
+| F-201 | Filename sanitization | Windows reserved names (`CON`, `PRN`, etc) en `sanitizeAssetFilename` |
+| F-202 | Webview integrity | Whitelist en `runCommand` handler del control panel |
+| F-203 | Webview integrity | `importDetectedZip` valida path contra last-detected set |
+| F-204 | CLI input | `assertSafeProjectName` en `--project` flag (list, export) |
+| F-205 | DoS local | Cap de 100 MB en file-picker path para ambos importers |
+| F-206 | Secret redactor | 8 patterns nuevos: OpenAI svcacct/admin, AWS STS, DigitalOcean, Twilio SID, Mailgun, SendGrid, Discord bot, Slack app, MongoDB Atlas URI |
+| F-207 | Path redactor | 5 prefixes nuevos: UNC `\\server\share`, `file://`, `/Volumes/`, `/private/`, `/root/` |
+| F-301 | Webview hardening | `localResourceRoots` en pairing webview |
+| F-302 | Terminal injection | `stripTerminalControl` antes de stdout en CLI |
+| F-501 | CI hardening | `permissions: contents: read` en `.github/workflows/ci.yml` |
+| F-601 | Doc/code drift | PII redactor real (email + IPv4 + IPv6) + `--redact-pii` flag + SECURITY.md reescrito |
+
+### Findings aceptados (no fix)
+
+- **F-401** sharp postinstall fetch a `sharp.pixelplumbing.com`.
+  Dev-only dep, no se ship al user. Single-developer project.
+  Documentado.
+- **F-502** VSIX y companion zip no firmados con cosign/GPG.
+  Marketplace + CWS son el trust anchor real. Documentado como
+  TODO futuro de bajo ROI.
+
+### Decisiones técnicas
+
+- **PII scope**: solo email, IPv4, IPv6. Conservative regex con FP
+  bajo. Phone numbers y nombres se descartaron (precision insuficiente
+  con regex). Documentado en SECURITY.md.
+- **`--redact-pii` opt-in en CLI, no en extensión por default**: la
+  extensión auto-attachea el `.md` a Claude Code, agregar otro setting
+  es overhead. Si en el futuro hay demanda, se agrega
+  `exportal.redactPii` setting.
+- **Webview `runCommand` whitelist con drop silencioso**: no log el
+  command name rechazado. Loggear el raw command name de un webview
+  potencialmente comprometido es su propio mini-leak.
+- **`importDetectedZip` last-detected set**: per-instance, replace
+  on each `refreshDetectedZips`. Evita que paths que ya no son
+  detectados sigan siendo honored.
+- **CI permissions `contents: read`**: scope mínimo. Workflow no
+  publica nada, solo lint/typecheck/test/build.
+- **`BIDI_OVERRIDE_REGEX` y `TERMINAL_CONTROL_CHARS`**: ambos
+  construidos via `new RegExp(escape sequences)` para que el código
+  fuente quede ASCII y no triggee `no-irregular-whitespace` /
+  `no-control-regex`.
+
+### Verificación
+
+- `npm run ci`: 313/313 tests, lint, typecheck, build verde.
+- 29 tests nuevos:
+  - 9 sobre los patterns de secrets nuevos.
+  - 5 sobre path patterns nuevos (UNC, file://, /Volumes, /private, /root).
+  - 8 sobre `redactPii` (email, IPv4 con out-of-range, IPv6 canonical y short).
+  - 6 sobre `stripTerminalControl` (preserve markdown / tabs / LF, strip ANSI / OSC / DEL / C0).
+- Smoke test pendiente cuando Dioni instale el VSIX nuevo.
+
+### Próximo paso
+
+1. Smoke test del Hito 33 (FAB en Claude Design) cuando reseteen
+   tokens.
+2. Subir `exportal-0.11.7.vsix` al VS Code Marketplace y
+   `exportal-companion-0.11.7.zip` al Chrome Web Store
+   post-aprobación de la 0.11.2 que sigue en review.
+3. Después: trabajo de comunicación pre-lanzamiento (video, blog
+   post). El frente de seguridad queda cerrado por ahora; el
+   próximo audit vale la pena disparar cuando entre Hito 22
+   (Gemini) o se sume otra superficie nueva.
+
 
 
