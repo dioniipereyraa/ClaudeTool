@@ -5,7 +5,14 @@ import prettier from 'eslint-config-prettier';
 
 export default tseslint.config(
   {
-    ignores: ['dist/**', 'coverage/**', 'node_modules/**', 'design-cds/**'],
+    // `docs/**` is the GitHub Pages landing (static HTML + a couple of
+    // browser scripts). Linting it under the project's Node-flavoured
+    // config would require teaching ESLint about every browser global
+    // (window, document, IntersectionObserver, fetch, requestAnimationFrame,
+    // FormData, etc.). The landing has its own life cycle, hand-edited
+    // and reviewed in the browser, so we keep ESLint focused on the
+    // shipped product and let the landing stay outside the lint pass.
+    ignores: ['dist/**', 'coverage/**', 'node_modules/**', 'design-cds/**', 'docs/**'],
   },
   js.configs.recommended,
   {
