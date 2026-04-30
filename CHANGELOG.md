@@ -6,6 +6,92 @@ Companion (Chrome extension) are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 and versions follow [Semantic Versioning](https://semver.org/).
 
+## [0.11.6] — 2026-04-30
+
+Security release. Closes the open findings from the second-pass
+audit (`AUDIT-2026-04-30.md`): rate limiting on the local bridge,
+Slowloris timeouts, URL schema whitelist in citation rendering,
+Unicode bidi-override filter on asset filenames, race-safe dismiss
+of the After-import section, and CSP meta tags on the landing
+pages. 284/284 tests verdes.
+
+### Added
+
+- **Rate limiting on the HTTP bridge** (M2 of the audit): sliding
+  60-second window per endpoint. `/ping` 30/min, `/import` 10/min,
+  `/import-inline` 30/min. The check fires BEFORE auth so a local
+  process spamming bad tokens cannot keep the constant-time
+  comparator hot beyond budget. 429 responses include
+  `Retry-After`. Per-server store so tests stay isolated.
+- **Slowloris and request-stall mitigations** (M2.c): the bridge
+  sets `headersTimeout=5s`, `requestTimeout=30s`,
+  `keepAliveTimeout=5s`. Node 20 defaults of 60s/300s/5s let a
+  hostile local process tie up file descriptors trivially. The
+  Companion completes its requests in milliseconds, so the new
+  values never trip on legitimate use.
+- **URL schema whitelist in citation rendering** (M1): claude.ai
+  and ChatGPT citation URLs in tether/footnote blocks now go
+  through `safeMarkdownLink` / `safeAutoLink` /
+  `safeUrlForFootnote`. `http:`, `https:` and `mailto:` pass
+  through as clickable links, anything else (`javascript:`,
+  `data:`, `vbscript:`, `file:`, control characters, malformed
+  URLs) is rendered inline as code so downstream renderers cannot
+  honour the unsafe scheme. Closing parens inside safe URLs are
+  percent-encoded so a `)` cannot terminate the link target.
+- **Bidi override filter on asset filenames** (S2): the
+  `sanitizeAssetFilename` defense now rejects U+202A-U+202E,
+  U+2066-U+2069, and U+FEFF (BOM). The classic
+  `cool[U+202E]gnp.exe` filename spoof no longer reaches the user's
+  `.exportal/` folder.
+- **CSP meta tags on the landing pages** (D2):
+  `docs/index.html`, `docs/privacy/index.html` and
+  `docs/support/index.html` now declare a strict
+  `Content-Security-Policy` (default-src 'self'; locked-down
+  script-src, style-src, font-src, connect-src; tight form-action;
+  frame-ancestors 'none'). Defense-in-depth in case a malicious
+  PR ever ships injected content.
+
+### Changed
+
+- **Fence detection in `markdown-shared.ts`** (L1): `fenceCode`
+  now counts the longest run of consecutive backticks in the
+  content and uses a fence one backtick longer (CommonMark spec).
+  The previous "use 4 if you see 3" was fooled by 4+ consecutive
+  backticks in tool_result content.
+- **Race-safe After-import dismiss** (B1 of the audit): the
+  `notifyPostImport` flow now stamps a monotonic version on every
+  notify and the dismiss message echoes back the version the
+  webview rendered. The backend only clears
+  `pendingImportFilename` when the version still matches, so a
+  fresh export arriving between user click and message delivery
+  is not silently dismissed.
+
+### Fixed
+
+- **`/ping` no longer buffers stray bodies** (M2.b): a malicious
+  client sending POST /ping with a body now has the stream
+  drained via `req.resume()` instead of being silently buffered
+  by Node.
+- **`Number.isFinite` already covered Content-Length parsing**
+  (B2 of the previous audit, fixed in 0.11.5; mentioned here for
+  completeness while we re-checked the early-reject ordering).
+
+### Internal
+
+- 32 new tests: 7 unit on `checkRateLimit` (budgets, sliding
+  window, retry-after), 1 integration end-to-end of /import rate
+  limit, 24 on the URL helpers + fenceCode with backtick runs of
+  3, 4, and 5.
+- Module-level `BIDI_OVERRIDE_REGEX` declared via `RegExp(...)` +
+  escape sequences so the source code stays plain ASCII and
+  doesn't trip ESLint's `no-irregular-whitespace`.
+- `sendErrorJson(req, res, status, body)` helper in
+  `http-server.ts` always drains the request body via
+  `req.resume()` before sending a JSON error, preventing
+  stray bytes from misframing the next pipelined request.
+- `checkRateLimit`, `RATE_LIMITS`, `RATE_LIMIT_WINDOW_MS`,
+  `RateLimitState` exported for unit testing.
+
 ## [0.11.5] — 2026-04-30
 
 UX-only release que cierra los Hitos 32 (badge inteligente del

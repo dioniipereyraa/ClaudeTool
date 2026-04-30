@@ -5706,5 +5706,134 @@ abrir el panel, ve los templates actualizados.
 4. Después: Hito 35 (`exportal.dev/pair` landing) o el trabajo
    de comunicación pre-lanzamiento (video, blog post).
 
+---
+
+## 2026-04-30 — Release 0.11.6 · security hardening (audit fixes)
+
+### Qué hicimos
+
+Cluster de seguridad disparado por una pedida explícita de Dioni:
+"sanatize all inputs, rate limiting en las rutas API, vulnerabilidades
+en extension y página web, revisá TODO el proyecto". Antes de tocar
+código, lancé un audit estructurado (resultado en `AUDIT-2026-04-30.md`)
+para no implementar fixes al voleo. Cero hallazgos HIGH, 5 MEDIUM, 14
+LOW. La release 0.11.6 cierra los MEDIUM relevantes y los LOW
+high-leverage en dos commits separados (Fase 1: críticos, Fase 2+3:
+hardening + bug fix).
+
+### Iteración 1 (commit b2c830c) — Fase 1: rate limiting + Slowloris + URL whitelist
+
+**Rate limiting** (M2 del audit): sliding 60s window per endpoint en
+el bridge HTTP. `/ping` 30/min, `/import` 10/min, `/import-inline`
+30/min. Se aplica ANTES del auth check para que un proceso local
+hostil que spamea bad tokens no pueda mantener `timingSafeEqual` hot
+más allá del budget. Devuelve 429 con `Retry-After` header. El store
+es per-server (no module-level) para que los tests no se interfieran.
+
+Decisión deliberada: per-IP rate limit no aplica (127.0.0.1-only,
+toda IP es la misma). Per-endpoint sliding window cubre el threat
+model real (memory/CPU exhaustion).
+
+**Slowloris timeouts** (M2.c): `headersTimeout=5s`,
+`requestTimeout=30s`, `keepAliveTimeout=5s`. Defaults Node 20 son
+60s/300s/5s. Para el Companion (que termina cada request en ms), 5s
+de headers + 30s total nunca trippea. Sin estos un proceso local
+hostil mantenía file descriptors abiertos por 5+ minutos.
+
+**URL schema whitelist** (M1): tres helpers nuevos en
+`markdown-shared.ts`:
+- `isSafeUrl(url)`: whitelist `http:`, `https:`, `mailto:`. Rechaza
+  control characters (newlines, tabs, U+0000-U+001F, U+007F) y
+  cualquier scheme fuera del set.
+- `safeMarkdownLink(title, url)`: si el URL no pasa, fallback a texto
+  plano + URL en backticks. Cuando pasa, percent-encodea `)` para que
+  un `)` en el URL no termine el link.
+- `safeAutoLink(url)`: variante para `<URL>`.
+- `safeUrlForFootnote(url)`: footnotes con URLs no seguras se escriben
+  entre backticks para que renderers no las auto-linkifiquen.
+
+Los tres call sites afectados están actualizados:
+`renderTetherCitation` en `chatgpt-markdown.ts` (líneas 256, 258) y
+`appendFootnoteMarkers` en `claudeai-markdown.ts` (línea 171).
+
+**Bonus: fenceCode robusto** (L1): mientras reescribía
+`markdown-shared.ts`, cambié `fenceCode` para contar el max-run de
+backticks consecutivos en el contenido y usar uno más (spec
+CommonMark). Antes: "use 4 backticks if content has 3". Ahora:
+verdadero max-run.
+
+### Iteración 2 (commit pendiente) — Fase 2+3: RTL filter + CSP + race fix
+
+**Bidi override filter en `sanitizeAssetFilename`** (S2): el classic
+filename spoof `cool[U+202E]gnp.exe` (renderiza como `coolexe.png`)
+ahora se rechaza. El regex incluye U+202A-U+202E (LRO/RLO/LRE/RLE/PDF)
++ U+2066-U+2069 (LRI/RLI/FSI/PDI) + U+FEFF (BOM). Construido vía
+`new RegExp('[\\u...]')` en lugar de regex literal con bytes literales,
+porque ESLint `no-irregular-whitespace` los detecta como error.
+
+**CSP `<meta>` en docs/** (D2): tres páginas de la landing
+(`docs/index.html`, `docs/privacy/`, `docs/support/`) ahora declaran
+`Content-Security-Policy` estricto:
+- `default-src 'self'`.
+- `img-src` permite `img.shields.io` solo en index.
+- `script-src 'self'` (sin inline, sin eval).
+- `form-action https://api.web3forms.com` solo en support (Web3Forms
+  contact form). Otros: `form-action 'none'`.
+- `frame-ancestors 'none'` (anti-clickjacking).
+
+**Race condition en `pendingImportFilename`** (B1): versionado con
+counter. `notifyPostImport` incrementa `notifyVersion` y lo incluye en
+el postMessage al webview. El webview lo guarda en
+`section.dataset.version`. El dismiss handler echoes la versión back.
+El backend solo limpia `pendingImportFilename` si la versión sigue
+siendo la misma. Si entre click y delivery del mensaje llegó otro
+import, no se limpia.
+
+Sin esto: Alt+Shift+E rápido en dos chats, click en X del primero
+mientras llega el segundo, X borra el segundo. Edge case raro pero
+observable.
+
+### Verificación
+
+- 284/284 tests pasan (252 originales + 32 nuevos).
+- 32 tests nuevos: 7 unit sobre `checkRateLimit`, 1 integration
+  end-to-end del rate limit, 24 sobre los URL helpers + fenceCode.
+- Lint y typecheck verdes en cada commit.
+
+### Decisiones a notar
+
+- **Per-server rate limit store, no module-level**: cada
+  `listenOnPort` instancia su propio Map. Tests en paralelo no se
+  interfieren. Production: un solo server, un solo Map.
+- **Rate limit antes del auth, no después**: defensa contra spam de
+  tokens inválidos. Trade-off: un usuario legítimo que rota su token
+  y olvida reload puede ver 429 en lugar de 401, pero los límites
+  son tan amplios que no es problema práctico.
+- **`sendErrorJson` con `req.resume()`**: agregado para drenar el
+  body en respuestas tempranas y evitar misframing en pipelined
+  keep-alive. Salía ECONNRESET en tests con loops de 11+ requests.
+- **Tests del rate limit como unit + 1 integration**: undici (Node
+  fetch) + Slowloris timeouts en localhost generan ECONNRESET en
+  loops de fetch consecutivos. La solución limpia: testear
+  `checkRateLimit` como función pura (con `now` parameter
+  inyectado) y mantener UN integration test que verifica el wiring
+  end-to-end.
+- **`BIDI_OVERRIDE_REGEX` con `RegExp` constructor**: regex literal
+  con bytes Unicode bidi trippea ESLint `no-irregular-whitespace`. La
+  construcción dinámica con escape sequences ASCII queda limpia.
+
+### Próximo paso
+
+1. Smoke test del Hito 33 (FAB en Claude Design) cuando reseteen
+   tokens. No es bloqueante para 0.11.6 porque el path de chat
+   normal no tocó.
+2. Subir `exportal-0.11.6.vsix` al VS Code Marketplace via portal
+   web (más rápido que configurar PAT).
+3. Subir `exportal-companion-0.11.6.zip` al Chrome Web Store
+   post-aprobación de la 0.11.2.
+4. Despues: el deep audit (Fases 1-6) que Dioni pidió en este mismo
+   ciclo, structured según OWASP/CWE format. Esa es la próxima
+   tarea de seguridad.
+
 
 

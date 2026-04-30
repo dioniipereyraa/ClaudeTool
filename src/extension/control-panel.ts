@@ -106,11 +106,20 @@ export class ExportalControlPanelProvider implements vscode.WebviewViewProvider 
    * Search...) and then opens the Exportal tab afterwards, the
    * After-import section is restored as if the panel had been
    * visible all along. Cleared on the user's explicit dismiss
-   * (X button) or VS Code restart — never persisted to globalState
+   * (X button) or VS Code restart, never persisted to globalState
    * because templates from a stale export shouldn't haunt the user
    * across days.
+   *
+   * `notifyVersion` increments on every notifyPostImport so a
+   * dismiss racing against a fresh import can be detected: the
+   * dismiss message carries the version the user saw on screen, and
+   * we only clear `pendingImportFilename` when that version still
+   * matches. Without this, a fast Alt+Shift+E followed by a click
+   * on X could clear the section that just appeared from the second
+   * export.
    */
   private pendingImportFilename: string | undefined;
+  private notifyVersion = 0;
 
   constructor(
     private readonly context: vscode.ExtensionContext,
@@ -200,10 +209,16 @@ export class ExportalControlPanelProvider implements vscode.WebviewViewProvider 
           await pairAndOpenChrome(this.context, token);
         }
       } else if (m.type === 'dismissPostImport') {
-        // The user clicked the X on the After-import section. Clear
-        // the pending state so a future show/hide cycle won't bring
-        // the templates back. Hito 34.
-        this.pendingImportFilename = undefined;
+        // Race-safe dismiss. The webview tells us which notify version
+        // it had on screen; if a fresher import arrived after the user
+        // clicked X but before this message reached us, we keep the
+        // newer pending filename instead of throwing it away.
+        const dismissedVersion = typeof (m as { version?: unknown }).version === 'number'
+          ? (m as { version: number }).version
+          : 0;
+        if (dismissedVersion === this.notifyVersion) {
+          this.pendingImportFilename = undefined;
+        }
       } else if (m.type === 'rotateToken') {
         await this.context.globalState.update('exportal.pairingToken', undefined);
         // Reset the "paired toast already shown" flag so the user sees
@@ -396,6 +411,7 @@ export class ExportalControlPanelProvider implements vscode.WebviewViewProvider 
    * restores the section. Cleared on dismiss (X) or restart.
    */
   notifyPostImport(filename: string): void {
+    this.notifyVersion++;
     this.pendingImportFilename = filename;
     this.postPendingPostImport();
   }
@@ -422,6 +438,7 @@ export class ExportalControlPanelProvider implements vscode.WebviewViewProvider 
       type: 'postImport',
       filename: this.pendingImportFilename,
       templates: cleaned,
+      version: this.notifyVersion,
     });
   }
 
@@ -1049,14 +1066,20 @@ export class ExportalControlPanelProvider implements vscode.WebviewViewProvider 
         }
       }
     } else if (msg.type === 'postImport') {
-      // Hito 34 — the extension just finished an import and is asking
+      // Hito 34. The extension just finished an import and is asking
       // us to surface the user's prompt templates. Render as plain
-      // buttons (textContent → safe from injection) inside the
+      // buttons (textContent so injection is impossible) inside the
       // collapsible section.
       const section = document.getElementById('post-import');
       const list = document.getElementById('post-import-list');
       if (!section || !list) return;
       list.innerHTML = '';
+      // Stamp the section with the notify version so the dismiss
+      // handler can echo it back, letting the backend reject a
+      // dismiss for a stale version when a newer import arrived in
+      // the meantime.
+      const version = typeof msg.version === 'number' ? msg.version : 0;
+      section.dataset.version = String(version);
       const templates = Array.isArray(msg.templates) ? msg.templates : [];
       for (const text of templates) {
         if (typeof text !== 'string' || text.length === 0) continue;
@@ -1112,17 +1135,19 @@ export class ExportalControlPanelProvider implements vscode.WebviewViewProvider 
     panel.setAttribute('data-bridge-open', String(!open));
   });
 
-  // Post-import dismiss (Hito 34) — hide the section + clear its
-  // children so the next notifyPostImport rebuilds clean. Also tell
-  // the backend so the in-memory pendingImportFilename gets cleared
-  // and the section won't be re-surfaced if the user toggles the
-  // panel afterwards.
+  // Post-import dismiss. Hide the section, clear its children so
+  // the next notifyPostImport rebuilds clean, and tell the backend
+  // so the in-memory pendingImportFilename gets cleared. The version
+  // echoes back the notify version this DOM was rendered with, so
+  // a fresh import that arrived between render and click is not
+  // dismissed by accident.
   document.getElementById('post-import-dismiss').addEventListener('click', () => {
     const section = document.getElementById('post-import');
     const list = document.getElementById('post-import-list');
+    const version = section?.dataset.version ?? '0';
     if (section) section.hidden = true;
     if (list) list.innerHTML = '';
-    vscode.postMessage({ type: 'dismissPostImport' });
+    vscode.postMessage({ type: 'dismissPostImport', version: Number(version) });
   });
 
   // Token actions

@@ -1152,6 +1152,14 @@ async function writeInlineAsset(dir: vscode.Uri, asset: InlineAsset): Promise<vo
   await vscode.workspace.fs.writeFile(fileUri, new Uint8Array(bytes));
 }
 
+// Bidi override + BOM characters that can spoof filenames in OS
+// file managers. Built via RegExp + escape sequences so the source
+// code stays plain ASCII (irregular-whitespace chars in regex
+// literals trip the linter and read as glyph soup).
+const BIDI_OVERRIDE_REGEX = new RegExp(
+  '[\\u202A-\\u202E\\u2066-\\u2069\\uFEFF]',
+);
+
 // Defense-in-depth: assets come from a Chrome companion that we
 // authenticate via Bearer, but the bridge is still a trust boundary
 // and `vscode.workspace.fs` will happily write to any path the URI
@@ -1162,6 +1170,14 @@ function sanitizeAssetFilename(filename: string): string | undefined {
   if (filename.includes('\0')) return undefined;
   if (filename.startsWith('/')) return undefined;
   if (/^[a-zA-Z]:[\\/]/.test(filename)) return undefined; // Windows absolute
+  // Reject Unicode bidi override characters that can spoof the
+  // visible filename in OS file managers. Classic example: a payload
+  // named `cool[U+202E]gnp.exe` renders as `coolexe.png`. Even though
+  // we never execute the file, the user inspecting `.exportal/` could
+  // be deceived. U+202A-U+202E are LRO/RLO/LRE/RLE/PDF; U+2066-U+2069
+  // are LRI/RLI/FSI/PDI (the ISO variants). U+FEFF (BOM) leading a
+  // segment is also unusual and rejected as a defensive measure.
+  if (BIDI_OVERRIDE_REGEX.test(filename)) return undefined;
   // Normalize to forward slashes; reject `..` and `.` segments.
   const normalized = filename.replace(/\\/g, '/');
   for (const segment of normalized.split('/')) {
