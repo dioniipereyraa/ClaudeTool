@@ -44,6 +44,67 @@ const MAX_BODY_BYTES_IMPORT = 64 * 1024;
 // the limit is a memory-bounding sanity check, not a security boundary.
 const MAX_BODY_BYTES_IMPORT_INLINE = 50 * 1024 * 1024;
 
+// Rate limit (sliding 60s window) per endpoint. The bridge binds to
+// 127.0.0.1 so per-IP limiting is moot, but a malicious local process
+// could still try to exhaust memory or CPU by spamming endpoints. The
+// numbers below are generous for legitimate use:
+//   /ping: the Companion pings ~1/min when claude.ai/chatgpt.com loads.
+//   /import: the user picks a ZIP a few times a session.
+//   /import-inline: an active user may export 5-10 chats in burst.
+export const RATE_LIMIT_WINDOW_MS = 60_000;
+export const RATE_LIMITS: Readonly<Record<string, number>> = {
+  '/ping': 30,
+  '/import': 10,
+  '/import-inline': 30,
+};
+
+// Slowloris and request-stall mitigations. Defaults in Node 20 are 60s
+// for headers and 300s for the full request, which lets a local hostile
+// process tie up file descriptors trivially. The Companion talks fast,
+// so 5s/30s never trips on legitimate use.
+const HEADERS_TIMEOUT_MS = 5_000;
+const REQUEST_TIMEOUT_MS = 30_000;
+const KEEP_ALIVE_TIMEOUT_MS = 5_000;
+
+export interface RateLimitState {
+  windowStart: number;
+  count: number;
+}
+
+/**
+ * Check if a request to `endpoint` is within the configured budget.
+ * Stateful: mutates `store` as a side effect. Each server keeps its
+ * own store so tests don't bleed state across runs.
+ *
+ * Returns the seconds left in the current window when rejecting, so
+ * the caller can set the `Retry-After` header to a meaningful value.
+ *
+ * Exported for unit testing; production callers use it via
+ * `handleRequest`.
+ */
+export function checkRateLimit(
+  endpoint: string,
+  store: Map<string, RateLimitState>,
+  now: number = Date.now(),
+): { ok: true } | { ok: false; retryAfter: number } {
+  const limit = RATE_LIMITS[endpoint];
+  if (limit === undefined) return { ok: true };
+  const state = store.get(endpoint);
+  if (state === undefined || now - state.windowStart >= RATE_LIMIT_WINDOW_MS) {
+    store.set(endpoint, { windowStart: now, count: 1 });
+    return { ok: true };
+  }
+  if (state.count >= limit) {
+    const retryAfter = Math.max(
+      1,
+      Math.ceil((state.windowStart + RATE_LIMIT_WINDOW_MS - now) / 1000),
+    );
+    return { ok: false, retryAfter };
+  }
+  state.count++;
+  return { ok: true };
+}
+
 // Permissive UUID-ish shape: hex + hyphens, typical claude.ai conversation
 // UUIDs are RFC-4122 (36 chars) but we accept a wider range to stay robust
 // against format tweaks. We never use this as a security boundary — it only
@@ -163,9 +224,19 @@ function listenOnPort(
   handlers: BridgeHandlers,
 ): Promise<ServerHandle> {
   return new Promise((resolve, reject) => {
+    // Per-server rate limit store. Lives as long as the server, so
+    // tests get a fresh map per setup() and a long-running extension
+    // host accumulates only the 3 endpoints' counts.
+    const rateLimitStore = new Map<string, RateLimitState>();
     const server = http.createServer((req, res) => {
-      void handleRequest(req, res, token, handlers);
+      void handleRequest(req, res, token, handlers, rateLimitStore);
     });
+    // Slowloris and request-stall mitigations. Without these, a hostile
+    // local process can hold open file descriptors with slow header or
+    // body sends. Generous values for legitimate Companion traffic.
+    server.headersTimeout = HEADERS_TIMEOUT_MS;
+    server.requestTimeout = REQUEST_TIMEOUT_MS;
+    server.keepAliveTimeout = KEEP_ALIVE_TIMEOUT_MS;
     const onError = (err: Error): void => {
       reject(err);
     };
@@ -192,74 +263,80 @@ async function handleRequest(
   res: http.ServerResponse,
   expectedToken: string,
   handlers: BridgeHandlers,
+  rateLimitStore: Map<string, RateLimitState>,
 ): Promise<void> {
   if (req.method !== 'POST') {
-    sendJson(res, 405, { error: 'method_not_allowed' });
+    sendErrorJson(req, res, 405, { error: 'method_not_allowed' });
     return;
   }
 
-  // /ping is the pair-confirmation probe: Chrome sends it after saving
-  // the token from a claude.ai URL fragment. It carries no body — a
-  // valid Bearer is the whole signal. We process it before the body
-  // pipeline so an empty POST doesn't trip body-parse paths.
-  if (req.url === '/ping') {
-    const auth = req.headers.authorization ?? '';
-    const provided = /^Bearer (.+)$/.exec(auth)?.[1];
-    if (provided === undefined || !tokensMatch(provided, expectedToken)) {
-      sendJson(res, 401, { error: 'unauthorized' });
-      return;
-    }
-    try {
-      handlers.onPing?.();
-    } catch {
-      // A handler exception shouldn't leak back to Chrome — it already
-      // has the token and the user still sees the (separate) toast on
-      // claude.ai. Log once and move on.
-      console.warn('Exportal: onPing handler threw');
-    }
-    sendJson(res, 200, { ok: true });
+  // URL whitelist first. Rejecting unknown paths before anything else
+  // means we never burn rate-limit map entries on 404 traffic and a
+  // bad URL gets the same response regardless of auth.
+  const url = req.url ?? '';
+  if (url !== '/ping' && url !== '/import' && url !== '/import-inline') {
+    sendErrorJson(req, res, 404, { error: 'not_found' });
     return;
   }
 
-  let maxBytes: number;
-  if (req.url === '/import') {
-    maxBytes = MAX_BODY_BYTES_IMPORT;
-  } else if (req.url === '/import-inline') {
-    maxBytes = MAX_BODY_BYTES_IMPORT_INLINE;
-  } else {
-    sendJson(res, 404, { error: 'not_found' });
+  // Rate limit BEFORE auth. A malicious local process could otherwise
+  // burn CPU on timingSafeEqual just by spamming bad tokens.
+  const rate = checkRateLimit(url, rateLimitStore);
+  if (!rate.ok) {
+    res.setHeader('Retry-After', String(rate.retryAfter));
+    sendErrorJson(req, res, 429, { error: 'rate_limited' });
     return;
   }
 
+  // Auth check unified for all 3 endpoints.
   const auth = req.headers.authorization ?? '';
   const provided = /^Bearer (.+)$/.exec(auth)?.[1];
   if (provided === undefined || !tokensMatch(provided, expectedToken)) {
-    sendJson(res, 401, { error: 'unauthorized' });
+    sendErrorJson(req, res, 401, { error: 'unauthorized' });
     return;
   }
 
   // Defense-in-depth: if the request carries an Origin header, only
   // accept it from a chrome-extension origin (the Companion). The
-  // bearer token is the actual security boundary — this just rejects
+  // bearer token is the actual security boundary, this just rejects
   // unauthenticated probes from a malicious page in the user's
   // browser earlier in the pipeline. Origin is allowed to be absent
   // (curl, the Companion's background fetch which sometimes omits it,
   // VS Code-internal calls) since the bearer check still gates entry.
   const origin = req.headers.origin ?? '';
   if (origin.length > 0 && !origin.startsWith('chrome-extension://')) {
-    sendJson(res, 403, { error: 'forbidden_origin' });
+    sendErrorJson(req, res, 403, { error: 'forbidden_origin' });
     return;
   }
+
+  // /ping is the pair-confirmation probe. It carries no body, but a
+  // hostile client could send one anyway. Drain whatever's pending so
+  // Node doesn't buffer it indefinitely, then reply.
+  if (url === '/ping') {
+    req.resume();
+    try {
+      handlers.onPing?.();
+    } catch {
+      // A handler exception shouldn't leak back to Chrome (it already
+      // has the token and the user still sees the separate toast on
+      // claude.ai). Log once and move on.
+      console.warn('Exportal: onPing handler threw');
+    }
+    sendJson(res, 200, { ok: true });
+    return;
+  }
+
+  const maxBytes = url === '/import' ? MAX_BODY_BYTES_IMPORT : MAX_BODY_BYTES_IMPORT_INLINE;
 
   // Early reject by Content-Length so we don't even start reading an
   // oversized body. Defense-in-depth streaming limit below catches
   // clients that lie about Content-Length. `Number.isFinite` guards
-  // against non-numeric or absent headers parsing as NaN — NaN
-  // comparisons silently bypass this check, and we want to fall
+  // against non-numeric or absent headers parsing as NaN, since NaN
+  // comparisons silently bypass this check and we want to fall
   // through to the streaming limit instead.
   const declaredLength = Number(req.headers['content-length'] ?? '0');
   if (Number.isFinite(declaredLength) && declaredLength > maxBytes) {
-    sendJson(res, 413, { error: 'payload_too_large' });
+    sendErrorJson(req, res, 413, { error: 'payload_too_large' });
     return;
   }
 
@@ -283,7 +360,7 @@ async function handleRequest(
     return;
   }
 
-  if (req.url === '/import') {
+  if (url === '/import') {
     const parsed = ImportPayload.safeParse(raw);
     if (!parsed.success) {
       sendJson(res, 400, { error: 'invalid_payload' });
@@ -364,6 +441,22 @@ function sendJson(res: http.ServerResponse, status: number, body: unknown): void
     'content-length': Buffer.byteLength(payload).toString(),
   });
   res.end(payload);
+}
+
+/**
+ * Send a JSON error response. Resumes the request stream first so any
+ * unread body the client sent gets discarded; without this a keep-alive
+ * client whose body we never read leaves bytes in the socket buffer
+ * and the next pipelined request can be misframed.
+ */
+function sendErrorJson(
+  req: http.IncomingMessage,
+  res: http.ServerResponse,
+  status: number,
+  body: unknown,
+): void {
+  req.resume();
+  sendJson(res, status, body);
 }
 
 function isAddrInUse(err: unknown): boolean {

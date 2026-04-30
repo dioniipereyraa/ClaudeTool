@@ -5,7 +5,12 @@ import {
 import { activeBranchMessages } from '../importers/chatgpt/walk.js';
 import { emptyReport, redact, type RedactionReport } from '../redactors/index.js';
 
-import { fenceCode, stringifyJson } from './markdown-shared.js';
+import {
+  fenceCode,
+  safeAutoLink,
+  safeMarkdownLink,
+  stringifyJson,
+} from './markdown-shared.js';
 
 // content_types that are model conditioning / metadata, not visible
 // conversation. ChatGPT emits these on `assistant` + `recipient: 'all'`
@@ -253,9 +258,9 @@ function renderTetherCitation(
 
   const lines: string[] = [];
   if (title !== undefined && url !== undefined) {
-    lines.push(`> 🔗 [${maybeRedact(title)}](${url})`);
+    lines.push(`> 🔗 ${safeMarkdownLink(maybeRedact(title), url)}`);
   } else if (url !== undefined) {
-    lines.push(`> 🔗 <${url}>`);
+    lines.push(`> 🔗 ${safeAutoLink(url)}`);
   } else if (title !== undefined) {
     lines.push(`> 🔗 ${maybeRedact(title)}`);
   } else {

@@ -8,7 +8,12 @@ import {
 } from '../importers/claudeai/schema.js';
 import { emptyReport, redact, type RedactionReport } from '../redactors/index.js';
 
-import { fenceCode, renderToolResult, renderToolUse } from './markdown-shared.js';
+import {
+  fenceCode,
+  renderToolResult,
+  renderToolUse,
+  safeUrlForFootnote,
+} from './markdown-shared.js';
 
 export interface ClaudeAiFormatOptions {
   readonly redact: boolean;
@@ -167,7 +172,8 @@ function appendFootnoteMarkers(
   for (const citation of citations) {
     const index = ctx.footnotes.length + 1;
     markers.push(`[^${String(index)}]`);
-    const url = citation.details.url ?? '(no url)';
+    const rawUrl = citation.details.url ?? '(no url)';
+    const url = rawUrl === '(no url)' ? rawUrl : safeUrlForFootnote(rawUrl);
     ctx.footnotes.push(`[^${String(index)}]: ${url}`);
   }
   return `${text}${markers.join('')}`;
