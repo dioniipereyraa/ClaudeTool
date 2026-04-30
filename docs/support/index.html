@@ -1,0 +1,745 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Support — Exportal</title>
+<meta name="description" content="Get help with Exportal — the bridge between Claude.ai/ChatGPT and Claude Code. Email support@exportal.dev. Solo developer, replies within 24–72h.">
+<meta name="theme-color" content="#0b1220">
+
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="icon" href="favicon.png" type="image/png" sizes="128x128">
+<link rel="apple-touch-icon" href="favicon.png">
+<link rel="canonical" href="https://exportal.dev/support">
+
+<meta property="og:title" content="Support — Exportal">
+<meta property="og:description" content="Need help with Exportal? Email support@exportal.dev — solo developer, replies within 24–72h. English & Español.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://exportal.dev/support">
+
+<style>
+  :root {
+    --ink: #0b1220;
+    --ink-2: #1f2937;
+    --muted: #4b5563;
+    --line: #e5e7eb;
+    --bg: #ffffff;
+    --bg-2: #f8fafc;
+    --accent: #1d4ed8;
+    --accent-soft: #eff6ff;
+    --code-bg: #0f172a;
+    --code-ink: #e2e8f0;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, "Helvetica Neue", sans-serif;
+    color: var(--ink);
+    line-height: 1.65;
+    background: var(--bg);
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap {
+    max-width: 880px;
+    margin: 0 auto;
+    padding: 0 24px;
+  }
+  header.site {
+    border-bottom: 1px solid var(--line);
+    padding: 18px 0;
+    position: sticky;
+    top: 0;
+    background: rgba(255, 255, 255, 0.92);
+    backdrop-filter: blur(8px);
+    z-index: 10;
+    transition: box-shadow 0.2s ease, border-color 0.2s ease;
+  }
+  header.site.scrolled {
+    box-shadow: 0 4px 14px rgba(11, 18, 32, 0.05);
+  }
+  header.site .row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+  }
+  header.site .brand {
+    font-weight: 700;
+    font-size: 1.05rem;
+    letter-spacing: -0.01em;
+    color: var(--ink);
+    text-decoration: none;
+  }
+  header.site nav a {
+    color: var(--muted);
+    text-decoration: none;
+    margin-left: 18px;
+    font-size: 0.92rem;
+    transition: color 0.18s ease;
+  }
+  header.site nav a:hover { color: var(--ink); }
+  header.site nav a.current { color: var(--ink); font-weight: 600; }
+
+  .hero { padding: 72px 0 40px; }
+  .hero .eyebrow {
+    display: inline-block;
+    font-size: 0.78rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--accent);
+    background: var(--accent-soft);
+    padding: 4px 10px;
+    border-radius: 999px;
+    margin-bottom: 18px;
+  }
+  .hero h1 {
+    font-size: clamp(2.2rem, 5vw, 3.4rem);
+    line-height: 1.08;
+    letter-spacing: -0.02em;
+    margin-bottom: 18px;
+    font-weight: 700;
+  }
+  .hero .lede {
+    font-size: 1.18rem;
+    color: var(--muted);
+    margin-bottom: 28px;
+    max-width: 640px;
+  }
+  .hero .lede strong { color: var(--ink); font-weight: 600; }
+
+  .ctas {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 16px;
+  }
+  .ctas a {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 11px 18px;
+    background: var(--ink);
+    color: #fff;
+    text-decoration: none;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 0.95rem;
+    border: 1px solid var(--ink);
+    transition:
+      transform 0.12s cubic-bezier(0.22, 0.61, 0.36, 1),
+      background-color 0.2s ease,
+      border-color 0.2s ease;
+  }
+  .ctas a:hover { transform: translateY(-1px); }
+  .ctas a.secondary {
+    background: var(--bg);
+    color: var(--ink);
+    border-color: var(--line);
+  }
+  .ctas a.secondary:hover { border-color: var(--ink); }
+
+  .meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px 22px;
+    color: var(--muted);
+    font-size: 0.9rem;
+    margin-top: 14px;
+  }
+  .meta-item { display: inline-flex; align-items: center; gap: 6px; }
+  .meta-item .dot {
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--accent);
+  }
+
+  section { padding: 56px 0; border-top: 1px solid var(--line); }
+  section h2 {
+    font-size: 1.7rem;
+    letter-spacing: -0.015em;
+    margin-bottom: 8px;
+    font-weight: 700;
+  }
+  section .sub {
+    color: var(--muted);
+    margin-bottom: 28px;
+    font-size: 1rem;
+  }
+
+  .features {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 22px;
+    margin-top: 8px;
+  }
+  .feature {
+    display: block;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 20px;
+    background: var(--bg-2);
+    color: var(--ink);
+    text-decoration: none;
+    transition:
+      transform 0.18s ease,
+      box-shadow 0.18s ease,
+      border-color 0.18s ease;
+  }
+  .feature:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 18px rgba(11, 18, 32, 0.07);
+    border-color: rgba(29, 78, 216, 0.28);
+  }
+  .feature h3 {
+    font-size: 1.02rem;
+    margin-bottom: 6px;
+    font-weight: 600;
+  }
+  .feature p {
+    color: var(--muted);
+    font-size: 0.95rem;
+  }
+  .feature .arrow {
+    color: var(--accent);
+    font-weight: 600;
+    margin-left: 4px;
+  }
+
+  /* FAQ-style "Before you write" — uses the same details/summary pattern
+     as the homepage so the script.js animation works if reused. */
+  .faq details {
+    border-bottom: 1px solid var(--line);
+    padding: 14px 0;
+  }
+  .faq details:first-of-type { border-top: 1px solid var(--line); }
+  .faq summary {
+    cursor: pointer;
+    font-weight: 600;
+    list-style: none;
+    padding-right: 24px;
+    position: relative;
+    font-size: 0.98rem;
+    transition: color 0.18s ease;
+  }
+  .faq summary:hover { color: var(--accent); }
+  .faq summary::after {
+    content: "+";
+    position: absolute;
+    right: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--muted);
+    font-weight: 400;
+    font-size: 1.3rem;
+    line-height: 1;
+    transition: transform 0.22s ease, color 0.18s ease;
+  }
+  .faq details[open] summary::after { content: "−"; color: var(--accent); }
+  .faq details p {
+    color: var(--muted);
+    font-size: 0.95rem;
+    margin-top: 10px;
+  }
+  .faq details p code {
+    font-family: "SF Mono", Monaco, Consolas, monospace;
+    font-size: 0.88em;
+    background: rgba(0, 0, 0, 0.05);
+    padding: 1px 5px;
+    border-radius: 3px;
+  }
+  .faq details p a { color: var(--accent); }
+
+  .faq details > .faq-body {
+    display: block;
+    overflow: hidden;
+    transition:
+      height 0.32s cubic-bezier(0.22, 0.61, 0.36, 1),
+      opacity 0.22s ease;
+  }
+  .faq details:not([open]) > .faq-body {
+    height: 0;
+    opacity: 0;
+  }
+
+  footer.site {
+    padding: 36px 0 56px;
+    color: var(--muted);
+    font-size: 0.88rem;
+    border-top: 1px solid var(--line);
+    margin-top: 24px;
+  }
+  footer.site .row {
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 16px;
+  }
+  footer.site a { color: var(--muted); text-decoration: none; margin-right: 18px; }
+  footer.site a:hover { color: var(--ink); }
+  footer.site .disclaimer {
+    margin-top: 18px;
+    font-size: 0.82rem;
+    color: var(--muted);
+    line-height: 1.55;
+    max-width: 720px;
+  }
+
+  /* Contact form. */
+  .contact-form {
+    display: grid;
+    gap: 16px;
+    margin-top: 8px;
+    background: var(--bg-2);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 26px;
+  }
+  .form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+  .field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .field-label {
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: var(--ink);
+  }
+  .field-label .opt {
+    font-weight: 400;
+    color: var(--muted);
+    margin-left: 4px;
+  }
+  .field-label .req {
+    color: var(--accent);
+    margin-left: 2px;
+  }
+  .contact-form input[type="text"],
+  .contact-form input[type="email"],
+  .contact-form select,
+  .contact-form textarea {
+    font-family: inherit;
+    font-size: 0.95rem;
+    color: var(--ink);
+    background: var(--bg);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 11px 14px;
+    width: 100%;
+    transition: border-color 0.18s ease, box-shadow 0.18s ease;
+  }
+  .contact-form textarea {
+    resize: vertical;
+    min-height: 130px;
+    line-height: 1.55;
+  }
+  .contact-form input:focus,
+  .contact-form select:focus,
+  .contact-form textarea:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-soft);
+  }
+  .contact-form select {
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='none' stroke='%234b5563' stroke-width='1.6' d='M1 1.5l5 5 5-5'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 14px center;
+    padding-right: 36px;
+  }
+  .form-actions {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex-wrap: wrap;
+    margin-top: 4px;
+  }
+  .form-submit {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 11px 22px;
+    background: var(--ink);
+    color: #fff;
+    border: 1px solid var(--ink);
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 0.95rem;
+    font-family: inherit;
+    cursor: pointer;
+    transition:
+      transform 0.12s cubic-bezier(0.22, 0.61, 0.36, 1),
+      background-color 0.2s ease,
+      opacity 0.2s ease;
+  }
+  .form-submit:hover:not(:disabled) { transform: translateY(-1px); }
+  .form-submit:disabled { opacity: 0.55; cursor: not-allowed; }
+  .form-hint {
+    color: var(--muted);
+    font-size: 0.9rem;
+  }
+  .form-hint a { color: var(--accent); text-decoration: none; }
+  .form-hint a:hover { text-decoration: underline; }
+  .form-status {
+    margin-top: 4px;
+    padding: 12px 16px;
+    border-radius: 8px;
+    font-size: 0.93rem;
+    line-height: 1.5;
+  }
+  .form-status.sending {
+    background: var(--bg);
+    border: 1px solid var(--line);
+    color: var(--muted);
+  }
+  .form-status.success {
+    background: var(--accent-soft);
+    border: 1px solid rgba(29, 78, 216, 0.25);
+    color: var(--accent);
+  }
+  .form-status.error {
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    color: #991b1b;
+  }
+
+  @media (max-width: 720px) {
+    .hero { padding: 48px 0 32px; }
+    .features { grid-template-columns: 1fr; }
+    header.site nav a { margin-left: 12px; font-size: 0.85rem; }
+    .form-row { grid-template-columns: 1fr; }
+    .contact-form { padding: 22px; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+</style>
+</head>
+<body>
+
+<header class="site">
+  <div class="wrap row">
+    <a href="/" class="brand">Exportal</a>
+    <nav>
+      <a href="/#how">How it works</a>
+      <a href="/#privacy">Privacy</a>
+      <a href="/#faq">FAQ</a>
+      <a href="/support" class="current">Support</a>
+      <a href="https://github.com/dioniipereyraa/ClaudeTool">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<div class="wrap">
+
+<section class="hero" style="border-top: none;">
+  <span class="eyebrow">Support</span>
+  <h1>Need a hand? Just email us.</h1>
+  <p class="lede">
+    <strong>Exportal</strong> is built and maintained by a solo
+    developer. Every message lands in a real inbox — no ticket portal,
+    no auto-responder, no chatbot. Bug reports, feature requests, and
+    "how do I…" questions all go to the same place.
+  </p>
+  <div class="ctas">
+    <a href="mailto:support@exportal.dev?subject=Exportal%20%E2%80%94%20%5Btopic%5D">
+      support@exportal.dev
+    </a>
+    <a href="https://github.com/dioniipereyraa/ClaudeTool#readme" class="secondary">
+      Read the docs
+    </a>
+  </div>
+  <div class="meta">
+    <span class="meta-item"><span class="dot"></span> Replies in 24–72h</span>
+    <span class="meta-item">English &amp; Español</span>
+    <span class="meta-item">Local timezone: ART (UTC−3)</span>
+  </div>
+</section>
+
+<section id="contact">
+  <h2>Send a message</h2>
+  <p class="sub">No need to switch to your mail app. Fill this in, hit send — the reply lands in your inbox.</p>
+
+  <form class="contact-form" action="https://api.web3forms.com/submit" method="POST">
+    <input type="hidden" name="access_key" value="82c46e2b-f39a-47bb-8217-c68edd226720">
+    <input type="hidden" name="from_name" value="Exportal Support Form">
+    <input type="hidden" name="subject" value="Exportal — new support message">
+    <input type="checkbox" name="botcheck" style="display: none;" tabindex="-1" autocomplete="off">
+
+    <div class="form-row">
+      <label class="field">
+        <span class="field-label">Your name <span class="opt">(optional)</span></span>
+        <input type="text" name="name" autocomplete="name">
+      </label>
+      <label class="field">
+        <span class="field-label">Your email <span class="req">*</span></span>
+        <input type="email" name="email" required autocomplete="email">
+      </label>
+    </div>
+
+    <label class="field">
+      <span class="field-label">Topic <span class="req">*</span></span>
+      <select name="topic" required>
+        <option value="">Pick one…</option>
+        <option>Bug report</option>
+        <option>Pairing or installation issue</option>
+        <option>Feature request</option>
+        <option>Question</option>
+        <option>Other</option>
+      </select>
+    </label>
+
+    <label class="field">
+      <span class="field-label">Message <span class="req">*</span></span>
+      <textarea name="message" rows="6" required placeholder="What's going on? Steps to reproduce, version numbers, screenshots — anything that helps."></textarea>
+    </label>
+
+    <div class="form-actions">
+      <button type="submit" class="form-submit">Send message</button>
+      <span class="form-hint">Or email <a href="mailto:support@exportal.dev">support@exportal.dev</a> directly.</span>
+    </div>
+
+    <div class="form-status" hidden role="status" aria-live="polite"></div>
+  </form>
+</section>
+
+<section id="checks" class="faq">
+  <h2>Before you write — quick checks</h2>
+  <p class="sub">Most reports land in one of these four buckets. A 30-second look here often saves a round-trip.</p>
+
+  <details>
+    <summary>Pairing isn't working between VS Code and Chrome</summary>
+    <p>
+      In VS Code, run <code>Exportal: Show pairing token</code> from
+      the command palette → click <code>Copy and open Chrome</code>.
+      The Companion auto-detects the token from the URL fragment and
+      shows <em>"Done — All connected"</em> on its options page.
+    </p>
+  </details>
+
+  <details>
+    <summary>The Companion icon shows <code>OFF</code>, <code>AUTH</code> or <code>OLD</code></summary>
+    <p>
+      <code>OFF</code> means VS Code isn't running, or the Exportal
+      extension isn't active. <code>AUTH</code> means the pairing
+      token is invalid — re-pair from the Bridge status panel in the
+      Exportal sidebar. <code>OLD</code> means the VS Code extension
+      is outdated — update it from the Marketplace.
+    </p>
+  </details>
+
+  <details>
+    <summary>Where are my exported chats saved?</summary>
+    <p>
+      In <code>&lt;workspace&gt;/.exportal/&lt;timestamp&gt;-&lt;slug&gt;.md</code>.
+      Add <code>.exportal/</code> to your <code>.gitignore</code> if
+      you don't want to version them. For Claude Design exports, the
+      generated files (HTML, JSX, JSON) live in a sibling folder of
+      the <code>.md</code>.
+    </p>
+  </details>
+
+  <details>
+    <summary>Reporting a bug — what should I include?</summary>
+    <p>
+      VS Code extension version, Companion version, the steps to
+      reproduce, and (if relevant) the output of
+      <code>Exportal: Show logs</code>. A screenshot or a short
+      screen recording helps a lot. If the bug is on a specific chat,
+      mention whether it's claude.ai, claude.ai/design, or chatgpt.com.
+    </p>
+  </details>
+</section>
+
+<section id="resources">
+  <h2>Resources</h2>
+  <p class="sub">Most of what you need is one click away on the repo.</p>
+  <div class="features">
+    <a class="feature" href="https://github.com/dioniipereyraa/ClaudeTool#readme">
+      <h3>Documentation <span class="arrow">→</span></h3>
+      <p>README, install guide, keyboard shortcuts, and every setting explained.</p>
+    </a>
+    <a class="feature" href="https://github.com/dioniipereyraa/ClaudeTool/blob/main/CHANGELOG.md">
+      <h3>Changelog <span class="arrow">→</span></h3>
+      <p>Every release since April 2026, with the why behind each change.</p>
+    </a>
+    <a class="feature" href="https://github.com/dioniipereyraa/ClaudeTool/blob/main/SECURITY.md">
+      <h3>Security &amp; threat model <span class="arrow">→</span></h3>
+      <p>How tokens, cookies and the local bridge are handled. What's in scope, what isn't.</p>
+    </a>
+    <a class="feature" href="https://github.com/dioniipereyraa/ClaudeTool">
+      <h3>Source code <span class="arrow">→</span></h3>
+      <p>MIT licensed. View, fork, audit. Everything is in the open.</p>
+    </a>
+    <a class="feature" href="https://marketplace.visualstudio.com/items?itemName=dioniipereyraa.exportal">
+      <h3>VS Code Marketplace <span class="arrow">→</span></h3>
+      <p>Install or update the Exportal VS Code extension.</p>
+    </a>
+    <a class="feature" href="https://chromewebstore.google.com/detail/exportal-companion/lmnmekfphhpfaciehfdaonjfchbicdnm">
+      <h3>Chrome Web Store <span class="arrow">→</span></h3>
+      <p>Install or update the Exportal Companion for Chrome.</p>
+    </a>
+  </div>
+</section>
+
+</div>
+
+<footer class="site">
+  <div class="wrap">
+    <div class="row">
+      <div>
+        <a href="https://github.com/dioniipereyraa/ClaudeTool">GitHub</a>
+        <a href="https://chromewebstore.google.com/detail/exportal-companion/lmnmekfphhpfaciehfdaonjfchbicdnm">Chrome Web Store</a>
+        <a href="https://marketplace.visualstudio.com/items?itemName=dioniipereyraa.exportal">VS Code Marketplace</a>
+        <a href="https://github.com/dioniipereyraa/ClaudeTool/blob/main/SECURITY.md">Security</a>
+        <a href="https://github.com/dioniipereyraa/ClaudeTool/blob/main/LICENSE">License</a>
+      </div>
+      <div>
+        Built by <a href="https://github.com/dioniipereyraa">Dioni Pereyra</a> · MIT
+      </div>
+    </div>
+    <p class="disclaimer">
+      Exportal is an independent open-source project. It is not
+      affiliated with, endorsed by, or sponsored by Anthropic (makers of
+      Claude / Claude Code) or OpenAI (makers of ChatGPT). "Claude",
+      "Claude Code", and "Claude.ai" are trademarks of Anthropic.
+      "ChatGPT" is a trademark of OpenAI.
+    </p>
+  </div>
+</footer>
+
+<script>
+(function () {
+  const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  // Wrap each FAQ <details>'s non-summary children inside a .faq-body div
+  // so we have a single element to animate (matches the homepage pattern).
+  document.querySelectorAll('.faq details').forEach((d) => {
+    const summary = d.querySelector('summary');
+    if (!summary) return;
+    const body = document.createElement('div');
+    body.className = 'faq-body';
+    let n = summary.nextSibling;
+    while (n) {
+      const next = n.nextSibling;
+      body.appendChild(n);
+      n = next;
+    }
+    d.appendChild(body);
+
+    if (reduce) return;
+
+    let animating = false;
+    summary.addEventListener('click', (event) => {
+      if (animating) { event.preventDefault(); return; }
+      event.preventDefault();
+      animating = true;
+
+      const opening = !d.open;
+      if (opening) {
+        d.open = true;
+        const target = body.scrollHeight;
+        body.style.height = '0px';
+        body.style.opacity = '0';
+        void body.offsetHeight;
+        requestAnimationFrame(() => {
+          body.style.height = target + 'px';
+          body.style.opacity = '1';
+        });
+        const onEnd = (e) => {
+          if (e.target !== body || e.propertyName !== 'height') return;
+          body.removeEventListener('transitionend', onEnd);
+          body.style.height = '';
+          body.style.opacity = '';
+          animating = false;
+        };
+        body.addEventListener('transitionend', onEnd);
+      } else {
+        const start = body.scrollHeight;
+        body.style.height = start + 'px';
+        body.style.opacity = '1';
+        void body.offsetHeight;
+        requestAnimationFrame(() => {
+          body.style.height = '0px';
+          body.style.opacity = '0';
+        });
+        const onEnd = (e) => {
+          if (e.target !== body || e.propertyName !== 'height') return;
+          body.removeEventListener('transitionend', onEnd);
+          d.open = false;
+          body.style.height = '';
+          body.style.opacity = '';
+          animating = false;
+        };
+        body.addEventListener('transitionend', onEnd);
+      }
+    });
+  });
+
+  // Sticky header shadow on scroll (matches homepage).
+  const header = document.querySelector('header.site');
+  if (header) {
+    const onScroll = () => {
+      if (window.scrollY > 4) header.classList.add('scrolled');
+      else header.classList.remove('scrolled');
+    };
+    onScroll();
+    window.addEventListener('scroll', onScroll, { passive: true });
+  }
+
+  // Contact form: AJAX submit to Web3Forms with inline status feedback.
+  const form = document.querySelector('.contact-form');
+  if (form) {
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const status = form.querySelector('.form-status');
+      const button = form.querySelector('.form-submit');
+      const originalLabel = button.textContent;
+
+      status.hidden = false;
+      status.className = 'form-status sending';
+      status.textContent = 'Sending…';
+      button.disabled = true;
+      button.textContent = 'Sending…';
+
+      try {
+        const response = await fetch(form.action, {
+          method: 'POST',
+          body: new FormData(form),
+          headers: { Accept: 'application/json' },
+        });
+        const data = await response.json().catch(() => ({}));
+        if (response.ok && data.success) {
+          status.className = 'form-status success';
+          status.textContent = 'Thanks — your message is on its way. Replies usually land within 24–72h.';
+          form.reset();
+        } else {
+          throw new Error(data.message || 'Submit failed');
+        }
+      } catch (err) {
+        status.className = 'form-status error';
+        status.textContent = 'Something went wrong sending the form. Please email support@exportal.dev directly.';
+      } finally {
+        button.disabled = false;
+        button.textContent = originalLabel;
+      }
+    });
+  }
+})();
+</script>
+
+</body>
+</html>
