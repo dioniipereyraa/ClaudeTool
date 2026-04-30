@@ -4081,3 +4081,149 @@ Logs del user en la última iteración (post-`6568ef0`):
 - README + README.vsix actualizados en este commit con el feature
   visible al user.
 
+---
+
+## 2026-04-29 (madrugada) — Email Routing setup + página /support con form de contacto
+
+### Qué hicimos
+Cerramos la pieza de canal de soporte público que faltaba para
+poder mandar la 0.11.2 a review en Chrome Web Store con un campo
+"URL de asistencia" propio (no GitHub Issues): dominio de email
+custom + página `/support` con form de contacto integrado, todo
+matcheando 1-a-1 el design system de la landing.
+
+### Email custom: support@exportal.dev
+- Setup en **Cloudflare Email Routing** desde el dashboard del
+  dominio `exportal.dev` (que ya estaba en Cloudflare por compra
+  desde el Registrar). Custom address `support` → forward a
+  `dpereyrabdev@gmail.com`. DNS records (MX route1/2/3 + TXT
+  DKIM/SPF) agregados automáticamente porque el DNS también es
+  Cloudflare — un solo click "Enable Email Routing" hizo todo.
+- **Filter en Gmail** (necesario): regla
+  `to:support@exportal.dev` → never spam + label "Exportal Support"
+  + mark as important. La primera prueba cayó en Spam (mail
+  forwardeado de dominio nuevo sin reputación de envío); el filter
+  blinda el flujo para que nunca más se pierda un report.
+- Test from-otro-mail-a-`support@exportal.dev` → llegó al inbox
+  con label en ~5s.
+
+### Página /support en docs/support/index.html
+- Subpágina del landing servida por GitHub Pages (`docs/` del
+  propio repo, no subdominio aparte). URL clean `/support` via
+  `docs/support/index.html` (carpeta con index, no archivo
+  `support.html` — GH Pages no reescribe extensiones por default).
+- **Match exacto del design system de docs/index.html**: light
+  theme, blue accent `#1d4ed8`, system font stack, sticky header
+  con brand "Exportal" + nav (con Support marcado como `current`),
+  `wrap` 880px, FAQ details/summary con script JS de expand/
+  collapse idéntico al de la home, footer con disclaimer
+  Anthropic/OpenAI completo.
+- **Form de contacto via Web3Forms**: free 250 msgs/mo, sin
+  signup (access key se obtiene tipeando email en su landing),
+  honeypot anti-spam built-in. Campos: name (opcional), email
+  (requerido), topic (select con 5 categorías para triage rápido:
+  Bug report / Pairing or installation issue / Feature request /
+  Question / Other), message (textarea con placeholder educativo
+  pidiendo versión + steps + screenshots).
+- **Submit AJAX** (no redirect a thank-you de Web3Forms): feedback
+  inline en la misma página con tres estados visuales (sending /
+  success / error con paletas coherentes al design system —
+  `--accent-soft` para success, `#fef2f2` para error). Form se
+  resetea solo al éxito.
+- mailto en el hero como fallback para usuarios que prefieren su
+  mail client (preserva ambas opciones sin duplicar info).
+- Sección "Before you write — quick checks" con los 4 buckets
+  más comunes de reports (pairing, badges OFF/AUTH/OLD, dónde se
+  guardan los exports, qué incluir en bug report) — self-help antes
+  del form para reducir noise.
+- Sección "Resources" como grid de `.feature` cards (mismo
+  componente que la home) linkeando docs, changelog, security,
+  source code, marketplace, chrome web store.
+
+### Decisiones técnicas
+- **Email-first vs Issues-only para support**: el user prefería
+  cero Issues públicas (miedo de "perder control del repo").
+  Aclarado: Issues abiertos NO dan write access — nadie puede
+  modificar el repo sin colaborador status, los PRs son no-ops
+  hasta que clickeás Merge. Camino del medio elegido: Issues
+  siguen abiertos como trust signal (proyecto vivo, "no esconden
+  bugs"), email es el canal **primario** para usuarios finales.
+  CoC ya tenía `dionipereyrab@gmail.com` como reporting contact.
+- **Web3Forms vs Formspree vs Cloudflare Worker self-hosted**:
+  elegimos Web3Forms porque (a) no requiere signup (Formspree sí),
+  (b) free tier 5x más generoso (250 vs 50 msgs/mo), (c) honeypot
+  built-in. Migración a Cloudflare Worker queda como opción si
+  llegamos a 250/mo o queremos full self-hosting alineado con
+  el principio "local-first/zero-network" del producto. Trade-off
+  consciente: la landing ya carga shields.io para badges, el
+  principio zero-network aplica al producto, no a la página de
+  marketing.
+- **Custom domain en Cloudflare Worker descartado**: el primer
+  instinto fue crear un Cloudflare Worker (deploy via "Upload
+  assets" desde Workers & Pages). Cuando intentamos conectar
+  `exportal.dev` como custom domain, Cloudflare rechazó porque
+  los 4 A records de GitHub Pages (`185.199.108-111.153`) ya
+  ocupaban el apex. **Pivot a Opción A**: servir `/support` desde
+  `docs/support/` del mismo repo, sin tocar DNS. Worker
+  `small-resonance-3de0` eliminado por cleanup. Lección: el
+  user dijo "el repo es este ClaudeTool" — confirmé via DNS
+  inspection + grep local + `find` que la landing efectivamente
+  vive en `docs/` (no en repo `dioniipereyraa.github.io` aparte
+  como había asumido inicialmente).
+
+### Wiring de la canonical URL
+- `package.json` → agregado `homepage: "https://exportal.dev"` y
+  `bugs.url`. Lo muestra el sidebar del listing de VS Code
+  Marketplace en el próximo `vsce publish`.
+- `chrome/manifest.json` → agregado `homepage_url:
+  "https://exportal.dev"`. Lo lee Chrome Web Store para auto-
+  completar el "URL oficial" del listing.
+- `docs/index.html` nav → agregado link "Support" entre FAQ y
+  GitHub para discoverability desde la home.
+- `docs/sitemap.xml` → entry de `/support` con `priority 0.6`,
+  `changefreq monthly`.
+- `README.md` y `README.vsix.md` → link a `exportal.dev/support`
+  en el header (al lado de Landing).
+
+### Cleanup de assets
+- Borramos `docs/screenshots/exportal-s0-claude-design-1280x800.png`
+  (slide marketing de Claude Design). En la decisión previa de qué
+  screenshots subir al Chrome Web Store quedó priorizado
+  s1 → s2 → s3 → s6 (pitch + pairing + result + multi-IA NUEVO),
+  con s0 fuera del top porque Claude Design es nicho dentro del
+  nicho. Removidas las 3 referencias en el repo:
+  - `README.md` (intro + image link de Claude Design)
+  - `docs/CHROME_WEB_STORE_LISTING.md` (listado de assets a subir)
+  - `docs/screenshots/README.md` (row de la tabla)
+- Reordenamos también el listado del CHROME_WEB_STORE_LISTING.md
+  para reflejar la nueva prioridad de subir
+  `s1, s2, s3, s6` arriba y `s4, s5` como opcionales.
+
+### Verificación
+- Email test: mail desde otra cuenta a `support@exportal.dev` →
+  llegó al gmail con label `Exportal Support` en ~5s.
+- Form test (con access key real puesta): submit → inline success
+  banner verde + mail al gmail con todos los datos del form.
+- `https://exportal.dev/support` carga correctamente con design
+  matcheado a la home.
+- Nav link "Support" visible en `https://exportal.dev`.
+
+### Cleanup ejecutado
+- Worker `small-resonance-3de0` en Cloudflare eliminado (cruft del
+  approach inicial descartado).
+- Carpeta local `web/` eliminada (estaba en lugar incorrecto, todo
+  vive en `docs/support/` ahora).
+
+### Release / distribución
+**Sin bump** — esta sesión no toca código de la extensión. Cambios
+viven en landing (`docs/`), `package.json` (metadata) y
+`chrome/manifest.json` (homepage_url). El próximo release oficial
+viajará con todos los silent patches acumulados sobre 0.11.2.
+
+### Próximo paso
+- Pegar `https://exportal.dev/support` en el campo "URL de
+  asistencia" del listing de Chrome Web Store y mandar a review.
+- (Opcional, post-aprobación) Verificar exportal.dev en Search
+  Console (TXT record en Cloudflare) para activar el badge "URL
+  oficial verificada" en el listing — agregado al ROADMAP near-term.
+

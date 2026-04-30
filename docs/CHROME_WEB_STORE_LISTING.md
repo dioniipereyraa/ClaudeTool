@@ -150,8 +150,9 @@ https://github.com/dioniipereyraa/ClaudeTool/blob/main/docs/PRIVACY.md
 - **Icon**: `chrome/icon-128.png` (ya empaquetado en el ZIP).
 - **Screenshots** (1280×800 — subí al menos 1, ideal 3-5):
   - `docs/screenshots/exportal-s1-fab-1280x800.png` (botón flotante en claude.ai)
+  - `docs/screenshots/exportal-s2-onboarding-1280x800.png` (panel de onboarding en VS Code)
   - `docs/screenshots/exportal-s3-success-1280x800.png` (companion conectado)
-  - `docs/screenshots/exportal-s0-claude-design-1280x800.png` (export desde Claude Design)
+  - `docs/screenshots/exportal-s6-chatgpt-1280x800.png` (paridad multi-IA, NUEVO en 0.11.2)
   - `docs/screenshots/exportal-s4-vscode-1280x800.png` (tab en VS Code, opcional)
   - `docs/screenshots/exportal-s5-jsonl-sync-1280x800.png` (/resume sync, opcional)
 - **Promotional tile** (440×280): opcional, podés skippearlo para la

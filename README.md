@@ -5,7 +5,7 @@ Bridge between **claude.ai / ChatGPT** and **Claude Code** (VS Code). Export any
 https://github.com/user-attachments/assets/159f0c0a-e07c-46f2-b1b3-7d632460f820
 
 > **Status**: bidirectional (claude.ai / ChatGPT ↔ Claude Code). VS Code extension + Chrome companion + CLI.
-> Landing: [exportal.dev](https://exportal.dev). Changelog: [`CHANGELOG.md`](./CHANGELOG.md). Threat model: [`SECURITY.md`](./SECURITY.md). Detailed progress: [`DEVLOG.md`](./DEVLOG.md). What's coming: [`ROADMAP.md`](./ROADMAP.md).
+> Landing: [exportal.dev](https://exportal.dev). Support: [exportal.dev/support](https://exportal.dev/support). Changelog: [`CHANGELOG.md`](./CHANGELOG.md). Threat model: [`SECURITY.md`](./SECURITY.md). Detailed progress: [`DEVLOG.md`](./DEVLOG.md). What's coming: [`ROADMAP.md`](./ROADMAP.md).
 
 ## What it solves
 
@@ -31,10 +31,6 @@ Or with a keyboard shortcut (without opening the panel):
 Auto-attach to the Claude Code chat can be disabled with the `exportal.autoAttachToClaudeCode` setting. Add `.exportal/` to your `.gitignore` if you don't want to version the imports.
 
 ![Exportal floating button on claude.ai](docs/screenshots/exportal-s1-fab-1280x800.png)
-
-For Claude Design projects, the export capture includes the generated files (HTML, JSX, JSON) in a sibling folder of the `.md`:
-
-![Export from a Claude Design project](docs/screenshots/exportal-s0-claude-design-1280x800.png)
 
 ### The other way around: Claude Code → claude.ai / ChatGPT
 

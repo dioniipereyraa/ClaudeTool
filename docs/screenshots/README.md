@@ -4,7 +4,6 @@ Imágenes referenciadas por el README principal y por los listings del Marketpla
 
 | Archivo | Qué muestra | Dónde se usa |
 |---|---|---|
-| `exportal-s0-claude-design-1280x800.png` | Export desde un proyecto de Claude Design — chat + carpeta hermana con assets generados (HTML/JSX/JSON). | README principal, sección "Cómo se usa". |
 | `exportal-s1-fab-1280x800.png` | Botón flotante de Exportal expandido en `claude.ai/chat/<uuid>`. | README principal + Chrome Web Store. |
 | `exportal-s2-onboarding-1280x800.png` | Panel de onboarding en VS Code la primera vez que se instala: token + botón "Copiar y abrir Chrome". | README principal + Marketplace de VS Code. |
 | `exportal-s3-success-1280x800.png` | Página de opciones del companion en estado *"Listo — Todo conectado"*. | README principal + Chrome Web Store. |

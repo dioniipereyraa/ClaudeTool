@@ -13,8 +13,10 @@ Items concretos y cerrados se mueven al `DEVLOG.md`. Releases formales al
   store con el copy en inglés (texto listo en `.exportal/3-exportal-ejemplos-copy.md`)
   y subir las screenshots nuevas. README ya está en inglés —
   Marketplace de VS Code lo recoge en el próximo `vsce publish`.
-- [ ] Capturar GIF demo (5-8s, flujo claude.ai → VS Code con FAB
-  + auto-attach) con ScreenToGif y agregarlo al README + landing.
+- [ ] Verificar `exportal.dev` en Google Search Console (TXT record
+  via Cloudflare DNS, 2 min) para activar el badge "URL oficial
+  verificada" en el listing de Chrome Web Store. No es bloqueante
+  para la review actual — task post-aprobación.
 - [ ] Reemplazar las promo screenshots de la landing por capturas
   reales del producto funcionando (FAB real, panel de VS Code real,
   @-mention real en Claude Code). Snipping Tool. Las promo en español
