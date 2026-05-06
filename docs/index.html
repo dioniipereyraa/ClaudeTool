@@ -501,7 +501,6 @@
   pre.code-block .m { color: #94a3b8; }
   pre.code-block .v { color: #f1f5f9; }
   pre.code-block .sp { color: #c5fb52; font-weight: 700; }
-  pre.code-block .th { color: #94a3b8; font-style: italic; }
   pre.code-block .tu { color: #f59e0b; }
 
   .arch-wrap {
@@ -639,17 +638,13 @@ how the JWT verification works?
 
 <span class="sp">## Assistant</span>
 
-<span class="th">&gt; *thinking*
-&gt; Let me read the file first to understand the
-&gt; current implementation.</span>
-
 <span class="tu">[tool_use: read_file]
 { "path": "src/auth/middleware.ts" }</span>
 
 The current implementation uses `jsonwebtoken` v9 with
 HS256. The `verifyToken` function on line 23 takes a
 request and...</code></pre>
-  <p class="block-note">A real export from a Claude.ai conversation. Tool-use blocks, thinking, and inline code are preserved verbatim — ready to paste into Claude Code as context, or auto-attached for you.</p>
+  <p class="block-note">A real export from a Claude.ai conversation. Tool-use blocks and inline code are preserved verbatim — ready to paste into Claude Code as context, or auto-attached for you.</p>
 
   <h3 class="sub-heading">How the bridge works</h3>
   <div class="arch-wrap">
@@ -715,7 +710,7 @@ request and...</code></pre>
   <div class="features">
     <div class="feature">
       <h3>One-click export</h3>
-      <p>From any chat at <code>claude.ai/chat</code>, <code>claude.ai/design/p</code>, or <code>chatgpt.com/c</code> &rarr; a clean Markdown file in your VS Code workspace, including tool use, thinking, and results.</p>
+      <p>From any chat at <code>claude.ai/chat</code>, <code>claude.ai/design/p</code>, or <code>chatgpt.com/c</code> &rarr; a clean Markdown file in your VS Code workspace, including tool use and results.</p>
     </div>
     <div class="feature">
       <h3>Auto-attach to Claude Code</h3>
