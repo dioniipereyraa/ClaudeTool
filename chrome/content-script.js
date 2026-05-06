@@ -49,20 +49,30 @@ const SECONDARY_BTN_ID = 'exportal-prepare-official';
 const TOAST_ID = 'exportal-toast';
 const POLL_INTERVAL_MS = 500;
 
-// Design tokens — site-aware AND scheme-aware (silent patch on top of
-// 0.11.7). Each host has both a light and a dark palette. The active
-// scheme follows `prefers-color-scheme`, which Chrome sources from
-// the OS appearance setting (the same signal that flips claude.ai
-// and chatgpt.com themselves between light and dark).
+// Design tokens — site-aware AND (selectively) scheme-aware (silent
+// patch on top of 0.11.7).
 //
-// claude.ai keeps the warm orange brand accent across both schemes
-// (the orange pops on light cream and on warm dark alike). chatgpt's
-// dark scheme flips the accent to white, mirroring chatgpt.com's
-// own dark-mode CTA pattern where send/submit buttons go white on
-// dark; using the slate accent on a dark page would barely show.
+// Brand identity per host:
+//   - claude.ai  → Claude orange (#D97757). Theme-aware: warm-light
+//                 surfaces in light mode, warm-dark in dark mode. The
+//                 orb stays orange-with-white-mark either way (the
+//                 orange pops on both backgrounds).
+//   - chatgpt.com → Slate on white. Single palette, NOT theme-aware:
+//                 the FAB shows the canonical slate-on-white logo
+//                 regardless of OS color scheme. Same identity used
+//                 on exportal.dev so the brand is unified across
+//                 every non-Claude surface. (Tracking chatgpt.com's
+//                 own dark mode flip would have meant a white orb in
+//                 dark mode, which contradicts the canonical mark.)
 //
-// Sizing/radii/typography are shared across all four palettes so
-// the FAB layout stays identical regardless of host or scheme.
+// `orbBg` and `orbMark` are intentionally separate from `accent` so
+// the colored orb (brand identity) and the popover's CTA button
+// (which shares the accent on Claude but uses the same slate on
+// ChatGPT) can diverge cleanly. On Claude: orbBg=accent. On ChatGPT:
+// orbBg=surface (white), orbMark=accent (slate).
+//
+// Sizing/radii/typography are shared across all palettes so the FAB
+// layout stays identical regardless of host or scheme.
 const SHARED_SIZES = {
   fsXs: '11px',
   fsSm: '13px',
@@ -74,75 +84,66 @@ const SHARED_SIZES = {
   radiusLg: '14px',
 };
 
+const CLAUDE_LIGHT = {
+  ...SHARED_SIZES,
+  bg: '#FAF9F6',
+  surface: '#FFFFFF',
+  surface2: '#F4F2EE',
+  line: 'rgba(0,0,0,0.08)',
+  lineStrong: 'rgba(0,0,0,0.12)',
+  text: '#2C2B28',
+  textDim: 'rgba(44,43,40,0.62)',
+  textMute: 'rgba(44,43,40,0.36)',
+  accent: '#D97757',
+  accentHover: '#C5664A',
+  accentInk: '#FFFFFF',
+  ok: '#1F8A5B',
+  err: '#B42318',
+  orbBg: '#D97757',
+  orbMark: '#FFFFFF',
+};
+const CLAUDE_DARK = {
+  ...SHARED_SIZES,
+  bg: '#1A1714',
+  surface: '#211D1B',
+  surface2: '#2A2522',
+  line: 'rgba(255,255,255,0.08)',
+  lineStrong: 'rgba(255,255,255,0.14)',
+  text: '#F2F0EB',
+  textDim: 'rgba(242,240,235,0.62)',
+  textMute: 'rgba(242,240,235,0.36)',
+  accent: '#D97757',
+  accentHover: '#E48565',
+  accentInk: '#FFFFFF',
+  ok: '#4ADE80',
+  err: '#F87171',
+  orbBg: '#D97757',
+  orbMark: '#FFFFFF',
+};
+const CHATGPT_SLATE_ON_WHITE = {
+  ...SHARED_SIZES,
+  bg: '#FFFFFF',
+  surface: '#FFFFFF',
+  surface2: '#F4F4F5',
+  line: '#ECECEC',
+  lineStrong: '#D4D4D8',
+  text: '#1F1F1F',
+  textDim: 'rgba(31,31,31,0.60)',
+  textMute: 'rgba(31,31,31,0.40)',
+  accent: '#1F1F1F',
+  accentHover: '#0F0F0F',
+  accentInk: '#FFFFFF',
+  ok: '#1F8A5B',
+  err: '#B42318',
+  orbBg: '#FFFFFF',
+  orbMark: '#1F1F1F',
+};
+
 const HOST_THEMES = {
-  'claude.ai': {
-    light: {
-      ...SHARED_SIZES,
-      bg: '#FAF9F6',
-      surface: '#FFFFFF',
-      surface2: '#F4F2EE',
-      line: 'rgba(0,0,0,0.08)',
-      lineStrong: 'rgba(0,0,0,0.12)',
-      text: '#2C2B28',
-      textDim: 'rgba(44,43,40,0.62)',
-      textMute: 'rgba(44,43,40,0.36)',
-      accent: '#D97757',
-      accentHover: '#C5664A',
-      accentInk: '#FFFFFF',
-      ok: '#1F8A5B',
-      err: '#B42318',
-    },
-    dark: {
-      ...SHARED_SIZES,
-      bg: '#1A1714',
-      surface: '#211D1B',
-      surface2: '#2A2522',
-      line: 'rgba(255,255,255,0.08)',
-      lineStrong: 'rgba(255,255,255,0.14)',
-      text: '#F2F0EB',
-      textDim: 'rgba(242,240,235,0.62)',
-      textMute: 'rgba(242,240,235,0.36)',
-      accent: '#D97757',
-      accentHover: '#E48565',
-      accentInk: '#FFFFFF',
-      ok: '#4ADE80',
-      err: '#F87171',
-    },
-  },
-  'chatgpt.com': {
-    light: {
-      ...SHARED_SIZES,
-      bg: '#FFFFFF',
-      surface: '#FFFFFF',
-      surface2: '#F4F4F5',
-      line: '#ECECEC',
-      lineStrong: '#D4D4D8',
-      text: '#1F1F1F',
-      textDim: 'rgba(31,31,31,0.60)',
-      textMute: 'rgba(31,31,31,0.40)',
-      accent: '#0F1827',
-      accentHover: '#1E2A40',
-      accentInk: '#FFFFFF',
-      ok: '#1F8A5B',
-      err: '#B42318',
-    },
-    dark: {
-      ...SHARED_SIZES,
-      bg: '#212121',
-      surface: '#2F2F2F',
-      surface2: '#404040',
-      line: 'rgba(255,255,255,0.10)',
-      lineStrong: 'rgba(255,255,255,0.16)',
-      text: '#ECECEC',
-      textDim: 'rgba(236,236,236,0.62)',
-      textMute: 'rgba(236,236,236,0.40)',
-      accent: '#FFFFFF',
-      accentHover: '#F4F4F5',
-      accentInk: '#1F1F1F',
-      ok: '#4ADE80',
-      err: '#F87171',
-    },
-  },
+  'claude.ai':   { light: CLAUDE_LIGHT,  dark: CLAUDE_DARK },
+  // chatgpt.com intentionally uses the same palette in both schemes
+  // — see the header comment for why the mark stays slate-on-white.
+  'chatgpt.com': { light: CHATGPT_SLATE_ON_WHITE, dark: CHATGPT_SLATE_ON_WHITE },
 };
 
 function currentColorScheme() {
@@ -279,6 +280,11 @@ function buildFab() {
   fab.setAttribute('aria-label', chrome.i18n.getMessage('fabAriaLabel'));
   fab.setAttribute('aria-expanded', 'false');
   fab.title = chrome.i18n.getMessage('fabTooltip');
+  // Border only when the orb bg matches the surface (slate-on-white
+  // case for chatgpt.com — without an outline the white orb on a
+  // light page would lose its tile shape). On Claude the colored
+  // orb is self-defining and the line would just add visual noise.
+  const orbBordersSurface = TOKENS.orbBg.toLowerCase() === TOKENS.surface.toLowerCase();
   Object.assign(fab.style, {
     position: 'relative',
     width: '46px',
@@ -287,19 +293,19 @@ function buildFab() {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    background: TOKENS.accent,
-    border: 'none',
+    background: TOKENS.orbBg,
+    border: orbBordersSurface ? `1px solid ${TOKENS.line}` : 'none',
     borderRadius: '13px',
     boxShadow: '0 12px 28px -8px rgba(15,23,42,0.30), 0 4px 10px -4px rgba(15,23,42,0.18)',
     cursor: 'pointer',
     transition: 'transform 120ms ease',
   });
-  // Colored orb with the canonical white mark inside, mirroring the
-  // toolbar icon. The "ready" dot now uses `ok` so it stays visible
-  // against the colored bg (the previous accent-on-accent scheme
-  // disappeared after the light-theme switch).
+  // Orb mirrors the toolbar icon: tile in `orbBg`, single-fill mark in
+  // `orbMark`. Claude renders orange tile + white mark; ChatGPT renders
+  // white tile + slate mark (the canonical slate-on-white identity).
+  // The "ready" dot uses `ok` so it stays visible against either tile.
   fab.innerHTML = `
-    ${exportalMarkSvg({ size: 26, bg: 'transparent', fill: TOKENS.accentInk, rounded: 0.28 })}
+    ${exportalMarkSvg({ size: 26, bg: 'transparent', fill: TOKENS.orbMark, rounded: 0.28 })}
     <span data-exp-dot style="position:absolute;top:5px;right:5px;width:8px;height:8px;border-radius:4px;background:${TOKENS.ok};box-shadow:0 0 0 3px ${TOKENS.ok}33;animation:expPulse 2.2s ease-in-out infinite"></span>
   `;
   fab.addEventListener('mouseenter', () => { fab.style.transform = 'translateY(-1px)'; });
@@ -382,8 +388,17 @@ function buildBrandHeader() {
     marginBottom: '12px',
   });
   const mark = document.createElement('span');
-  mark.style.display = 'inline-flex';
-  mark.innerHTML = exportalMarkSvg({ size: 22, bg: TOKENS.accent, fill: TOKENS.accentInk, rounded: 0.28 });
+  Object.assign(mark.style, {
+    display: 'inline-flex',
+    // Same surface-match rule as the orb (see buildFab): a slate-on-white
+    // chip on a white popover surface needs an outline to read as a chip.
+    border: TOKENS.orbBg.toLowerCase() === TOKENS.surface.toLowerCase()
+      ? `1px solid ${TOKENS.line}`
+      : 'none',
+    borderRadius: '6px',
+    overflow: 'hidden',
+  });
+  mark.innerHTML = exportalMarkSvg({ size: 22, bg: TOKENS.orbBg, fill: TOKENS.orbMark, rounded: 0.28 });
   const name = document.createElement('span');
   name.textContent = 'Exportal';
   Object.assign(name.style, {
