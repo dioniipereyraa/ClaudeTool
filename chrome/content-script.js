@@ -49,65 +49,120 @@ const SECONDARY_BTN_ID = 'exportal-prepare-official';
 const TOAST_ID = 'exportal-toast';
 const POLL_INTERVAL_MS = 500;
 
-// Design tokens — site-aware light theme (silent patch on top of 0.11.7).
-// claude.ai gets the warm orange palette of the canonical brand mark
-// (#D97757 on #FAF9F6); chatgpt.com gets a slate-on-white look that
-// matches the dark icon variant. Both share the same sizing/radii/
-// typography so the FAB layout stays identical across hosts.
+// Design tokens — site-aware AND scheme-aware (silent patch on top of
+// 0.11.7). Each host has both a light and a dark palette. The active
+// scheme follows `prefers-color-scheme`, which Chrome sources from
+// the OS appearance setting (the same signal that flips claude.ai
+// and chatgpt.com themselves between light and dark).
 //
-// Exposed as CSS variables under the --exportal- prefix so inline
-// styles and keyframes can share them. Computed once per content
-// script instance because content scripts are tab-scoped — the host
-// can't change without a full script reload.
+// claude.ai keeps the warm orange brand accent across both schemes
+// (the orange pops on light cream and on warm dark alike). chatgpt's
+// dark scheme flips the accent to white, mirroring chatgpt.com's
+// own dark-mode CTA pattern where send/submit buttons go white on
+// dark; using the slate accent on a dark page would barely show.
+//
+// Sizing/radii/typography are shared across all four palettes so
+// the FAB layout stays identical regardless of host or scheme.
+const SHARED_SIZES = {
+  fsXs: '11px',
+  fsSm: '13px',
+  fsBase: '14px',
+  fsLg: '18px',
+  pad: '16px',
+  padSm: '10px',
+  radius: '10px',
+  radiusLg: '14px',
+};
+
 const HOST_THEMES = {
   'claude.ai': {
-    bg: '#FAF9F6',
-    surface: '#FFFFFF',
-    surface2: '#F4F2EE',
-    line: 'rgba(0,0,0,0.08)',
-    lineStrong: 'rgba(0,0,0,0.12)',
-    text: '#2C2B28',
-    textDim: 'rgba(44,43,40,0.62)',
-    textMute: 'rgba(44,43,40,0.36)',
-    accent: '#D97757',
-    accentHover: '#C5664A',
-    accentInk: '#FFFFFF',
-    ok: '#1F8A5B',
-    err: '#B42318',
-    fsXs: '11px',
-    fsSm: '13px',
-    fsBase: '14px',
-    fsLg: '18px',
-    pad: '16px',
-    padSm: '10px',
-    radius: '10px',
-    radiusLg: '14px',
+    light: {
+      ...SHARED_SIZES,
+      bg: '#FAF9F6',
+      surface: '#FFFFFF',
+      surface2: '#F4F2EE',
+      line: 'rgba(0,0,0,0.08)',
+      lineStrong: 'rgba(0,0,0,0.12)',
+      text: '#2C2B28',
+      textDim: 'rgba(44,43,40,0.62)',
+      textMute: 'rgba(44,43,40,0.36)',
+      accent: '#D97757',
+      accentHover: '#C5664A',
+      accentInk: '#FFFFFF',
+      ok: '#1F8A5B',
+      err: '#B42318',
+    },
+    dark: {
+      ...SHARED_SIZES,
+      bg: '#1A1714',
+      surface: '#211D1B',
+      surface2: '#2A2522',
+      line: 'rgba(255,255,255,0.08)',
+      lineStrong: 'rgba(255,255,255,0.14)',
+      text: '#F2F0EB',
+      textDim: 'rgba(242,240,235,0.62)',
+      textMute: 'rgba(242,240,235,0.36)',
+      accent: '#D97757',
+      accentHover: '#E48565',
+      accentInk: '#FFFFFF',
+      ok: '#4ADE80',
+      err: '#F87171',
+    },
   },
   'chatgpt.com': {
-    bg: '#FFFFFF',
-    surface: '#FFFFFF',
-    surface2: '#F4F4F5',
-    line: '#ECECEC',
-    lineStrong: '#D4D4D8',
-    text: '#1F1F1F',
-    textDim: 'rgba(31,31,31,0.60)',
-    textMute: 'rgba(31,31,31,0.40)',
-    accent: '#0F1827',
-    accentHover: '#1E2A40',
-    accentInk: '#FFFFFF',
-    ok: '#1F8A5B',
-    err: '#B42318',
-    fsXs: '11px',
-    fsSm: '13px',
-    fsBase: '14px',
-    fsLg: '18px',
-    pad: '16px',
-    padSm: '10px',
-    radius: '10px',
-    radiusLg: '14px',
+    light: {
+      ...SHARED_SIZES,
+      bg: '#FFFFFF',
+      surface: '#FFFFFF',
+      surface2: '#F4F4F5',
+      line: '#ECECEC',
+      lineStrong: '#D4D4D8',
+      text: '#1F1F1F',
+      textDim: 'rgba(31,31,31,0.60)',
+      textMute: 'rgba(31,31,31,0.40)',
+      accent: '#0F1827',
+      accentHover: '#1E2A40',
+      accentInk: '#FFFFFF',
+      ok: '#1F8A5B',
+      err: '#B42318',
+    },
+    dark: {
+      ...SHARED_SIZES,
+      bg: '#212121',
+      surface: '#2F2F2F',
+      surface2: '#404040',
+      line: 'rgba(255,255,255,0.10)',
+      lineStrong: 'rgba(255,255,255,0.16)',
+      text: '#ECECEC',
+      textDim: 'rgba(236,236,236,0.62)',
+      textMute: 'rgba(236,236,236,0.40)',
+      accent: '#FFFFFF',
+      accentHover: '#F4F4F5',
+      accentInk: '#1F1F1F',
+      ok: '#4ADE80',
+      err: '#F87171',
+    },
   },
 };
-const TOKENS = HOST_THEMES[window.location.host] ?? HOST_THEMES['claude.ai'];
+
+function currentColorScheme() {
+  try {
+    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  } catch {
+    return 'light';
+  }
+}
+
+function chooseTokens() {
+  const themes = HOST_THEMES[window.location.host] ?? HOST_THEMES['claude.ai'];
+  return themes[currentColorScheme()];
+}
+
+// Re-resolved on prefers-color-scheme change (see watchColorScheme).
+// `let` rather than `const` so a single reassignment propagates to
+// every site of `TOKENS.foo` lookup, since all uses are direct
+// property reads (no destructuring at module scope).
+let TOKENS = chooseTokens();
 
 let lastPathname = '';
 let shortcutsInstalled = false;
@@ -1368,6 +1423,35 @@ function tick() {
   syncPanel();
 }
 
+// Re-resolve TOKENS and rebuild the FAB when the OS toggles between
+// light and dark. Both claude.ai and chatgpt.com flip their own UI
+// on the same media query, so the FAB tracking it keeps the popover
+// visually coherent with the host page. The styles tag is recreated
+// (not just patched) so any keyframes/CSS-vars that may depend on
+// scheme-derived colors stay in sync.
+function watchColorScheme() {
+  let mq;
+  try {
+    mq = window.matchMedia('(prefers-color-scheme: dark)');
+  } catch {
+    return;
+  }
+  const handler = () => {
+    TOKENS = chooseTokens();
+    const panelEl = document.getElementById(PANEL_ID);
+    if (panelEl !== null) panelEl.remove();
+    const styleEl = document.getElementById(STYLE_ID);
+    if (styleEl !== null) styleEl.remove();
+    syncPanel();
+  };
+  if (typeof mq.addEventListener === 'function') {
+    mq.addEventListener('change', handler);
+  } else if (typeof mq.addListener === 'function') {
+    // Safari < 14 / older Chromium fallback. Harmless on modern Chrome.
+    mq.addListener(handler);
+  }
+}
+
 // Inject styles up-front (idempotent — the actual FAB/panel DOM is
 // created lazily in syncPanel). We do this at script load so the
 // pairing-success toast can animate even on pages without a chat UUID
@@ -1375,6 +1459,7 @@ function tick() {
 injectStyles();
 consumePairingFragment();
 installShortcuts();
+watchColorScheme();
 setInterval(tick, POLL_INTERVAL_MS);
 tick();
 
