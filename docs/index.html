@@ -13,9 +13,9 @@
 <meta name="description" content="Bidirectional bridge between Claude.ai/ChatGPT and Claude Code (VS Code). Export AI conversations to your workspace with one click and continue them as @-mentions. Local-first, MIT, open source.">
 <meta name="theme-color" content="#0b1220">
 
-<link rel="icon" href="/favicon.svg" type="image/svg+xml">
-<link rel="icon" href="/favicon.png" type="image/png" sizes="128x128">
-<link rel="apple-touch-icon" href="/favicon.png">
+<link rel="icon" href="/favicon.svg?v=2026-05-06" type="image/svg+xml">
+<link rel="icon" href="/favicon.png?v=2026-05-06" type="image/png" sizes="128x128">
+<link rel="apple-touch-icon" href="/favicon.png?v=2026-05-06">
 
 <meta property="og:title" content="Exportal — Bridge between AI chat and your editor">
 <meta property="og:description" content="Bidirectional bridge between Claude.ai/ChatGPT and Claude Code. One click in any chat → Markdown in your VS Code workspace, auto-attached to Claude Code as @-mention.">
@@ -67,11 +67,19 @@
     gap: 16px;
   }
   header.site .brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
     font-weight: 700;
     font-size: 1.05rem;
     letter-spacing: -0.01em;
     color: var(--ink);
     text-decoration: none;
+  }
+  header.site .brand-mark {
+    width: 22px;
+    height: 22px;
+    flex-shrink: 0;
   }
   header.site nav a {
     color: var(--muted);
@@ -581,7 +589,16 @@
 
 <header class="site">
   <div class="wrap row">
-    <a href="/" class="brand">Exportal</a>
+    <a href="/" class="brand">
+      <svg class="brand-mark" viewBox="0 0 100 100" aria-hidden="true">
+        <rect x="22" y="20" width="56" height="14" rx="2" fill="#1F1F1F"/>
+        <rect x="22" y="20" width="14" height="60" rx="2" fill="#1F1F1F"/>
+        <rect x="22" y="66" width="56" height="14" rx="2" fill="#1F1F1F"/>
+        <rect x="36" y="43" width="36" height="14" rx="2" fill="#1F1F1F"/>
+        <path d="M 72 50 L 82 50" stroke="#1F1F1F" stroke-width="14" stroke-linecap="round"/>
+      </svg>
+      Exportal
+    </a>
     <nav>
       <a href="#how">How it works</a>
       <a href="/privacy">Privacy</a>

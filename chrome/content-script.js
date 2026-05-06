@@ -84,6 +84,11 @@ const SHARED_SIZES = {
   radiusLg: '14px',
 };
 
+// Each palette declares THREE mark colors so the canonical variants
+// from exportal-logo-download (Claude orange dark/warm, slate-on-
+// white) render exactly as designed: a tile in `orbBg`, the E in
+// `orbInk`, the pill+arrow in `accent`. The popover's CTA button
+// reuses `accent` so it stays color-aligned with the orb's pill.
 const CLAUDE_LIGHT = {
   ...SHARED_SIZES,
   bg: '#FAF9F6',
@@ -99,8 +104,9 @@ const CLAUDE_LIGHT = {
   accentInk: '#FFFFFF',
   ok: '#1F8A5B',
   err: '#B42318',
-  orbBg: '#D97757',
-  orbMark: '#FFFFFF',
+  // Canonical "Claude orange · warm": cream tile, dark E, orange pill.
+  orbBg: '#FAF9F6',
+  orbInk: '#2C2B28',
 };
 const CLAUDE_DARK = {
   ...SHARED_SIZES,
@@ -117,8 +123,9 @@ const CLAUDE_DARK = {
   accentInk: '#FFFFFF',
   ok: '#4ADE80',
   err: '#F87171',
-  orbBg: '#D97757',
-  orbMark: '#FFFFFF',
+  // Canonical "Claude orange · dark": near-black tile, cream E, orange pill.
+  orbBg: '#0A0B0D',
+  orbInk: '#F2F3F0',
 };
 const CHATGPT_SLATE_ON_WHITE = {
   ...SHARED_SIZES,
@@ -135,8 +142,9 @@ const CHATGPT_SLATE_ON_WHITE = {
   accentInk: '#FFFFFF',
   ok: '#1F8A5B',
   err: '#B42318',
+  // Canonical "Slate on white": white tile, slate E, slate pill (mono).
   orbBg: '#FFFFFF',
-  orbMark: '#1F1F1F',
+  orbInk: '#1F1F1F',
 };
 
 const HOST_THEMES = {
@@ -280,10 +288,10 @@ function buildFab() {
   fab.setAttribute('aria-label', chrome.i18n.getMessage('fabAriaLabel'));
   fab.setAttribute('aria-expanded', 'false');
   fab.title = chrome.i18n.getMessage('fabTooltip');
-  // Border only when the orb bg matches the surface (slate-on-white
-  // case for chatgpt.com — without an outline the white orb on a
-  // light page would lose its tile shape). On Claude the colored
-  // orb is self-defining and the line would just add visual noise.
+  // Border only when the orb bg matches the popover surface (slate-on-
+  // white on chatgpt — without an outline the white orb on a white
+  // surface would lose its tile shape). On Claude the cream/dark orb
+  // is self-defining and the line would just add visual noise.
   const orbBordersSurface = TOKENS.orbBg.toLowerCase() === TOKENS.surface.toLowerCase();
   Object.assign(fab.style, {
     position: 'relative',
@@ -300,12 +308,13 @@ function buildFab() {
     cursor: 'pointer',
     transition: 'transform 120ms ease',
   });
-  // Orb mirrors the toolbar icon: tile in `orbBg`, single-fill mark in
-  // `orbMark`. Claude renders orange tile + white mark; ChatGPT renders
-  // white tile + slate mark (the canonical slate-on-white identity).
-  // The "ready" dot uses `ok` so it stays visible against either tile.
+  // Three-color mark inside the orb, matching the canonical brand
+  // variants: orbInk paints the E strokes, accent paints the portal
+  // pill + arrow. ChatGPT collapses to monochrome (orbInk === accent).
+  // The orb's own bg is rendered via CSS above, so the SVG passes
+  // `bg: 'transparent'` to skip the inner tile rect.
   fab.innerHTML = `
-    ${exportalMarkSvg({ size: 26, bg: 'transparent', fill: TOKENS.orbMark, rounded: 0.28 })}
+    ${exportalMarkSvg({ size: 26, bg: 'transparent', ink: TOKENS.orbInk, accent: TOKENS.accent, rounded: 0.28 })}
     <span data-exp-dot style="position:absolute;top:5px;right:5px;width:8px;height:8px;border-radius:4px;background:${TOKENS.ok};box-shadow:0 0 0 3px ${TOKENS.ok}33;animation:expPulse 2.2s ease-in-out infinite"></span>
   `;
   fab.addEventListener('mouseenter', () => { fab.style.transform = 'translateY(-1px)'; });
@@ -390,15 +399,16 @@ function buildBrandHeader() {
   const mark = document.createElement('span');
   Object.assign(mark.style, {
     display: 'inline-flex',
-    // Same surface-match rule as the orb (see buildFab): a slate-on-white
-    // chip on a white popover surface needs an outline to read as a chip.
+    // Same surface-match rule as the orb (see buildFab): a slate-on-
+    // white chip on a white popover surface needs an outline to read
+    // as a chip.
     border: TOKENS.orbBg.toLowerCase() === TOKENS.surface.toLowerCase()
       ? `1px solid ${TOKENS.line}`
       : 'none',
     borderRadius: '6px',
     overflow: 'hidden',
   });
-  mark.innerHTML = exportalMarkSvg({ size: 22, bg: TOKENS.orbBg, fill: TOKENS.orbMark, rounded: 0.28 });
+  mark.innerHTML = exportalMarkSvg({ size: 22, bg: TOKENS.orbBg, ink: TOKENS.orbInk, accent: TOKENS.accent, rounded: 0.28 });
   const name = document.createElement('span');
   name.textContent = 'Exportal';
   Object.assign(name.style, {
@@ -1373,25 +1383,26 @@ function showToast(text, kind) {
 }
 
 // ——— SVG helpers ——————————————————————————————————————————————————————
-// Single-fill version of the Exportal mark: E strokes + the middle
-// "portal" bar with arrow extension all share one color. Matches the
-// canonical brand asset (icons/claude-*.png and icons/chatgpt-*.png),
-// where the mark is rendered as a uniform white shape on a colored
-// rounded square. Use `fill: accentInk` on a colored chip, or
-// `fill: accent` on a neutral surface.
-function exportalMarkSvg({ size, fill, bg, rounded }) {
-  const r = (rounded ?? 0.28) * 100;
+// Three-color version of the Exportal mark, matching the canonical
+// variants in exportal-logo-download (Claude orange dark/warm, slate-
+// on-white). E strokes render in `ink`; the middle "portal" pill plus
+// its right-extending arrow render in `accent`. The slate-on-white
+// variant collapses to a single visible color by passing
+// `ink === accent` — both stay readable because they were monochrome
+// to begin with.
+function exportalMarkSvg({ size, bg, ink, accent, rounded }) {
+  const r = (rounded ?? 0.22) * 100;
   const bgRect = !bg || bg === 'transparent'
     ? ''
     : `<rect x="0" y="0" width="100" height="100" rx="${r}" fill="${bg}"/>`;
   return `
     <svg width="${size}" height="${size}" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
       ${bgRect}
-      <rect x="22" y="20" width="56" height="14" rx="2" fill="${fill}"/>
-      <rect x="22" y="20" width="14" height="60" rx="2" fill="${fill}"/>
-      <rect x="22" y="66" width="56" height="14" rx="2" fill="${fill}"/>
-      <rect x="36" y="43" width="36" height="14" rx="2" fill="${fill}"/>
-      <path d="M 72 50 L 84 50" stroke="${fill}" stroke-width="14" stroke-linecap="round"/>
+      <rect x="22" y="20" width="56" height="14" rx="2" fill="${ink}"/>
+      <rect x="22" y="20" width="14" height="60" rx="2" fill="${ink}"/>
+      <rect x="22" y="66" width="56" height="14" rx="2" fill="${ink}"/>
+      <rect x="36" y="43" width="36" height="14" rx="2" fill="${accent}"/>
+      <path d="M 72 50 L 82 50" stroke="${accent}" stroke-width="14" stroke-linecap="round"/>
     </svg>
   `;
 }
@@ -1433,8 +1444,23 @@ function installShortcuts() {
 }
 
 function tick() {
-  if (window.location.pathname === lastPathname) return;
-  lastPathname = window.location.pathname;
+  const path = window.location.pathname;
+  if (path !== lastPathname) {
+    lastPathname = path;
+    syncPanel();
+    return;
+  }
+  // Same path. Defensive re-sync for hosts that wipe document.body
+  // during navigation/hydration. chatgpt.com's React tree can detach
+  // our previously-appended panel during a reload or in-page nav,
+  // leaving the panel id absent from the DOM even though the path
+  // is unchanged. Without this check, the FAB never came back until
+  // the user closed and reopened the tab. Skip on first tick
+  // (lastPathname === '' means we never built one yet) and skip when
+  // the current route doesn't expect a panel.
+  if (lastPathname === '') return;
+  if (currentRoute() === undefined) return;
+  if (document.getElementById(PANEL_ID) !== null) return;
   syncPanel();
 }
 
