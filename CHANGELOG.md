@@ -6,6 +6,65 @@ Companion (Chrome extension) are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 and versions follow [Semantic Versioning](https://semver.org/).
 
+## [0.11.8] — 2026-05-06
+
+Brand and identity release. No source changes to the importers,
+formatters, redactors, CLI, bridge, or any of the audit closures
+from 0.11.7. The bump exists because the VS Code Marketplace and
+Chrome Web Store both require a fresh version to accept a new
+upload, and the visible change is enough to warrant one: the FAB,
+the toolbar/marketplace icon, the favicon, and the landing all
+moved to the canonical mark variants from `exportal-logo-download`.
+
+### Added
+
+- **Site-aware FAB theme** in the Chrome companion. claude.ai
+  renders the canonical Claude orange mark (warm light: cream
+  tile + dark E + orange pill; dark: near-black tile + cream E
+  + orange pill, picked via `prefers-color-scheme`). chatgpt.com
+  renders the canonical slate-on-white mark in both schemes, the
+  identity stays consistent with the exportal.dev landing rather
+  than tracking chatgpt.com's own dark-mode flip.
+- **Defensive panel rebuild** in `chrome/content-script.js:tick`.
+  chatgpt.com's React tree can wipe elements appended to
+  `document.body` during in-tab navigation/hydration, leaving the
+  FAB detached even when the URL pathname is unchanged. The
+  polling tick now also rebuilds when the route still expects a
+  panel but the panel id is missing from the DOM. Closes the bug
+  where the FAB disappeared after an in-tab reload and only came
+  back after closing and reopening the tab.
+
+### Changed
+
+- **VS Code Marketplace icon** (`assets/icon.{svg,png}`) and
+  **Chrome toolbar icons** (`chrome/icon-{16,32,48,128}.png`)
+  switched to the canonical Claude orange warm: cream tile
+  `#FAF9F6`, dark E `#2C2B28`, orange pill `#D97757`. The VS Code
+  icon previously carried the lime-on-dark Graphite Citrus from
+  the very first release; the Chrome toolbar carried a non-
+  canonical orange-tile + uniform-white-mark variant.
+- **exportal.dev landing**: the header now shows the canonical
+  slate-on-white wordmark (mark + "Exportal") next to the nav,
+  matching the favicon. `docs/favicon.png` regenerated from the
+  same SVG. Cache-bust query (`?v=2026-05-06`) added to all
+  favicon `<link>` tags in `index.html`, `privacy/index.html`,
+  `support/index.html` so browsers re-fetch instead of serving
+  the aggressively-cached lime-on-dark version. The thinking-
+  blocks line in the "Markdown you receive" code sample also got
+  removed (the FAB still preserves them, the demo just looked
+  busy with three different blockquote rules).
+- **Mark SVG signature** unified on the canonical 3-color shape
+  `{bg, ink, accent}` so all surfaces (FAB orb, brand chip,
+  toolbar icon, favicon) render the exact geometry from the
+  `exportal-logo-download` design system. The earlier silent
+  patch that collapsed it to a single fill is reverted.
+
+### Fixed
+
+- FAB on chatgpt.com no longer disappears after an in-tab reload
+  or when navigating between conversations without a hard
+  reload. See "Defensive panel rebuild" above for the mechanism.
+
 ## [0.11.7] — 2026-04-30
 
 Hardening release. Closes every actionable finding from the deep
