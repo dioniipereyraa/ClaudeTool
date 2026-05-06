@@ -49,32 +49,65 @@ const SECONDARY_BTN_ID = 'exportal-prepare-official';
 const TOAST_ID = 'exportal-toast';
 const POLL_INTERVAL_MS = 500;
 
-// Design tokens — ported from design-cds/components/tokens.jsx
-// (Graphite Citrus / dark / cozy). Exposed as CSS variables under the
-// --exportal- prefix so inline styles and keyframes can share them.
-const TOKENS = {
-  bg: '#0A0B0D',
-  surface: '#111315',
-  surface2: '#181A1D',
-  line: 'rgba(255,255,255,0.07)',
-  lineStrong: 'rgba(255,255,255,0.13)',
-  text: '#F2F3F0',
-  textDim: 'rgba(242,243,240,0.60)',
-  textMute: 'rgba(242,243,240,0.36)',
-  accent: '#D4FF3A',
-  accentHover: '#E4FF5C',
-  accentInk: '#0A0B0D',
-  ok: '#86EFAC',
-  err: '#FCA5A5',
-  fsXs: '11px',
-  fsSm: '13px',
-  fsBase: '14px',
-  fsLg: '18px',
-  pad: '16px',
-  padSm: '10px',
-  radius: '10px',
-  radiusLg: '14px',
+// Design tokens — site-aware light theme (silent patch on top of 0.11.7).
+// claude.ai gets the warm orange palette of the canonical brand mark
+// (#D97757 on #FAF9F6); chatgpt.com gets a slate-on-white look that
+// matches the dark icon variant. Both share the same sizing/radii/
+// typography so the FAB layout stays identical across hosts.
+//
+// Exposed as CSS variables under the --exportal- prefix so inline
+// styles and keyframes can share them. Computed once per content
+// script instance because content scripts are tab-scoped — the host
+// can't change without a full script reload.
+const HOST_THEMES = {
+  'claude.ai': {
+    bg: '#FAF9F6',
+    surface: '#FFFFFF',
+    surface2: '#F4F2EE',
+    line: 'rgba(0,0,0,0.08)',
+    lineStrong: 'rgba(0,0,0,0.12)',
+    text: '#2C2B28',
+    textDim: 'rgba(44,43,40,0.62)',
+    textMute: 'rgba(44,43,40,0.36)',
+    accent: '#D97757',
+    accentHover: '#C5664A',
+    accentInk: '#FFFFFF',
+    ok: '#1F8A5B',
+    err: '#B42318',
+    fsXs: '11px',
+    fsSm: '13px',
+    fsBase: '14px',
+    fsLg: '18px',
+    pad: '16px',
+    padSm: '10px',
+    radius: '10px',
+    radiusLg: '14px',
+  },
+  'chatgpt.com': {
+    bg: '#FFFFFF',
+    surface: '#FFFFFF',
+    surface2: '#F4F4F5',
+    line: '#ECECEC',
+    lineStrong: '#D4D4D8',
+    text: '#1F1F1F',
+    textDim: 'rgba(31,31,31,0.60)',
+    textMute: 'rgba(31,31,31,0.40)',
+    accent: '#0F1827',
+    accentHover: '#1E2A40',
+    accentInk: '#FFFFFF',
+    ok: '#1F8A5B',
+    err: '#B42318',
+    fsXs: '11px',
+    fsSm: '13px',
+    fsBase: '14px',
+    fsLg: '18px',
+    pad: '16px',
+    padSm: '10px',
+    radius: '10px',
+    radiusLg: '14px',
+  },
 };
+const TOKENS = HOST_THEMES[window.location.host] ?? HOST_THEMES['claude.ai'];
 
 let lastPathname = '';
 let shortcutsInstalled = false;
@@ -199,16 +232,20 @@ function buildFab() {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    background: TOKENS.surface,
-    border: `1px solid ${TOKENS.line}`,
-    borderRadius: '23px',
-    boxShadow: '0 10px 28px rgba(0,0,0,0.28), 0 2px 4px rgba(0,0,0,0.14)',
+    background: TOKENS.accent,
+    border: 'none',
+    borderRadius: '13px',
+    boxShadow: '0 12px 28px -8px rgba(15,23,42,0.30), 0 4px 10px -4px rgba(15,23,42,0.18)',
     cursor: 'pointer',
     transition: 'transform 120ms ease',
   });
+  // Colored orb with the canonical white mark inside, mirroring the
+  // toolbar icon. The "ready" dot now uses `ok` so it stays visible
+  // against the colored bg (the previous accent-on-accent scheme
+  // disappeared after the light-theme switch).
   fab.innerHTML = `
-    ${exportalMarkSvg({ size: 24, bg: 'transparent', accent: TOKENS.accent, ink: TOKENS.text, rounded: 0.28 })}
-    <span data-exp-dot style="position:absolute;top:5px;right:5px;width:8px;height:8px;border-radius:4px;background:${TOKENS.accent};box-shadow:0 0 0 3px ${TOKENS.accent}33;animation:expPulse 2.2s ease-in-out infinite"></span>
+    ${exportalMarkSvg({ size: 26, bg: 'transparent', fill: TOKENS.accentInk, rounded: 0.28 })}
+    <span data-exp-dot style="position:absolute;top:5px;right:5px;width:8px;height:8px;border-radius:4px;background:${TOKENS.ok};box-shadow:0 0 0 3px ${TOKENS.ok}33;animation:expPulse 2.2s ease-in-out infinite"></span>
   `;
   fab.addEventListener('mouseenter', () => { fab.style.transform = 'translateY(-1px)'; });
   fab.addEventListener('mouseleave', () => { fab.style.transform = 'translateY(0)'; });
@@ -291,7 +328,7 @@ function buildBrandHeader() {
   });
   const mark = document.createElement('span');
   mark.style.display = 'inline-flex';
-  mark.innerHTML = exportalMarkSvg({ size: 22, bg: TOKENS.surface2, accent: TOKENS.accent, ink: TOKENS.text, rounded: 0.28 });
+  mark.innerHTML = exportalMarkSvg({ size: 22, bg: TOKENS.accent, fill: TOKENS.accentInk, rounded: 0.28 });
   const name = document.createElement('span');
   name.textContent = 'Exportal';
   Object.assign(name.style, {
@@ -1266,22 +1303,25 @@ function showToast(text, kind) {
 }
 
 // ——— SVG helpers ——————————————————————————————————————————————————————
-// Ported from design-cds/components/logo.jsx: rounded square bg,
-// E strokes in `ink`, middle "portal" bar in `accent` that extends
-// right with an arrowhead cap to hint the bridge direction.
-function exportalMarkSvg({ size, bg, accent, ink, rounded }) {
-  const r = rounded * 100;
-  const bgRect = bg === 'transparent'
+// Single-fill version of the Exportal mark: E strokes + the middle
+// "portal" bar with arrow extension all share one color. Matches the
+// canonical brand asset (icons/claude-*.png and icons/chatgpt-*.png),
+// where the mark is rendered as a uniform white shape on a colored
+// rounded square. Use `fill: accentInk` on a colored chip, or
+// `fill: accent` on a neutral surface.
+function exportalMarkSvg({ size, fill, bg, rounded }) {
+  const r = (rounded ?? 0.28) * 100;
+  const bgRect = !bg || bg === 'transparent'
     ? ''
     : `<rect x="0" y="0" width="100" height="100" rx="${r}" fill="${bg}"/>`;
   return `
     <svg width="${size}" height="${size}" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
       ${bgRect}
-      <rect x="22" y="20" width="56" height="14" rx="2" fill="${ink}"/>
-      <rect x="22" y="20" width="14" height="60" rx="2" fill="${ink}"/>
-      <rect x="22" y="66" width="56" height="14" rx="2" fill="${ink}"/>
-      <rect x="36" y="43" width="36" height="14" rx="2" fill="${accent}"/>
-      <path d="M 72 50 L 82 50" stroke="${accent}" stroke-width="14" stroke-linecap="round"/>
+      <rect x="22" y="20" width="56" height="14" rx="2" fill="${fill}"/>
+      <rect x="22" y="20" width="14" height="60" rx="2" fill="${fill}"/>
+      <rect x="22" y="66" width="56" height="14" rx="2" fill="${fill}"/>
+      <rect x="36" y="43" width="36" height="14" rx="2" fill="${fill}"/>
+      <path d="M 72 50 L 84 50" stroke="${fill}" stroke-width="14" stroke-linecap="round"/>
     </svg>
   `;
 }

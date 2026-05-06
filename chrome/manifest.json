@@ -7,10 +7,18 @@
   "homepage_url": "https://exportal.dev",
   "minimum_chrome_version": "116",
   "icons": {
+    "16": "icon-16.png",
+    "32": "icon-32.png",
+    "48": "icon-48.png",
     "128": "icon-128.png"
   },
   "action": {
-    "default_icon": "icon-128.png",
+    "default_icon": {
+      "16": "icon-16.png",
+      "32": "icon-32.png",
+      "48": "icon-48.png",
+      "128": "icon-128.png"
+    },
     "default_title": "__MSG_extName__"
   },
   "background": {
