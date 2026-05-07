@@ -37,7 +37,7 @@ Have you read [`ROADMAP.md`](../../ROADMAP.md)?
       (telemetry, automatic bidirectional sync, at-rest encryption,
       multi-account claude.ai handling).
 
-If unsure, open the issue anyway — we'll figure it out together.
+If unsure, open the issue anyway, we'll figure it out together.
 
 ## Additional context
 

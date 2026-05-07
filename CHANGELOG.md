@@ -6,7 +6,7 @@ Companion (Chrome extension) are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 and versions follow [Semantic Versioning](https://semver.org/).
 
-## [0.11.8] — 2026-05-06
+## [0.11.8], 2026-05-06
 
 Brand and identity release. No source changes to the importers,
 formatters, redactors, CLI, bridge, or any of the audit closures
@@ -65,7 +65,7 @@ moved to the canonical mark variants from `exportal-logo-download`.
   or when navigating between conversations without a hard
   reload. See "Defensive panel rebuild" above for the mechanism.
 
-## [0.11.7] — 2026-04-30
+## [0.11.7], 2026-04-30
 
 Hardening release. Closes every actionable finding from the deep
 audit (`AUDIT-2026-04-30-deep-fases-2-6.md`): all 6 BAJA + 5
@@ -174,7 +174,7 @@ signing) remain accepted by threat model. 313/313 tests verdes.
   cosign / GPG. Single-developer project, ROI bajo. Documentado
   como TODO futuro.
 
-## [0.11.6] — 2026-04-30
+## [0.11.6], 2026-04-30
 
 Security release. Closes the open findings from the second-pass
 audit (`AUDIT-2026-04-30.md`): rate limiting on the local bridge,
@@ -260,7 +260,7 @@ pages. 284/284 tests verdes.
 - `checkRateLimit`, `RATE_LIMITS`, `RATE_LIMIT_WINDOW_MS`,
   `RateLimitState` exported for unit testing.
 
-## [0.11.5] — 2026-04-30
+## [0.11.5], 2026-04-30
 
 UX-only release que cierra los Hitos 32 (badge inteligente del
 icono Chrome), 33 (FAB en Claude Design no tapa el submit) y 34
@@ -271,7 +271,7 @@ import y cero toasts redundantes en el flujo. 252/252 tests verdes.
 
 ### Added
 
-- **Templates post-import** (Hito 34) — nueva sección **After
+- **Templates post-import** (Hito 34), nueva sección **After
   import** que aparece arriba del panel del sidebar después de
   cada import exitoso (claude.ai inline / ChatGPT inline /
   claude.ai ZIP / ChatGPT ZIP). Muestra prompts clickables que
@@ -294,12 +294,12 @@ import y cero toasts redundantes en el flujo. 252/252 tests verdes.
     permite.
   - Botón X para cerrar la sección. Si rotás el setting o
     importás otra vez, vuelve a aparecer fresca.
-- **Badge inteligente del icono Chrome companion** (Hito 32) —
+- **Badge inteligente del icono Chrome companion** (Hito 32),
   click en el icono cuando el badge está en estado de error
   (`AUTH`/`OFF`/`OLD`/`ERR`) abre directo la página de fix con
   un banner contextual explicando el problema. Estados verdes
   (`OK`/`SET`) siguen abriendo el popover normal.
-- **FAB en Claude Design no tapa el submit** (Hito 33) — el
+- **FAB en Claude Design no tapa el submit** (Hito 33), el
   botón flotante de Exportal ahora se reposiciona automáticamente
   en el flow de design questions de claude.ai/design (donde el
   CTA de submit vive abajo) para no overlapping con el botón
@@ -307,16 +307,16 @@ import y cero toasts redundantes en el flujo. 252/252 tests verdes.
 
 ### Changed
 
-- **Un toast por export, no dos o tres** — el flujo de import
+- **Un toast por export, no dos o tres**, el flujo de import
   consolidó las notificaciones:
-  - Si `alsoWriteJsonl` está OFF: 1 toast — *"Exportal: 'X' — Y
+  - Si `alsoWriteJsonl` está OFF: 1 toast, *"Exportal: 'X', Y
     messages imported"*.
-  - Si `alsoWriteJsonl` está ON: 1 toast — *"Exportal: 'X' — Y
+  - Si `alsoWriteJsonl` está ON: 1 toast, *"Exportal: 'X', Y
     messages imported · also in /resume"* (el sufijo reemplaza
     al toast secundario *"also wrote X.jsonl for /resume"* que
     se emitía aparte).
 - **El toast de "paired with Chrome" ya no se dispara en cada
-  page load** — antes, el `/ping` que el companion envía cada
+  page load**, antes, el `/ping` que el companion envía cada
   vez que se carga claude.ai/chatgpt.com hacía aparecer la
   notificación con un cooldown insuficiente de 3 segundos. Ahora
   persiste un flag `exportal.pairConfirmedForToken` en globalState
@@ -333,10 +333,10 @@ import y cero toasts redundantes en el flujo. 252/252 tests verdes.
   `ExportalControlPanelProvider` que sobrevive al show/hide cycle
   del webview y permite restaurar la sección After-import en
   `resolveWebviewView` y `onDidChangeVisibility`.
-- Bump del Chrome companion también a 0.11.5 por simetría — sin
+- Bump del Chrome companion también a 0.11.5 por simetría, sin
   cambios funcionales en el companion en este release.
 
-## [0.11.4] — 2026-04-30
+## [0.11.4], 2026-04-30
 
 UX-only release: cierra los Hitos 30 (onboarding wizard de dos
 pasos) y 31 (sonido al exportar) del cluster ergonomía/UX que
@@ -346,14 +346,14 @@ QuickPick de provider que sumaba fricción innecesaria al pairing.
 
 ### Added
 
-- **Wizard de onboarding de dos pasos** (Hito 30) — el webview
+- **Wizard de onboarding de dos pasos** (Hito 30), el webview
   de pairing se reescribió con dos secciones explícitas, cada una
   con su CTA primario:
-  - **Step 1 — Install the Chrome companion**: botón "Get from
+  - **Step 1, Install the Chrome companion**: botón "Get from
     Chrome Web Store" que abre el listing oficial.
-  - **Step 2 — Pair with VS Code**: token + COPY + botón "Copy
+  - **Step 2, Pair with VS Code**: token + COPY + botón "Copy
     token and open Chrome".
-  - Skip link discreto al pie ("Skip — I will set this up later").
+  - Skip link discreto al pie ("Skip, I will set this up later").
   - El flag de onboarding subió a `exportal.onboardingShownV3`
     para que existing users vean el wizard nuevo una vez en su
     próxima activación.
@@ -361,18 +361,18 @@ QuickPick de provider que sumaba fricción innecesaria al pairing.
   companion. Default ON, opt-out con un toggle obvio en la options
   page del companion.
   - Generado por Web Audio API (sin asset binario): arpegio
-    mayor en tuning A=432Hz — 432 (A, root) → 540 (C#, tercera
+    mayor en tuning A=432Hz, 432 (A, root) → 540 (C#, tercera
     mayor) → 648 (E, quinta perfecta). Sine wave con tails
     superpuestos para un "swell" relajado de victoria, no tres
     beeps discretos. ~700ms total, volumen capeado a 0.13,
     attack de 25ms en cada nota para que respiren al entrar.
   - 432Hz como base por preferencia del autor (referencia
     cultural a la "frecuencia de la dopamina"). El tuning es
-    interno al sintetizador — no afecta nada externo.
+    interno al sintetizador, no afecta nada externo.
   - Botón "Test" al lado del toggle para previsualizar el sonido
     antes de exportar (ignora el toggle a propósito).
   - Honra el mute global del SO, el mute del tab del browser, y
-    el mixer del OS — el toggle del companion es solo una de
+    el mixer del OS, el toggle del companion es solo una de
     varias capas de silencio.
   - Se dispara después de los dos paths de éxito del companion:
     `showSuccessPulse` (FAB click) y el `showToast` del shortcut
@@ -390,7 +390,7 @@ QuickPick de provider que sumaba fricción innecesaria al pairing.
   del proveedor.
 - **Toast post-pairing actionable**: la notification que aparece
   cuando el companion confirma el pairing ahora dice *"Exportal:
-  paired with Chrome. Try it now — open a chat in claude.ai or
+  paired with Chrome. Try it now, open a chat in claude.ai or
   ChatGPT and click the Export button"* en lugar del genérico
   *"pairing complete. Chrome is ready to export chats"*.
 
@@ -420,11 +420,11 @@ QuickPick de provider que sumaba fricción innecesaria al pairing.
   clear con `rm -rf node_modules/.vite` resolvió cuando dos
   retries directos no lo hicieron).
 
-## [0.11.3] — 2026-04-29
+## [0.11.3], 2026-04-29
 
 Cleanup release que cierra los hallazgos del code audit del
 2026-04-29 (registro completo en `AUDIT-2026-04-29.md`). Cero
-features nuevos, cero cambios de UX visibles al usuario — solo
+features nuevos, cero cambios de UX visibles al usuario, solo
 seguridad reforzada, dos bugs cerrados, y limpieza de strings
 stale post-Hito 30 (multi-IA). 252/252 tests verdes.
 
@@ -444,7 +444,7 @@ stale post-Hito 30 (multi-IA). 252/252 tests verdes.
 - **Defensa-in-depth: Origin check** en el HTTP bridge. Si la
   request trae `Origin` y NO empieza con `chrome-extension://`,
   se rechaza con 403 `forbidden_origin`. Origin ausente sigue
-  permitido (curl, internal calls) — el bearer token sigue
+  permitido (curl, internal calls), el bearer token sigue
   siendo el security boundary real, esto es solo otra capa.
 - **Cap de tamaño en `readJsonl`**: 200 MB. Defensa contra
   archivos `.jsonl` patológicamente grandes (no atacante real,
@@ -455,14 +455,14 @@ stale post-Hito 30 (multi-IA). 252/252 tests verdes.
 
 - **`formatRelativeTime` ahora retorna inglés**: `'a few minutes
   ago'`, `'3h ago'`, `'1 day ago'`, `'5 days ago'`. Antes era
-  español hardcoded — inconsistente con la decisión de inglés-
+  español hardcoded, inconsistente con la decisión de inglés-
   primario para listings tomada el 2026-04-29. Visible en el
   panel de Exportal del sidebar de VS Code y en notifications.
 - **`slugify` fallback** cuando el conversation name es vacío
   o solo contiene caracteres especiales: pasa de `'conversacion'`
   a `'conversation'`. Visible en filenames del .md generado.
 - **Status bar tooltip**: `'Import claude.ai conversation'` →
-  `'Exportal — import an AI conversation'` (más preciso post-
+  `'Exportal, import an AI conversation'` (más preciso post-
   multi-IA).
 - **Hint de Gemini** en el panel: `'En camino · Q3 2026'` →
   `'Coming soon'`. Sin fecha-cristalbol que se va a vencer
@@ -476,7 +476,7 @@ stale post-Hito 30 (multi-IA). 252/252 tests verdes.
   `pulseMessagesSuffix` fallback `'mensajes'` → `'messages'`;
   `pulseHeadline` fallback `'Enviado a VS Code'` →
   `'Sent to VS Code'`. Estos fallbacks solo se ven si la
-  i18n entry desaparece del bundle (no debería pasar) — pero
+  i18n entry desaparece del bundle (no debería pasar), pero
   ahora son consistentes con la decisión de idioma primario.
 
 ### Fixed
@@ -489,7 +489,7 @@ stale post-Hito 30 (multi-IA). 252/252 tests verdes.
   convertir el handler en un open redirect.
 - **Comparación NaN en Content-Length** del HTTP bridge: si el
   header llegaba con un valor no-numérico, `Number()` retornaba
-  `NaN`, y `NaN > maxBytes` es `false` — saltaba el early reject.
+  `NaN`, y `NaN > maxBytes` es `false`, saltaba el early reject.
   El stream-level limit todavía lo cachaba, pero `Number.isFinite`
   como guard hace que el early reject funcione siempre.
 
@@ -499,13 +499,13 @@ stale post-Hito 30 (multi-IA). 252/252 tests verdes.
   responsabilidades (Companion, VS Code extension, CLI)
   mantienen sus contratos exactos.
 - Los assets s0 (Claude Design slide) ya estaban retirados
-  desde 0.11.2 — no relacionado con este release.
+  desde 0.11.2, no relacionado con este release.
 - 252 tests pasan (subió de 243 con los 9 nuevos para los
   patterns extendidos del redactor).
 - Audit findings que NO se cerraron en este release y por qué:
   - **Token plaintext en `chrome.storage.local`** (M3): threat
     model documentado, riesgo solo si malware ya tiene acceso
-    a disco — escenario fuera de scope.
+    a disco, escenario fuera de scope.
   - **Zip-bomb decompression protection** (L2): el cap de 50 MB
     de filesize upstream da defensa práctica; el costo de un
     contador de bytes descomprimidos no se justifica con el
@@ -514,7 +514,7 @@ stale post-Hito 30 (multi-IA). 252/252 tests verdes.
     edge case difícil de reproducir; no tiene impacto de
     seguridad ni de pérdida de datos. Cleanup futuro.
 
-## [0.11.2] — 2026-04-26
+## [0.11.2], 2026-04-26
 
 UX polish multi-IA: el flow de "Copiar y abrir Chrome" ya no
 asume claude.ai. La primera vez te preguntamos si querés emparejar
@@ -550,15 +550,15 @@ siguientes veces se usa silenciosamente.
 
 ### Notes
 
-- 242 tests siguen verdes (sin nuevos — el flow real está cubierto
+- 242 tests siguen verdes (sin nuevos, el flow real está cubierto
   manualmente; el QuickPick es UI standard de VS Code).
-- Companion sigue sin requerir update — el fragment
+- Companion sigue sin requerir update, el fragment
   `#exportal-pair=<hex>` ya lo entendía desde Hito 10 en ambos
   hosts. Solo cambia el VSIX.
 - `chrome/manifest.json` se bumpeó por el patrón histórico de
   versiones sincronizadas, aunque no hay cambios en el companion.
 
-## [0.11.1] — 2026-04-26
+## [0.11.1], 2026-04-26
 
 UX polish: el panel de la sidebar (Bridge status → token block) gana
 un botón **"Copiar y abrir Chrome"** al lado del "Copy token". Antes
@@ -581,14 +581,14 @@ Companion auto-paire) está accesible directo desde la tab.
 
 ### Notes
 
-- El companion no necesita update — el fragment `#exportal-pair=<hex>`
+- El companion no necesita update, el fragment `#exportal-pair=<hex>`
   ya lo entiende desde el primer release. Solo hay que actualizar
   el VSIX para ver el botón nuevo.
 - `chrome/manifest.json` se bumpeó por el patrón histórico de
   versiones sincronizadas, aunque no hay cambios en el companion
   esta release.
 
-## [0.11.0] — 2026-04-26
+## [0.11.0], 2026-04-26
 
 Bump minor: el FAB de Exportal en chatgpt.com gana un botón
 secundario **"Download JSON"** (en el idioma del navegador). Click
@@ -604,7 +604,7 @@ extensión de VS Code no está corriendo. Cierra el bucle del
     apareciendo "Prepare official export"; en Claude Design no hay
     secundario).
   - Reusa el mismo fetch a `/api/auth/session` + `/backend-api/conversation/<id>`
-    que el primary "Export this chat" — el JSON descargado es
+    que el primary "Export this chat", el JSON descargado es
     exactamente el payload que el bridge transformaría a Markdown.
   - Filename pattern: `chatgpt-<slug>-<short-id>.json` cuando el
     título existe (`Mi Conversación` → `chatgpt-mi-conversacion-0f1e2d3c.json`,
@@ -627,14 +627,14 @@ extensión de VS Code no está corriendo. Cierra el bucle del
 ### Notes
 
 - El download es siempre el JSON crudo de OpenAI, no el adaptado a
-  Anthropic shapes — eso queda para **Hito 24** (`.jsonl` para
+  Anthropic shapes, eso queda para **Hito 24** (`.jsonl` para
   `/resume` desde imports de ChatGPT), anotado en ROADMAP.
 - En claude.ai no agregamos un equivalente todavía: el flujo del
   primary button + auto-attach a Claude Code ya cubre la mayoría
   de casos. Si llega un pedido concreto, escala fácil (mismo helper
   + un branch más en el `else if`).
 
-## [0.10.2] — 2026-04-26
+## [0.10.2], 2026-04-26
 
 Patch cosmético: el formatter de imports de ChatGPT ya no produce
 bloques `## Assistant` huecos cuando el message trae
@@ -647,7 +647,7 @@ del backlog dejado pendiente al cierre de 0.10.1.
 - **Skip silencioso de content_types internos en imports de ChatGPT.**
   Mensajes con `author.role: 'assistant'` + `recipient: 'all'` cuyo
   `content_type` es `model_editable_context` ahora se descartan
-  antes del switch de render — paralelo al skip que ya existía
+  antes del switch de render, paralelo al skip que ya existía
   para `role === 'system'`. Antes caían al fallback genérico y se
   pintaban como `## Assistant\n\n[model_editable_context]\n\n{...}`,
   ensuciando el `.md` sin agregar info. La lista de "internos"
@@ -660,13 +660,13 @@ del backlog dejado pendiente al cierre de 0.10.1.
 - 235 tests (+1 nuevo): regression test que combina un message
   `model_editable_context` con un assistant de texto real y verifica
   que el `.md` solo emita un único `## Assistant` heading.
-- 0.10.1 sigue funcionando — el bug solo afectaba la legibilidad
+- 0.10.1 sigue funcionando, el bug solo afectaba la legibilidad
   del `.md` exportado, no el flujo de import en sí.
 
-## [0.10.1] — 2026-04-26
+## [0.10.1], 2026-04-26
 
 Hot-fix sobre 0.10.0: el FAB en chatgpt.com aparecía OK pero el click
-hacía nada visible. Bug mío al implementar Hito 30 — la guarda
+hacía nada visible. Bug mío al implementar Hito 30, la guarda
 `panelRoute()` en `chrome/content-script.js` tenía whitelist hardcoded
 `kind !== 'chat' && kind !== 'design'` que NO incluía la kind nueva
 `'chatgpt'`, así que cada click era silenciosamente descartado antes
@@ -676,7 +676,7 @@ de hacer cualquier cosa.
 
 - **Click en FAB de chatgpt.com ahora dispara la export.** `panelRoute`
   ya no rechaza `kind === 'chatgpt'`. La whitelist pasa a leerse desde
-  un nuevo constante `KNOWN_ROUTE_KINDS` exportado por `pure.js` —
+  un nuevo constante `KNOWN_ROUTE_KINDS` exportado por `pure.js`,
   source-of-truth única para que agregar un proveedor nuevo al
   `routeFromPath` sin sumarlo a la whitelist no rompa el panel
   silenciosamente. Test de regresión incluido.
@@ -689,12 +689,12 @@ de hacer cualquier cosa.
 
 - 0.10.0 sigue OK en claude.ai (el bug solo afectaba chatgpt.com,
   por la whitelist desactualizada). Si tu Companion sigue en 0.10.0
-  no rompe nada — solo no funciona ChatGPT.
+  no rompe nada, solo no funciona ChatGPT.
 - 234 tests (+2 nuevos): tests de invariante para
   `KNOWN_ROUTE_KINDS` que aseguran que cualquier kind emitido por
   `routeFromPath` también esté en la whitelist.
 
-## [0.10.0] — 2026-04-26
+## [0.10.0], 2026-04-26
 
 Bump minor: el FAB flotante de Exportal ahora aparece también en
 **chatgpt.com**. Click → conversación importada en VS Code en menos
@@ -710,7 +710,7 @@ de 2 segundos, sin pasar por el ZIP de export por mail. Hito 30.
     (NextAuth, obtiene access token JWT) + `/backend-api/conversation/<id>`
     (Bearer auth) → POST al bridge local de VS Code → Markdown abierto.
   - El secondary button ("Preparar export oficial") está hidden en
-    chatgpt.com porque no hay equivalente útil — el ZIP path requiere
+    chatgpt.com porque no hay equivalente útil, el ZIP path requiere
     navegación manual del user a Settings → Data controls → Export.
 - **Bridge protocol**: nuevo campo opcional `provider: 'claude' | 'chatgpt'`
   en el payload de `/import-inline`. Backward compat: absent = claude
@@ -744,12 +744,12 @@ de 2 segundos, sin pasar por el ZIP de export por mail. Hito 30.
   (`session_expired`, `not_found`, etc.) para que cuando un user
   reporte el problema, podamos diagnosticar rápido.
 
-## [0.9.2] — 2026-04-26
+## [0.9.2], 2026-04-26
 
 Hot-fix sobre 0.9.1: el import del export grande del usuario validaba en
 0.9.1 (chunked reader funciona) pero después fallaba 30% de las
 conversaciones porque OpenAI manda `null` (no missing) en varios fields
-opcionales — y nuestro Zod rechazaba el null como "expected string,
+opcionales, y nuestro Zod rechazaba el null como "expected string,
 received null".
 
 ### Fixed
@@ -762,7 +762,7 @@ received null".
 - **Reader: parsing per-conversation**. Antes usábamos
   `parseConversations(raw)` que delegaba a `z.array(...).safeParse`,
   el cual aborta el array completo si una sola conversación falla. Ahora
-  cada conversación se parsea individualmente — las malas se skipean
+  cada conversación se parsea individualmente, las malas se skipean
   con warning, las buenas se importan. Robustez sobre strictness.
 - **Formatter `renderTetherCitation`**: coerce explícito de
   `string | null | undefined` a `string | undefined` con `?? undefined`.
@@ -785,14 +785,14 @@ received null".
 
 ### Notes
 
-- 0.9.1 sigue importando cuentas chicas/medianas correctamente — la
+- 0.9.1 sigue importando cuentas chicas/medianas correctamente, la
   regression solo afecta cuentas con uso intenso de browsing/code
   interpreter (donde aparecen los `tether_id: null` y similares).
 - Cuando aparezca el próximo bug del schema, correr
   `scripts/chatgpt-validate.mjs <zip>` da el output exacto sin pedir
   al user que comparta el archivo.
 
-## [0.9.1] — 2026-04-26
+## [0.9.1], 2026-04-26
 
 Validación contra un export real de cuenta grande (145 conversaciones, 2339 mensajes, 161 multimodal con imágenes) reveló dos cosas que 0.9.0 no manejaba: el formato chunked del export, y varios `content_type` que solo aparecen en cuentas con uso real. Esta versión cubre ambos.
 
@@ -804,20 +804,20 @@ Validación contra un export real de cuenta grande (145 conversaciones, 2339 men
 ### Added
 
 - **Soporte para cinco `content_type` nuevos** observados en exports reales:
-  - **`thoughts`** — reasoning intermedio de modelos tipo o1/o3. Render como `<details><summary>Reasoning</summary>` colapsado por default.
-  - **`reasoning_recap`** — resumen del razonamiento. Render como `> *Reasoning recap.* ...` en italic blockquote.
-  - **`tether_quote`** y **`tether_browsing_display`** — citations de browsing. Render como blockquote con título + link 🔗 + texto citado.
-  - **`system_error`** — errores de tools. Render como warning callout `> ⚠️ \`<error_name>\` ...`.
-- **Multimodal real**: las imágenes uploadeadas (`image_asset_pointer` dentro de `parts[]`) ahora se renderizan como `*[Image: file-XXXX]*` legible en vez del JSON dump anterior. Los archivos físicos siguen viviendo dentro del ZIP del export — exponerlos al workspace queda como Tier 3 futuro.
+  - **`thoughts`**, reasoning intermedio de modelos tipo o1/o3. Render como `<details><summary>Reasoning</summary>` colapsado por default.
+  - **`reasoning_recap`**, resumen del razonamiento. Render como `> *Reasoning recap.* ...` en italic blockquote.
+  - **`tether_quote`** y **`tether_browsing_display`**, citations de browsing. Render como blockquote con título + link 🔗 + texto citado.
+  - **`system_error`**, errores de tools. Render como warning callout `> ⚠️ \`<error_name>\` ...`.
+- **Multimodal real**: las imágenes uploadeadas (`image_asset_pointer` dentro de `parts[]`) ahora se renderizan como `*[Image: file-XXXX]*` legible en vez del JSON dump anterior. Los archivos físicos siguen viviendo dentro del ZIP del export, exponerlos al workspace queda como Tier 3 futuro.
 - **Schema con campos nuevos** observados en `MessageContentSchema`: `url`, `title`, `domain`, `tether_id`, `thoughts`, `summary`, `content`, `name`, `result`, `assets`, `response_format_name`, `source_analysis_msg_id`. Todos opcionales. Backward compat preservado.
 - **Tests nuevos** (221 totales, +11): 6 tests para el reader chunked (single, chunked, mixed, empty, partial parse failure, all-bad), 5 tests para los nuevos content_type handlers + multimodal.
 
 ### Notes
 
-- Tu cuenta grande de ChatGPT con 145 conversaciones / 2339 mensajes ahora importa. El shape report mostró que ~95% de los mensajes ahora se renderean con handler dedicado (vs ~82% en 0.9.0); el 5% restante (recipients raros tipo plugins de terceros o `t2uay3k.sj1i4kz`) sigue cayendo al fallback genérico — son casos chiquitos y poco frecuentes.
+- Tu cuenta grande de ChatGPT con 145 conversaciones / 2339 mensajes ahora importa. El shape report mostró que ~95% de los mensajes ahora se renderean con handler dedicado (vs ~82% en 0.9.0); el 5% restante (recipients raros tipo plugins de terceros o `t2uay3k.sj1i4kz`) sigue cayendo al fallback genérico, son casos chiquitos y poco frecuentes.
 - **Lo que sigue para 0.10.0** (Tier 3): exponer las imágenes físicas del ZIP al workspace (`<workspace>/.exportal/<title>/file-XXXX.jpeg`) y reescribir las references en el `.md` para apuntar a ellas. Permitirá renderizar imágenes inline en el preview de markdown.
 
-## [0.9.0] — 2026-04-26
+## [0.9.0], 2026-04-26
 
 Release grande con dos cambios visibles importantes: **soporte multi-IA** (ChatGPT entra al ecosistema, antes solo claude.ai) y **rediseño de la sidebar tab** (de lista plana a menú direccional con auto-detect de descargas).
 
@@ -826,34 +826,34 @@ Release grande con dos cambios visibles importantes: **soporte multi-IA** (ChatG
 - **Soporte para ChatGPT (Hito 21)**:
   - **Importar .zip de ChatGPT**: comando `exportal.importFromChatGptZip` + botón en la sidebar tab. Lee el ZIP exportado desde *Settings → Data controls → Export*, recorre el árbol de mensajes (sigue solo la rama activa, ignora regenerated replies viejas), y produce un `.md` con el mismo estilo visual que los imports de claude.ai. Los `content_type` desconocidos (browsing, code interpreter, multimodal) se preservan como markers `[type] {json}` para no perder info.
   - **Enviar sesión de Claude Code a ChatGPT**: comando `exportal.sendSessionToChatGpt` espejo del flow a claude.ai. Copia el markdown al portapapeles, guarda el `.md` en `.exportal/` como fallback drag-drop, y abre `chatgpt.com`.
-- **Rediseño de la sidebar tab (Hito 29)** — pasa de lista plana de 6 items a menú jerárquico:
-  - **Settings** — los dos toggles existentes.
-  - **↓ Importar al workspace** — header con badge direccional + una fila por proveedor (claude.ai, ChatGPT, Gemini disabled "soon").
-  - **↑ Exportar la sesión actual** — header con badge direccional + filas espejo.
-  - **Bridge status** — fila clickeable con dot pulsante (verde/rojo). Click expande para mostrar endpoint, token con botón copy + rotar, y "Logs".
-  - **Footer** — versión + links docs/changelog.
+- **Rediseño de la sidebar tab (Hito 29)**, pasa de lista plana de 6 items a menú jerárquico:
+  - **Settings**, los dos toggles existentes.
+  - **↓ Importar al workspace**, header con badge direccional + una fila por proveedor (claude.ai, ChatGPT, Gemini disabled "soon").
+  - **↑ Exportar la sesión actual**, header con badge direccional + filas espejo.
+  - **Bridge status**, fila clickeable con dot pulsante (verde/rojo). Click expande para mostrar endpoint, token con botón copy + rotar, y "Logs".
+  - **Footer**, versión + links docs/changelog.
   - Diseño hecho en Claude Design (Variante B "filas direccionales") con fidelidad visual al theming nativo de VS Code (`var(--vscode-*)`, codicons).
 - **Auto-detect de descargas frescas en el panel**:
   - Cuando el panel se abre (o se hace visible), escanea `~/Downloads` y `~/Desktop` por ZIPs de claude.ai/ChatGPT modificados en las últimas 2h.
-  - Detecta el proveedor por contenido (peek a `conversations.json`) — claude.ai por `chat_messages`, ChatGPT por `mapping`+`current_node`.
+  - Detecta el proveedor por contenido (peek a `conversations.json`), claude.ai por `chat_messages`, ChatGPT por `mapping`+`current_node`.
   - La fila del proveedor matchea muestra un sub-hint verde con el filename + tiempo relativo.
   - Click en una fila con detection → import directo, sin file picker.
-- **Watch en tiempo real del Downloads folder**: mientras el panel está visible, `fs.watch` con debounce de 1.5s detecta nuevos ZIPs apenas terminan de descargarse (Chrome cierra el `.crdownload` y renombra al `.zip` final). El watcher se cierra al ocultar/cerrar el panel — cero costo cuando no se usa.
-- **Auto-pick de sesión activa** en send-to-AI: el QuickPick que listaba todas las sesiones de Claude Code era confuso cuando varias compartían título por compactación. Ahora se elige automáticamente la más reciente por mtime — la que estás usando ahora mismo. El toast de éxito incluye el título de la sesión enviada para transparencia.
+- **Watch en tiempo real del Downloads folder**: mientras el panel está visible, `fs.watch` con debounce de 1.5s detecta nuevos ZIPs apenas terminan de descargarse (Chrome cierra el `.crdownload` y renombra al `.zip` final). El watcher se cierra al ocultar/cerrar el panel, cero costo cuando no se usa.
+- **Auto-pick de sesión activa** en send-to-AI: el QuickPick que listaba todas las sesiones de Claude Code era confuso cuando varias compartían título por compactación. Ahora se elige automáticamente la más reciente por mtime, la que estás usando ahora mismo. El toast de éxito incluye el título de la sesión enviada para transparencia.
 - **Drag-drop fallback para sesiones largas**: cuando enviás una sesión a claude.ai/ChatGPT, además del clipboard se guarda el `.md` en `.exportal/<timestamp>-<slug>-cc-export.md`. claude.ai/ChatGPT truncan silenciosamente pastes >100K chars; ahora podés arrastrar el `.md` al chat (botón "Reveal file" en la notification).
 - **QuickPick title-aware** (cuando el auto-pick no aplica): el reader reconoce los event types `ai-title`, `custom-title` y `last-prompt` que Claude Code escribe como sidecar metadata. La QuickPick prioriza `customTitle ?? aiTitle ?? firstUserText` para el label, suma git branch + cwd basename al detail line, y ordena por `lastActiveAt` (file mtime).
-- **Discoverability tip** del `.jsonl` para `/resume` en la pairing panel (heredado de 0.8.2 — ya estaba en main desde antes).
+- **Discoverability tip** del `.jsonl` para `/resume` en la pairing panel (heredado de 0.8.2, ya estaba en main desde antes).
 - **Botón "Abrir tab de Exportal"** en la pairing panel.
-- **Codicons** ahora ship-ean dentro del vsix (`assets/codicons/`) — copiados al build via `esbuild.config.mjs`.
+- **Codicons** ahora ship-ean dentro del vsix (`assets/codicons/`), copiados al build via `esbuild.config.mjs`.
 
 ### Changed
 
-- **El comando `Send Claude Code session to claude.ai`** ya no abre QuickPick (ver auto-pick arriba). El usuario que necesite elegir una sesión específica puede seguir invocando el flow por palette — vamos a agregar una variante "pick specific session" si llegan reportes.
+- **El comando `Send Claude Code session to claude.ai`** ya no abre QuickPick (ver auto-pick arriba). El usuario que necesite elegir una sesión específica puede seguir invocando el flow por palette, vamos a agregar una variante "pick specific session" si llegan reportes.
 - **El warning modal a 150KB** del send-to-claude.ai (que mostraba *"Copy anyway"*) está eliminado. Reemplazado por mensaje inline en la notification post-acción + el `.md` siempre guardado como fallback de drag-drop.
 
 ### Removed
 
-- Drag-drop de archivos externos sobre el panel (intentado pero estructuralmente bloqueado por VS Code — el workbench intercepta los drops antes de que lleguen al webview). Cubierto por el auto-detect + watch.
+- Drag-drop de archivos externos sobre el panel (intentado pero estructuralmente bloqueado por VS Code, el workbench intercepta los drops antes de que lleguen al webview). Cubierto por el auto-detect + watch.
 
 ### Fixed
 
@@ -864,7 +864,7 @@ Release grande con dos cambios visibles importantes: **soporte multi-IA** (ChatG
 - **Validación de ChatGPT contra data real pendiente**: el schema y el formatter están escritos contra docs públicas + 1 export real chico. Casos raros (browsing con many tabs, code interpreter con outputs binarios, custom GPTs con instructions largas, multimodal con varios images por turno) pueden tener bugs. Reportar `[unknown_content_type]` markers en el `.md` exportado es el síntoma típico.
 - **Codicons agregan ~110KB al vsix** (CSS + TTF). Vale el costo por la consistencia visual con el resto de VS Code.
 
-## [0.8.2] — 2026-04-23
+## [0.8.2], 2026-04-23
 
 ### Added
 
@@ -877,7 +877,7 @@ Release grande con dos cambios visibles importantes: **soporte multi-IA** (ChatG
   explorar la feature se la encuentra igual la primera vez.
 - **README.md y README.vsix.md actualizados.** Secciones nuevas que
   documentan el toggle `exportal.alsoWriteJsonl` (aparecer en /resume
-  de Claude Code) y la tab dedicada en la activity bar — ambas
+  de Claude Code) y la tab dedicada en la activity bar, ambas
   features existían desde 0.8.0 / 0.8.1 respectivamente pero solo
   estaban mencionadas en CHANGELOG/DEVLOG.
 
@@ -887,7 +887,7 @@ Release grande con dos cambios visibles importantes: **soporte multi-IA** (ChatG
   discoverability y docs. El núcleo (strip de placeholder, tab,
   `.jsonl` generator) viene de 0.8.1 / 0.8.0.
 
-## [0.8.1] — 2026-04-23
+## [0.8.1], 2026-04-23
 
 ### Added
 
@@ -922,7 +922,7 @@ Release grande con dos cambios visibles importantes: **soporte multi-IA** (ChatG
   limpio. 9 tests unitarios cubren las dos formas observadas
   (fenced + bare line) más casos defensivos.
 
-## [0.8.0] — 2026-04-23
+## [0.8.0], 2026-04-23
 
 ### Added
 
@@ -957,7 +957,7 @@ Release grande con dos cambios visibles importantes: **soporte multi-IA** (ChatG
     ZIP`. Toast `Exportal: también escribí <id>.jsonl para /resume
     en Claude Code.` cuando termina.
   - Fail-soft: si no hay workspace, si no se puede escribir el
-    archivo, si el directory no existe — se loggea warning y el
+    archivo, si el directory no existe, se loggea warning y el
     `.md` queda OK como antes. Nunca rompe el flujo principal.
 
 ### Notes
@@ -970,7 +970,7 @@ Release grande con dos cambios visibles importantes: **soporte multi-IA** (ChatG
 - Patches sobre 0.8.x van a ir a `0.8.1`, `0.8.2`, etc. para fixes
   del formato a medida que aparezcan.
 
-## [0.7.1] — 2026-04-23
+## [0.7.1], 2026-04-23
 
 Prep round antes de arrancar Hito 19 (.jsonl). Sin features nuevos.
 
@@ -990,7 +990,7 @@ Prep round antes de arrancar Hito 19 (.jsonl). Sin features nuevos.
   está activa para `src/`, así que la directiva era no-op y eslint
   mismo la flageó).
 
-## [0.7.0] — 2026-04-23
+## [0.7.0], 2026-04-23
 
 ### Added
 
@@ -1000,7 +1000,7 @@ Prep round antes de arrancar Hito 19 (.jsonl). Sin features nuevos.
   ships them alongside the chat. The `.exportal/<ts>-<slug>.md` gets
   a "Generated assets" header listing each file with its size + MIME
   type, and the actual files land in `.exportal/<ts>-<slug>/` next
-  to the markdown — ready for Claude Code to read as workspace files.
+  to the markdown, ready for Claude Code to read as workspace files.
   - New `ListFiles` + `GetFile` Connect-RPC calls in
     `chrome/content-script.js`, factored through a shared
     `callDesignRpc` helper.
@@ -1021,7 +1021,7 @@ Prep round antes de arrancar Hito 19 (.jsonl). Sin features nuevos.
 - The bridge body limit was 10 MB; now 50 MB. Test updated
   accordingly (`returns 413 for payloads larger than 50 MB`).
 
-## [0.6.1] — 2026-04-23
+## [0.6.1], 2026-04-23
 
 ### Fixed
 
@@ -1036,14 +1036,14 @@ Prep round antes de arrancar Hito 19 (.jsonl). Sin features nuevos.
   `Uint8Array` and decode it with `TextDecoder('utf-8')` before
   parsing. Found via the first real end-to-end smoke test of v0.6.0.
 
-## [0.6.0] — 2026-04-23
+## [0.6.0], 2026-04-23
 
 ### Added
 
 - **Claude Design support (hito 27).** The Chrome companion now
   recognizes `https://claude.ai/design/p/<UUID>` URLs and exports the
   active chat of a Claude Design project to VS Code with the same
-  one-click flow as `/chat/<UUID>`. No new permissions — Claude
+  one-click flow as `/chat/<UUID>`. No new permissions, Claude
   Design is same-origin with claude.ai, so the existing
   `host_permissions` and `content_scripts.matches` already cover it.
   - New `extractDesignProjectIdFromPath` and `routeFromPath` helpers
@@ -1064,11 +1064,11 @@ Prep round antes de arrancar Hito 19 (.jsonl). Sin features nuevos.
 - The "Prepare official export" secondary button (and its
   `Alt+Shift+O` shortcut) is hidden on Design pages. The official
   export ZIP matches by chat UUID, but Design URLs only expose the
-  project UUID — wiring the button would silently no-match later.
+  project UUID, wiring the button would silently no-match later.
 - The kbd chips in the FAB popover collapse from two to one on
   Design pages (`Alt+Shift+E` only).
 
-## [0.5.6] — 2026-04-23
+## [0.5.6], 2026-04-23
 
 ### Changed
 
@@ -1079,8 +1079,8 @@ Prep round antes de arrancar Hito 19 (.jsonl). Sin features nuevos.
 
 ### Removed
 
-Dead-code sweep after the 0.5.x redesign. No runtime behaviour change
-— these were all unused declarations that survived the options-page
+Dead-code sweep after the 0.5.x redesign. No runtime behaviour change,
+these were all unused declarations that survived the options-page
 rewrite and the webview pairing panel:
 
 - Chrome `_locales/{en,es}/messages.json`: 12 dead i18n keys
@@ -1109,7 +1109,7 @@ rewrite and the webview pairing panel:
 - `docs/CHROME_WEB_STORE_LISTING.md`: the package filename example
   no longer hardcodes `0.3.0`.
 
-## [0.5.5] — 2026-04-23
+## [0.5.5], 2026-04-23
 
 ### Changed
 
@@ -1121,7 +1121,7 @@ rewrite and the webview pairing panel:
   steps. Also swapped "modal" → "panel" in the VS Code onboarding
   description to match the webview we shipped in v0.5.0.
 
-## [0.5.4] — 2026-04-23
+## [0.5.4], 2026-04-23
 
 Version-number-only bump: v0.5.3 of the VS Code extension was
 uploaded to the Marketplace earlier; the Marketplace permanently
@@ -1129,7 +1129,7 @@ reserves every version number ever registered, so to ship the
 centered-options-page fix we need a fresh slot. No behavioral change
 vs v0.5.3 on either extension.
 
-## [0.5.3] — 2026-04-23
+## [0.5.3], 2026-04-23
 
 ### Changed
 
@@ -1139,7 +1139,7 @@ vs v0.5.3 on either extension.
   the card carries the 420px max-width. Cosmetic follow-up to v0.5.2's
   switch to `open_in_tab: true`.
 
-## [0.5.2] — 2026-04-23
+## [0.5.2], 2026-04-23
 
 ### Changed
 
@@ -1147,7 +1147,7 @@ vs v0.5.3 on either extension.
   claude.ai content script consumes a pairing fragment and stores the
   token, it asks the service worker to call
   `chrome.runtime.openOptionsPage()`. The user lands on the
-  `OnboardingChrome` card showing "¡Listo! — Todo conectado" instead
+  `OnboardingChrome` card showing "¡Listo!, Todo conectado" instead
   of only seeing a transient toast on claude.ai. claude.ai stays open
   in its own tab so the user can start exporting immediately.
 - `manifest.json` switched `options_ui.open_in_tab` from `false` to
@@ -1155,19 +1155,19 @@ vs v0.5.3 on either extension.
   the design at its intended size) instead of the small
   `chrome://extensions` embedded popup.
 
-## [0.5.1] — 2026-04-23
+## [0.5.1], 2026-04-23
 
 ### Changed
 
-- **Chrome options page — three-state OnboardingChrome flow.** The
+- **Chrome options page, three-state OnboardingChrome flow.** The
   manual-paste fallback (used when the URL-fragment auto-pair doesn't
   kick in) now adopts the `OnboardingChrome` states from design-cds/:
-  - `waiting` — empty input. Chip "Esperando…", headline "Pegá el
+  - `waiting`, empty input. Chip "Esperando…", headline "Pegá el
     token de VS Code".
-  - `detected` — input holds a 64-hex string. Chip "Token detectado",
+  - `detected`, input holds a 64-hex string. Chip "Token detectado",
     headline "Encontramos tu token", lime border + shimmer animation
     on the token field, primary button actionable.
-  - `paired` — token saved. Chip green "Emparejado", headline
+  - `paired`, token saved. Chip green "Emparejado", headline
     "¡Listo!", primary button becomes the informational "✓ Todo
     conectado", and a small low-contrast "Desemparejar" text button
     appears so users can clear the state.
@@ -1179,10 +1179,10 @@ vs v0.5.3 on either extension.
 
 ### Removed
 
-- Save / Clear button pair on the options page — replaced by the
+- Save / Clear button pair on the options page, replaced by the
   single-primary + unpair-link combo that the new state flow drives.
 
-## [0.5.0] — 2026-04-23
+## [0.5.0], 2026-04-23
 
 ### Added
 
@@ -1210,10 +1210,10 @@ vs v0.5.3 on either extension.
     ghost secondary, JetBrains-Mono kbd chips). SuccessPulse overlay
     replaces the button-flash on successful export, showing real
     metrics (`{ms}ms · {messages} mensajes`).
-  - Chrome options page adopts `OnboardingChrome` — titlebar +
+  - Chrome options page adopts `OnboardingChrome`, titlebar +
     status chip + numbered steps + monospace token field + local-
     first reassurance block.
-  - VS Code pairing webview adopts `OnboardingVsCode` — faux
+  - VS Code pairing webview adopts `OnboardingVsCode`, faux
     titlebar, brand mark, stepper, dashed-border token card.
   - `assets/icon.svg` refined to the ExportalMark: dark surface,
     white E strokes, lime accent bar extending right with an
@@ -1232,17 +1232,17 @@ vs v0.5.3 on either extension.
 
 - Pairing webview no longer auto-closes when the user clicks "Copy
   and open Chrome". Only the explicit "Later" button (or the tab X)
-  dismisses it now — avoids having to re-run the command when Chrome
+  dismisses it now, avoids having to re-run the command when Chrome
   doesn't auto-detect the token on first try.
 - Fragment URL construction uses `vscode.Uri.from` instead of
   `Uri.parse`; some VS Code builds re-encoded `=` as `%3D` during
   serialization which broke the content-script's fragment parser.
 - Pairing panel reference stored at module scope instead of on the
   `ExtensionContext` object (which VS Code freezes and rejects new
-  property assignments on) — `showPairingInfo` no longer throws
+  property assignments on), `showPairingInfo` no longer throws
   "object is not extensible" on a second invocation.
 
-## [0.4.0] — 2026-04-21
+## [0.4.0], 2026-04-21
 
 ### Added
 
@@ -1260,7 +1260,7 @@ vs v0.5.3 on either extension.
     content script resolves them against the active locale. Unit tests
     updated accordingly.
 
-## [0.3.0] — 2026-04-20
+## [0.3.0], 2026-04-20
 
 ### Added
 
@@ -1272,7 +1272,7 @@ vs v0.5.3 on either extension.
   no public write API. Warns with a modal when the payload is larger
   than ~150 KB.
 
-## [0.2.2] — 2026-04-20
+## [0.2.2], 2026-04-20
 
 ### Changed
 
@@ -1283,7 +1283,7 @@ vs v0.5.3 on either extension.
   both files are tracked and must be kept in sync by hand. `npm run
   package:vsix` swaps them around `vsce package` automatically.
 
-## [0.2.1] — 2026-04-20
+## [0.2.1], 2026-04-20
 
 ### Fixed
 
@@ -1295,14 +1295,14 @@ vs v0.5.3 on either extension.
   relative-links` flag preserves relative paths; VS Code resolves them
   against the installed extension directory.
 
-## [0.2.0] — 2026-04-20
+## [0.2.0], 2026-04-20
 
 ### Added
 
 - **Auto-attach to Claude Code**: after importing a conversation, the
   Exportal extension now opens the Claude Code sidebar and inserts the
   exported Markdown as an `@-mention` in the chat input. The user only
-  has to type their prompt (or hit Enter) — no manual file-drop needed.
+  has to type their prompt (or hit Enter), no manual file-drop needed.
   Requires the official Claude Code extension; fails soft if absent.
 - Setting `exportal.autoAttachToClaudeCode` (default `true`) to disable
   the auto-attach behavior.
@@ -1315,7 +1315,7 @@ vs v0.5.3 on either extension.
   and leaves a browsable history of imports. Falls back to an untitled
   document if no workspace folder is open.
 
-## [0.1.1] — 2026-04-20
+## [0.1.1], 2026-04-20
 
 Documentation-only release. No code changes to either extension.
 
@@ -1326,7 +1326,7 @@ Documentation-only release. No code changes to either extension.
 - DEVLOG extended with entries for Hito 10e (one-click export via
   claude.ai internal API) and the v0.1.0 polish/hardening session.
 
-## [0.1.0] — 2026-04-20
+## [0.1.0], 2026-04-20
 
 First usable release. Both extensions share the same version number;
 they are designed to be paired.
@@ -1340,8 +1340,8 @@ they are designed to be paired.
     Desktop; content-scan fallback for renamed ZIPs.
   - Local HTTP bridge (127.0.0.1, bearer-token-auth, ports 9317-9326)
     with two endpoints:
-    - `POST /import` — import a ZIP by filesystem path.
-    - `POST /import-inline` — import a full conversation JSON
+    - `POST /import`, import a ZIP by filesystem path.
+    - `POST /import-inline`, import a full conversation JSON
       scraped from claude.ai's internal API (no ZIP needed).
   - Permanent first-run modal with pairing token + step-by-step
     instructions for the Chrome companion.

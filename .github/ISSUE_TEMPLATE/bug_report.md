@@ -34,7 +34,7 @@ assignees: ''
 <!--
 If the bridge is involved, the VS Code Output panel has an "Exportal"
 channel with timestamped logs. Paste anything relevant. The Chrome
-companion also has a console — chrome://extensions → Exportal Companion
+companion also has a console, chrome://extensions → Exportal Companion
 → "service worker" link.
 
 Redact any tokens, file paths that contain real names, or chat

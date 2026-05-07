@@ -1,6 +1,6 @@
 # Exportal
 
-Bridge between **claude.ai / ChatGPT** and **Claude Code** (VS Code). Export any chat to clean Markdown with one click — ready to paste as context into Claude Code, or to send a Claude Code session back to your web chat.
+Bridge between **claude.ai / ChatGPT** and **Claude Code** (VS Code). Export any chat to clean Markdown with one click, ready to paste as context into Claude Code, or to send a Claude Code session back to your web chat.
 
 <video src="https://github.com/dioniipereyraa/ClaudeTool/raw/main/docs/screenshots/exportal-demo.mp4" autoplay loop muted playsinline></video>
 
@@ -9,27 +9,27 @@ Bridge between **claude.ai / ChatGPT** and **Claude Code** (VS Code). Export any
 
 ## What it solves
 
-When you switch from claude.ai to Claude Code (or vice versa), you lose all the context and have to re-explain your project. Exportal generates a clean Markdown file with the entire conversation — including tool use, thinking, and results — that you paste in as initial context.
+When you switch from claude.ai to Claude Code (or vice versa), you lose all the context and have to re-explain your project. Exportal generates a clean Markdown file with the entire conversation, including tool use, thinking, and results, that you paste in as initial context.
 
-## How to use it — happy path
+## How to use it, happy path
 
 With both extensions installed and paired:
 
 1. Open any chat at `claude.ai/chat/<uuid>`, a project at `claude.ai/design/p/<uuid>`, **or a chat at `chatgpt.com/c/<uuid>`**.
 2. Click the floating Exportal button (bottom-right corner) → **Export this chat**.
 3. VS Code saves the conversation to `<workspace>/.exportal/<timestamp>-<slug>.md`, opens the file, **and automatically opens the Claude Code panel with the Markdown attached as `@-mention`**. You just write your prompt and you're done.
-4. The Exportal panel surfaces an **After import** section with quick prompts (*"Continue this conversation"*, *"Summarize and plan next steps"*, etc.). Click one and the prompt is copied to the clipboard with the cursor already inside Claude Code's input — `Ctrl+V` sends *"@filename.md your-prompt"* in one go. Edit the list with the `exportal.postImportTemplates` setting.
+4. The Exportal panel surfaces an **After import** section with quick prompts (*"Continue this conversation"*, *"Summarize and plan next steps"*, etc.). Click one and the prompt is copied to the clipboard with the cursor already inside Claude Code's input, `Ctrl+V` sends *"@filename.md your-prompt"* in one go. Edit the list with the `exportal.postImportTemplates` setting.
 
-> **VS Code closed?** No problem — the FAB detects it and opens it automatically via `vscode://`. The conversation is imported as soon as the bridge starts, without you having to do anything.
+> **VS Code closed?** No problem, the FAB detects it and opens it automatically via `vscode://`. The conversation is imported as soon as the bridge starts, without you having to do anything.
 
-> **Exportal tab on something else?** The After-import section restores the moment you switch back to the Exportal tab — you don't need to have it open *during* the export.
+> **Exportal tab on something else?** The After-import section restores the moment you switch back to the Exportal tab, you don't need to have it open *during* the export.
 
 For **Claude Design** projects, in addition to the chat, the generated assets (HTML, JSX, JSON, etc.) are downloaded to `<workspace>/.exportal/<timestamp>-<slug>/` (sibling folder of the `.md`). The `.md` starts with a *"Generated assets"* header listing the files so Claude Code sees them.
 
 Or with a keyboard shortcut (without opening the panel):
 
-- `Alt+Shift+E` — export the current chat to VS Code (works on `/chat` and `/design/p`).
-- `Alt+Shift+O` — prepare the official export (only on `/chat`, in case you want the version with all your chats; the extension forwards the ZIP when it arrives by email).
+- `Alt+Shift+E`, export the current chat to VS Code (works on `/chat` and `/design/p`).
+- `Alt+Shift+O`, prepare the official export (only on `/chat`, in case you want the version with all your chats; the extension forwards the ZIP when it arrives by email).
 
 Auto-attach to the Claude Code chat can be disabled with the `exportal.autoAttachToClaudeCode` setting. Add `.exportal/` to your `.gitignore` if you don't want to version the imports.
 
@@ -47,7 +47,7 @@ If you download the official export ZIP (claude.ai: *Settings → Export data*; 
 
 ### Show up in Claude Code's `/resume` (opt-in)
 
-If you enable the `exportal.alsoWriteJsonl` setting, alongside the `.md` a `.jsonl` compatible with Claude Code is written to `~/.claude/projects/<encoded-cwd>/<sessionId>.jsonl`. The imported conversation shows up directly in `/resume` as if it were a local session of the project. It's experimental — the `.jsonl` format is reverse-engineered, not officially documented, and may break between versions.
+If you enable the `exportal.alsoWriteJsonl` setting, alongside the `.md` a `.jsonl` compatible with Claude Code is written to `~/.claude/projects/<encoded-cwd>/<sessionId>.jsonl`. The imported conversation shows up directly in `/resume` as if it were a local session of the project. It's experimental, the `.jsonl` format is reverse-engineered, not officially documented, and may break between versions.
 
 ### Dedicated tab in VS Code
 
@@ -72,7 +72,7 @@ When you open VS Code for the first time, a two-step pairing wizard appears: **S
 ### Chrome companion
 
 1. Install **Exportal Companion** from the Chrome Web Store, or download `exportal-companion-<version>.zip` from [Releases](https://github.com/dioniipereyraa/ClaudeTool/releases) and load it unpacked in `chrome://extensions` (Developer mode enabled).
-2. In VS Code, run **Exportal: Show pairing token** → click **Copy token and open Chrome**. This opens claude.ai with the token in the URL fragment; the companion's content script captures it automatically, opens its options page showing *"Done! — All connected"*, and VS Code shows a pairing-complete notification. No copy, no paste.
+2. In VS Code, run **Exportal: Show pairing token** → click **Copy token and open Chrome**. This opens claude.ai with the token in the URL fragment; the companion's content script captures it automatically, opens its options page showing *"Done!, All connected"*, and VS Code shows a pairing-complete notification. No copy, no paste.
 
 The icon badge reflects the state: `OK` green (imported), `SET` yellow (token missing), `OFF` red (VS Code not responding), `AUTH` red (invalid token), `OLD` red (VS Code outdated), `ERR` red (others). Click the icon while in any error state and the options page opens with a banner explaining the fix.
 

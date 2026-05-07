@@ -1,4 +1,4 @@
-# Exportal — Roadmap
+# Exportal, Roadmap
 
 Ideas y hitos futuros. Vivo, se actualiza cada vez que surge algo nuevo.
 Items concretos y cerrados se mueven al `DEVLOG.md`. Releases formales al
@@ -10,7 +10,7 @@ Items concretos y cerrados se mueven al `DEVLOG.md`. Releases formales al
   zip del companion desde releases, emparejar, probar ambos sentidos).
 - [ ] Esperar aprobación de Chrome Web Store de la submission 0.11.2
   (enviada el 2026-04-29 reemplazando la 0.5.7 que llevaba semanas
-  trabada). Cuando apruebe: ejecutar el plan de visibilidad —
+  trabada). Cuando apruebe: ejecutar el plan de visibilidad,
   PRs/issues a awesome-lists, post r/ClaudeAI, thread X, Show HN
   (copy listo en `.exportal/3-exportal-ejemplos-copy.md`).
 - [ ] Re-empaquetar el companion 0.11.7 (`npm run package:chrome`)
@@ -28,7 +28,7 @@ Items concretos y cerrados se mueven al `DEVLOG.md`. Releases formales al
 - [ ] Verificar `exportal.dev` en Google Search Console (TXT record
   via Cloudflare DNS, 2 min) para activar el badge "URL oficial
   verificada" en el listing de Chrome Web Store. No es bloqueante
-  para la review actual — task post-aprobación.
+  para la review actual, task post-aprobación.
 - [ ] Reemplazar las promo screenshots de la landing por capturas
   reales del producto funcionando (FAB real, panel de VS Code real,
   @-mention real en Claude Code). Snipping Tool. Las promo en español
@@ -40,7 +40,7 @@ Items concretos y cerrados se mueven al `DEVLOG.md`. Releases formales al
 - [ ] Grabar video/GIF de 30-60 segundos del flow completo (FAB en
   claude.ai → markdown generado → @-mention en Claude Code). Audio
   en español propio (no TTS), problema en 8s + solución en 20s. Va
-  arriba del README y del hero de la landing — reemplaza la pared
+  arriba del README y del hero de la landing, reemplaza la pared
   de texto actual. Lift más alto del plan de visibilidad.
 - [ ] Blog post "Why I built Exportal" en `exportal.dev`: historia
   personal del problema + decisiones técnicas no obvias (no abstraer
@@ -48,12 +48,12 @@ Items concretos y cerrados se mueven al `DEVLOG.md`. Releases formales al
   zero-network como principio). Contenido citable por interés propio,
   no por venderse.
 
-## Próximos hitos — en orden de prioridad
+## Próximos hitos, en orden de prioridad
 
 El orden acá es deliberado: lo de arriba arranca antes que lo de
 abajo. Cambios al orden se discuten explícitamente.
 
-### Cluster ergonomía/UX — cerrado en 0.11.5
+### Cluster ergonomía/UX, cerrado en 0.11.5
 
 Hitos 30 (onboarding wizard de dos pasos), 31 (sonido al exportar),
 32 (badge inteligente del icono Chrome), 33 (FAB en Claude Design
@@ -61,12 +61,12 @@ no tapa el submit) y 34 (templates post-import) cerraron en
 0.11.4 + 0.11.5. Ver DEVLOG entries del 2026-04-30 y CHANGELOG.
 
 **Pendiente**: smoke test del Hito 33 cuando Dioni tenga tokens
-de Claude Design. Sin bloqueante para el release — el path de
+de Claude Design. Sin bloqueante para el release, el path de
 chat normal de claude.ai/ChatGPT no quedó tocado por el cambio.
 
-### Hitos 35+ — siguientes en cola
+### Hitos 35+, siguientes en cola
 
-**Hito 35 — Pairing landing en `exportal.dev/pair`**
+**Hito 35, Pairing landing en `exportal.dev/pair`**
 
 Hoy el "Copy and open Chrome" del Step 2 abre `https://claude.ai/`
 con el fragment `#exportal-pair=<token>`. El content script del
@@ -78,7 +78,7 @@ visible, solo para servir de trampoline al token.
 **Scope**:
 - Landing `https://exportal.dev/pair` servida desde `docs/` del
   propio repo (GH Pages). Página minimalista: "✓ Pairing complete
-  — you can close this tab" con el branding de Exportal.
+ , you can close this tab" con el branding de Exportal.
 - Update al `chrome/manifest.json` del companion: agregar
   `*://exportal.dev/pair*` a `host_permissions` y a
   `content_scripts[].matches`.
@@ -91,7 +91,7 @@ visible, solo para servir de trampoline al token.
 - Re-empaquetar el companion (`npm run package:chrome`) y
   re-submitir al Chrome Web Store. Espera de review (1-3 días
   típico, hasta 2 semanas en peor caso).
-- Versioning: bump del companion (no de la VS Code extension —
+- Versioning: bump del companion (no de la VS Code extension,
   el cambio del trampoline host es trivial; el lift está en el
   companion).
 
@@ -103,12 +103,12 @@ visible, solo para servir de trampoline al token.
 - Independencia: hoy si Anthropic cambia algo en `claude.ai/` que
   rompa nuestro content script (improbable pero posible), el
   pairing falla. Con landing propia controlamos los dos extremos.
-- Branding: la landing es real estate marketing — "✓ Paired with
+- Branding: la landing es real estate marketing, "✓ Paired with
   Exportal" con CTA a docs/exportal.dev es mucho más memorable
   que la home de claude.ai con un fragment misterioso.
 
 **Risk**:
-- Latency del Chrome Web Store. La review puede demorar — durante
+- Latency del Chrome Web Store. La review puede demorar, durante
   la espera, los usuarios ya en producción tienen el companion
   viejo (sin el match `exportal.dev`). Mitigación: hasta que
   apruebe, mantener `claude.ai` como trampoline. Cambio del
@@ -122,7 +122,7 @@ visible, solo para servir de trampoline al token.
 **Disparador**: Dioni mostró interés explícito el 2026-04-30. Sin
 bloqueante upstream.
 
-### Hitos 20-23 — Soporte multi-IA (pausados)
+### Hitos 20-23, Soporte multi-IA (pausados)
 
 **Decisión 2026-04-30**: con Claude.ai + ChatGPT cubiertos, los
 hitos de Gemini y la abstracción asociada quedan pausados. Razón:
@@ -130,17 +130,17 @@ sin demanda concreta de usuarios pidiendo Gemini, el costo de
 mantener un tercer importer + popover unificado no se justifica.
 Reabrir cuando lleguen requests reales (no por simetría).
 
-**Hito 20 — Abstracción del core para múltiples proveedores** (pausado)
+**Hito 20, Abstracción del core para múltiples proveedores** (pausado)
 - Hoy `importers/` tiene dos implementaciones paralelas (claude.ai +
-  chatgpt). El refactor a union type sigue pendiente — descartado
+  chatgpt). El refactor a union type sigue pendiente, descartado
   hasta el momento porque las dos shapes son lo suficientemente
   distintas que la abstracción terminaría leakeando.
 - **Disparador**: cuando entre el tercer proveedor, revisar si los
   patrones se repiten lo suficiente como para justificar generalizar.
   Si solo dos shapes, no vale.
 
-**Hito 22 — Import de Gemini** (pausado)
-- Camino oficial: Google Takeout export — ZIP con HTML/JSON por
+**Hito 22, Import de Gemini** (pausado)
+- Camino oficial: Google Takeout export, ZIP con HTML/JSON por
   conversación. Menos uniforme que ChatGPT.
 - Camino one-click: content script en `gemini.google.com`. La API
   interna de Gemini puede cambiar más que la de los otros dos;
@@ -149,23 +149,23 @@ Reabrir cuando lleguen requests reales (no por simetría).
 - **Disparador**: señal real de demanda (issues, comments, mensajes
   de usuarios pidiéndolo). No avanzar por simetría con los otros.
 
-**Hito 23 — Popover multi-IA en el Chrome companion** (pausado)
+**Hito 23, Popover multi-IA en el Chrome companion** (pausado)
 - Unificar: un único icon + badge, el popover detecta el dominio
   activo (claude.ai / Claude Design / chat.openai.com /
   gemini.google.com) y muestra las acciones relevantes.
 - Bloqueado por: Hito 22 (Gemini), que está pausado. Hasta que
   Gemini no entre, dos popovers es lo correcto.
 
-**Hito 24 — `.jsonl` para `/resume` desde imports de ChatGPT**
+**Hito 24, `.jsonl` para `/resume` desde imports de ChatGPT**
 
 Hoy el setting `exportal.alsoWriteJsonl` solo aplica a imports de
-claude.ai. Para ChatGPT escribimos solo `.md` — el CHANGELOG de
+claude.ai. Para ChatGPT escribimos solo `.md`, el CHANGELOG de
 0.10.0 lo dejó marcado explícitamente: *"la envelope Anthropic
 asume claude shapes ... no maneja la estructura de mapping/branching
 de ChatGPT directamente. Para v1 solo `.md`."*
 
 **Scope**: traducir el mapping/branching de ChatGPT a la shape
-`.jsonl` que Claude Code consume en `/resume` — eventos
+`.jsonl` que Claude Code consume en `/resume`, eventos
 `user`/`assistant` encadenados por `uuid`/`parentUuid`, bloques
 `thinking`/`text`/`tool_use` shaped como Anthropic los emite.
 
@@ -179,7 +179,7 @@ Subtareas:
   reusable cross-session).
 - Generación de UUIDs sintéticos para `parentUuid`/`uuid` que sigan
   la shape RFC-4122 que Claude Code valida.
-- Decidir el `model` field — placeholder tipo `'gpt-4o (imported)'`
+- Decidir el `model` field, placeholder tipo `'gpt-4o (imported)'`
   o un valor que Claude Code tolere sin especular.
 - Sidecar metadata (`ai-title`, `custom-title`, `last-prompt`) para
   que la conversación importada aparezca con título correcto en
@@ -187,7 +187,7 @@ Subtareas:
 - **Warning explícito al user**: el formato `.jsonl` ya está marcado
   experimental (es ingeniería inversa). Sumar otra capa de
   translation entre ChatGPT shapes y Anthropic shapes multiplica la
-  fragilidad — toast "experimental, may break across Claude Code
+  fragilidad, toast "experimental, may break across Claude Code
   versions" cuando el feature se activa.
 
 **Risk**: el feature parece nativo de Claude Code y silenciosamente
@@ -200,7 +200,7 @@ trabajo de mapping cubre dos providers de una.
 
 ## Backlog
 
-Tier más abajo — útiles pero no en la cola activa.
+Tier más abajo, útiles pero no en la cola activa.
 
 ### Imágenes inline del export de ChatGPT (Tier 3 del Hito 21)
 
@@ -216,7 +216,7 @@ del ZIP del export.
 - Reescribir las references en el .md como `![](./file-XXX.jpeg)`
   para que el preview de markdown muestre las imágenes inline.
 - Manejar también `metadata.attachments[]` (149 mensajes en el shape
-  report del user) — son archivos uploadeados por canal distinto al
+  report del user), son archivos uploadeados por canal distinto al
   multimodal_text. Verificar shape primero contra data real.
 
 **Por qué no shippeó en 0.9.1**: requiere ampliar `JSZip.loadAsync()`
@@ -245,12 +245,12 @@ en los 22 test files y la segunda pasa limpia.
 - **Reproducido una vez** después de ~6 ediciones consecutivas a
   `control-panel.ts` y `extension.ts` en el mismo segundo.
   Output exacto: 23 test files failed con "Tests no tests",
-  duration 1.80s (vs ~4-7s normal — confirma que falló al cargar,
+  duration 1.80s (vs ~4-7s normal, confirma que falló al cargar,
   no al correr). Mensaje: `TypeError: Cannot read properties of
   undefined (reading 'config')` en `tests/importers/claudeai/schema.test.ts:30:1`.
 - Reintento inmediato (segundo `npm run test`) → 210/210 limpio.
 - Confirma la hipótesis original: race entre file system writes
-  recientes y el bootstrap de vitest. Sigue intermitente — no
+  recientes y el bootstrap de vitest. Sigue intermitente, no
   reproduce siempre, solo bajo ciertas combinaciones de timing.
 
 **Datos frescos 2026-04-30** (durante el ciclo de Hito 30,
@@ -280,7 +280,7 @@ cargo-culting. Las opciones consideradas y descartadas:
 **Reabrir cuando**: el flake reaparezca con datos frescos (output
 completo, qué archivos se editaron antes, qué procesos corrían).
 
-### Hito 16 — Soporte para artifacts de claude.ai
+### Hito 16, Soporte para artifacts de claude.ai
 
 - claude.ai embebe artifacts (React components, code snippets
   interactivos, HTML). Hoy el parser los ignora silenciosamente.
@@ -288,7 +288,7 @@ completo, qué archivos se editaron antes, qué procesos corrían).
   fenced code blocks o links.
 - **Why**: conversaciones "ricas" pierden contexto al exportar.
 
-### Hito 17 — Export parcial ("desde mensaje X")
+### Hito 17, Export parcial ("desde mensaje X")
 
 - UI: click derecho en un mensaje de claude.ai → "Exportar desde acá".
 - Caso de uso: conversaciones largas donde solo los últimos turnos son
@@ -317,7 +317,7 @@ Bajo riesgo, valor incremental.
   CLI instalado). Abre caso de uso de compartir conversaciones con
   compañeros sin tocar Claude Code.
 
-### Features nuevas — fáciles
+### Features nuevas, fáciles
 
 Útiles, bajo riesgo, claro valor. Entran después de los Hitos 30-34
 si no surge nada más urgente del primer batch de usuarios reales.
@@ -325,13 +325,13 @@ si no surge nada más urgente del primer batch de usuarios reales.
 - **Búsqueda full-text en imports anteriores** (`.exportal/`).
   Search box en la tab de Exportal que devuelva matches sobre los
   `.md` ya importados. Valor crece con uso prolongado. No trivial
-  pero no requiere infra nueva — `ripgrep`-like sobre el directorio.
+  pero no requiere infra nueva, `ripgrep`-like sobre el directorio.
 - **Diff entre dos imports del mismo chat**. Caso: el user importó
   la semana pasada, sigue la conversación en claude.ai, vuelve a
-  importar. Mostrar qué turnos son nuevos. Único en el mercado —
+  importar. Mostrar qué turnos son nuevos. Único en el mercado,
   ningún competidor lo tiene.
 
-### Features nuevas — diferenciadoras (más difícil, mayor defensibilidad)
+### Features nuevas, diferenciadoras (más difícil, mayor defensibilidad)
 
 Estas requieren scope serio pero son lo que separa Exportal de un
 exporter genérico si Anthropic eventualmente lanza sync nativo
@@ -351,12 +351,12 @@ de los hitos previos.
 - **Smart context trimming completo**: Hito 17 cubre "desde mensaje
   X". La versión completa: UI para seleccionar todos / últimos N /
   desde mensaje X / rango específico antes de exportar. Crítico
-  para conversaciones largas — segunda feature más pedida según
+  para conversaciones largas, segunda feature más pedida según
   intuición.
 - **Plugins / hooks system**: post-import, ejecutar script local
   del user. Casos: subir el `.md` a su wiki, agregarlo a un dataset,
   procesarlo con tooling propio. Solo vale si hay masa crítica de
-  power users — no antes de 6 meses.
+  power users, no antes de 6 meses.
 
 ### Visibilidad y comunicación (plan extendido)
 
@@ -365,18 +365,18 @@ detallada por canal y orden de retorno esperado.
 
 **Canales en orden de prioridad**:
 
-- `r/ClaudeAI` — público hyper-targeted, modera bien. Framing en
+- `r/ClaudeAI`, público hyper-targeted, modera bien. Framing en
   primera persona ("I built a tool to bridge claude.ai and Claude
   Code"), no "check out Exportal".
-- `r/vscode` — más grande, menos targeted. Ángulo "VS Code extension
+- `r/vscode`, más grande, menos targeted. Ángulo "VS Code extension
   that does X" funciona si el demo es claro.
-- **Show HN** — alto upside si pega, un solo intento. No quemar
+- **Show HN**, alto upside si pega, un solo intento. No quemar
   hasta tener: (a) Chrome Store aprobado, (b) VSIX en Marketplace
   estable, (c) video bueno, (d) `exportal.dev` funcionando.
-- Twitter/X — amplificador, no fuente. Responder a posts donde
+- Twitter/X, amplificador, no fuente. Responder a posts donde
   otros mencionen el problema; no spammear.
 - Discord de Anthropic + comunidades de Claude Code (Discord/Slack)
-  — bajo costo de entrada, alto contexto.
+ , bajo costo de entrada, alto contexto.
 
 **Awesome-lists** (bajo esfuerzo, SEO de cola larga):
 `awesome-claude-code`, `awesome-vscode`, `awesome-chrome-extensions`.
@@ -385,7 +385,7 @@ PRs con una línea descriptiva.
 **Issues temáticos** en repos donde aparece el problema (ej:
 `anthropics/claude-code` discussions, threads de claude.ai donde
 alguien pregunta "cómo paso este chat a Claude Code"). Comentario
-útil que mencione Exportal entre varias opciones — relevancia,
+útil que mencione Exportal entre varias opciones, relevancia,
 no spam.
 
 **Mientras Chrome Web Store sigue en review**: usar VS Code
@@ -396,8 +396,8 @@ desbloquea post-aprobación. Subóptimo pero permite arrancar.
 **NO hacer**:
 - LinkedIn, salvo que tu audiencia esté ahí. No es donde está el
   público técnico que adopta tools indie.
-- Product Hunt — Exportal demasiado nicho, PH premia generalismo.
-- Pagar ads — el público (devs que ya usan Claude Code) no se
+- Product Hunt, Exportal demasiado nicho, PH premia generalismo.
+- Pagar ads, el público (devs que ya usan Claude Code) no se
   alcanza bien por ads.
 
 ## Fuera de scope (explícito)
@@ -428,6 +428,6 @@ desbloquea post-aprobación. Subóptimo pero permite arrancar.
   la bitácora real (qué se hizo / decisiones) se va escribiendo en
   `DEVLOG.md` en el mismo commit que el código.
 - Cuando cierra → entrada completa en `DEVLOG.md` + item eliminado de
-  acá (no dejamos "done" viejos — para eso está el DEVLOG).
+  acá (no dejamos "done" viejos, para eso está el DEVLOG).
 - Cuando el scope de un hito cambia respecto a cómo está descrito
   acá → se re-escribe la entrada, no se deja texto stale.

@@ -5,8 +5,8 @@ This project follows the
 
 The full text of the Contributor Covenant is the canonical version
 hosted at the URL above and is incorporated into this project by
-reference. By participating in this project — opening issues, sending
-pull requests, commenting in discussions — you agree to follow it.
+reference. By participating in this project, opening issues, sending
+pull requests, commenting in discussions, you agree to follow it.
 
 ## Reporting
 
@@ -15,7 +15,7 @@ Covenant in any space related to this project (issues, pull requests,
 discussions, or any community channel that may exist in the future),
 report it privately to:
 
-**Dionisio Pereyra Bocchio** — `dionipereyrab@gmail.com`
+**Dionisio Pereyra Bocchio**, `dionipereyrab@gmail.com`
 
 Reports are read by the project maintainer. Private reports will be
 treated as private; the reporter's identity will not be shared without

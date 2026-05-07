@@ -1,4 +1,4 @@
-# Security — Exportal
+# Security, Exportal
 
 Exportal maneja datos potencialmente sensibles: historiales de conversación con Claude que pueden contener credenciales, código propietario, paths internos y PII. Este documento describe el modelo de amenazas y los controles implementados.
 
@@ -24,7 +24,7 @@ Exportal maneja datos potencialmente sensibles: historiales de conversación con
 - **Fail-closed**: redacción activa por defecto. Para desactivarla hay que pasar `--no-redact` y confirmar interactivamente.
 - **Preview antes de escribir**: el usuario ve en stdout lo que se va a guardar antes de que toque el disco.
 - **Reporte post-export**: al finalizar, resumen de qué se redactó (tipo y conteo, nunca contenido).
-- **Defensa en profundidad**: los regex tienen falsos negativos por diseño — no son la única línea; la preview obligatoria y la confirmación explícita las complementan.
+- **Defensa en profundidad**: los regex tienen falsos negativos por diseño, no son la única línea; la preview obligatoria y la confirmación explícita las complementan.
 
 ## Reportar vulnerabilidades
 

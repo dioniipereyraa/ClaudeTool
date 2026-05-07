@@ -6,7 +6,7 @@ turnaround.
 
 ## What this changes
 
-<!-- One or two sentences. The "what" — git already shows the lines. -->
+<!-- One or two sentences. The "what", git already shows the lines. -->
 
 ## Why
 
@@ -32,7 +32,7 @@ exported a /design/p project, verified the assets folder appeared."
 - [ ] User-visible change → added an entry under `Unreleased` in
       [`CHANGELOG.md`](../CHANGELOG.md).
 - [ ] Non-obvious decision → noted in [`DEVLOG.md`](../DEVLOG.md).
-- [ ] N/A — internal refactor / dev tooling only.
+- [ ] N/A, internal refactor / dev tooling only.
 
 ## Breaking changes
 
@@ -44,7 +44,7 @@ entry can flag it for the release.
 -->
 
 - [ ] No breaking changes.
-- [ ] Breaking changes — described below.
+- [ ] Breaking changes, described below.
 
 ## Anything else for the reviewer
 

@@ -1,4 +1,4 @@
-# Privacy Policy — Exportal
+# Privacy Policy, Exportal
 
 **Last updated**: 2026-04-29
 
@@ -35,10 +35,10 @@ two pieces:
 ## What happens when you click "Export this chat"
 
 1. You click the floating Exportal button on a chat at `claude.ai`,
-   `claude.ai/design/p`, or `chatgpt.com` — or you use the keyboard
+   `claude.ai/design/p`, or `chatgpt.com`, or you use the keyboard
    shortcut `Alt+Shift+E`.
 2. The Companion reads the active conversation using your existing
-   browser session cookies — the same way the website renders the
+   browser session cookies, the same way the website renders the
    conversation for you. No automation, no scraping.
 3. The conversation JSON is sent to `http://127.0.0.1:<port>/...`
    (your local VS Code bridge, **never a remote server**).
@@ -70,7 +70,7 @@ The extensions handle the following data, **only on your device**:
 - No user accounts, profiles, or tracking of any kind.
 - Your claude.ai or ChatGPT credentials are **never** read, stored,
   or transmitted. The extensions use the browser's existing session
-  cookies — they don't see the credentials themselves.
+  cookies, they don't see the credentials themselves.
 - No data is sent to the extension author or to any third party.
 
 ## Permissions explained
@@ -79,12 +79,12 @@ The extensions handle the following data, **only on your device**:
 |---|---|
 | `storage` | Store the pairing token, pending conversation UUID, and per-provider preferences on your device. |
 | `downloads` | Detect when the official claude.ai or ChatGPT export ZIP finishes downloading, to forward it to VS Code. |
-| `host_permissions: http://127.0.0.1/*` | Communicate with the local VS Code bridge. `127.0.0.1` is loopback — traffic never leaves your device. |
+| `host_permissions: http://127.0.0.1/*` | Communicate with the local VS Code bridge. `127.0.0.1` is loopback, traffic never leaves your device. |
 | Content scripts on `https://claude.ai/*` and `https://chatgpt.com/*` | Render the floating button, read the active conversation when you click "Export", and consume the pairing URL fragment for auto-pair. |
 
 ## Data retention
 
-All data is stored locally on your device — in `chrome.storage.local`
+All data is stored locally on your device, in `chrome.storage.local`
 for the Companion and in your workspace's `.exportal/` folder for VS
 Code. Uninstalling either extension deletes all data managed by that
 extension. There is no remote storage to clear.
@@ -115,7 +115,7 @@ Questions about this policy: **support@exportal.dev** (or
 
 ---
 
-# Política de Privacidad — Exportal (Español)
+# Política de Privacidad, Exportal (Español)
 
 **Última actualización**: 2026-04-29
 
@@ -142,7 +142,7 @@ Exportal es un puente bidireccional entre servicios de chat IA
 ## Qué pasa al hacer click en "Exportar este chat"
 
 1. Hacés click en el botón flotante de Exportal en un chat de
-   `claude.ai`, `claude.ai/design/p`, o `chatgpt.com` — o usás el
+   `claude.ai`, `claude.ai/design/p`, o `chatgpt.com`, o usás el
    atajo `Alt+Shift+E`.
 2. El Companion lee la conversación activa usando **tus cookies de
    sesión del browser**, de la misma forma que el sitio te la
@@ -182,7 +182,7 @@ dispositivo**:
 |---|---|
 | `storage` | Guardar token, UUID temporal y preferencias en tu dispositivo. |
 | `downloads` | Detectar cuando el ZIP oficial de claude.ai/ChatGPT termina de bajar, para reenviarlo a VS Code. |
-| `host_permissions: http://127.0.0.1/*` | Comunicarse con el puente local de VS Code. `127.0.0.1` es loopback — el tráfico nunca sale del dispositivo. |
+| `host_permissions: http://127.0.0.1/*` | Comunicarse con el puente local de VS Code. `127.0.0.1` es loopback, el tráfico nunca sale del dispositivo. |
 | Content scripts en `https://claude.ai/*` y `https://chatgpt.com/*` | Renderizar el botón flotante, leer la conversación activa al hacer click en "Exportar", y consumir el fragment de emparejamiento. |
 
 ## Retención de datos

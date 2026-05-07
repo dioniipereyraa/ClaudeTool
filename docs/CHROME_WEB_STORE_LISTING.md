@@ -1,4 +1,4 @@
-# Chrome Web Store — Listing draft
+# Chrome Web Store, Listing draft
 
 Textos listos para pegar en el dashboard del CWS. Cada sección indica
 dónde va dentro del formulario.
@@ -17,7 +17,7 @@ dónde va dentro del formulario.
 
 ```
 Exportal Companion es el puente entre claude.ai y tu editor. Con un
-click exporta cualquier conversación a Markdown limpio — listo para
+click exporta cualquier conversación a Markdown limpio, listo para
 pegar como contexto en Claude Code o cualquier otro agente.
 
 CÓMO FUNCIONA
@@ -122,7 +122,7 @@ For each ticked item, declare:
 - **Is the data used for purposes unrelated to the core functionality?** NO.
 - **Is the data used to determine creditworthiness or lending?** NO.
 - **Does the extension handle data transfer only over secure channels?**
-  YES — 127.0.0.1 loopback with bearer-token auth.
+  YES, 127.0.0.1 loopback with bearer-token auth.
 
 ### Privacy policy URL
 
@@ -135,7 +135,7 @@ https://github.com/dioniipereyraa/ClaudeTool/blob/main/docs/PRIVACY.md
 ## Distribution tab
 
 ### Visibility
-`Public` — listado en la store, buscable.
+`Public`, listado en la store, buscable.
 
 ### Regions
 `All regions`
@@ -148,7 +148,7 @@ https://github.com/dioniipereyraa/ClaudeTool/blob/main/docs/PRIVACY.md
 ## Assets a subir
 
 - **Icon**: `chrome/icon-128.png` (ya empaquetado en el ZIP).
-- **Screenshots** (1280×800 — subí al menos 1, ideal 3-5):
+- **Screenshots** (1280×800, subí al menos 1, ideal 3-5):
   - `docs/screenshots/exportal-s1-fab-1280x800.png` (botón flotante en claude.ai)
   - `docs/screenshots/exportal-s2-onboarding-1280x800.png` (panel de onboarding en VS Code)
   - `docs/screenshots/exportal-s3-success-1280x800.png` (companion conectado)
@@ -165,7 +165,7 @@ https://github.com/dioniipereyraa/ClaudeTool/blob/main/docs/PRIVACY.md
 
 - **Primer review**: típicamente 1-3 días hábiles.
 - **Señales que pueden disparar review manual extendido**:
-  - `host_permissions` sobre `127.0.0.1` — patrón común en malware
+  - `host_permissions` sobre `127.0.0.1`, patrón común en malware
     que habla con C2 locales. La justificación clara + link al repo
     público + privacy policy deberían resolverlo.
   - `downloads` permission + content script de un sitio popular. Hay

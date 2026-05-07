@@ -6,7 +6,7 @@ Imágenes referenciadas por el README principal y por los listings del Marketpla
 |---|---|---|
 | `exportal-s1-fab-1280x800.png` | Botón flotante de Exportal expandido en `claude.ai/chat/<uuid>`. | README principal + Chrome Web Store. |
 | `exportal-s2-onboarding-1280x800.png` | Panel de onboarding en VS Code la primera vez que se instala: token + botón "Copiar y abrir Chrome". | README principal + Marketplace de VS Code. |
-| `exportal-s3-success-1280x800.png` | Página de opciones del companion en estado *"Listo — Todo conectado"*. | README principal + Chrome Web Store. |
+| `exportal-s3-success-1280x800.png` | Página de opciones del companion en estado *"Listo, Todo conectado"*. | README principal + Chrome Web Store. |
 | `exportal-s4-vscode-1280x800.png` | Tab de Exportal en la activity bar de VS Code con toggles + acciones. | README principal + Marketplace de VS Code. |
 | `exportal-s5-jsonl-sync-1280x800.png` | Conversación importada apareciendo en `/resume` de Claude Code (feature `exportal.alsoWriteJsonl`). | README principal + Marketplace de VS Code. |
 

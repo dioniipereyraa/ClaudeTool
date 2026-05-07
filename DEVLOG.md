@@ -1,4 +1,4 @@
-# ClaudeTool — Devlog
+# ClaudeTool, Devlog
 
 Bitácora de desarrollo. Una entrada por sesión de trabajo significativa.
 Cada entrada cubre: **qué hicimos**, **por qué**, **qué viene**.
@@ -8,7 +8,7 @@ Para el modelo de amenazas ver `SECURITY.md` (cuando exista).
 
 ---
 
-## 2026-04-16 — Día 0 · Planificación inicial
+## 2026-04-16, Día 0 · Planificación inicial
 
 ### Qué hicimos
 - Inspeccionamos el formato `.jsonl` de Claude Code en `~/.claude/projects/` para entender su estructura real: eventos `user` y `assistant` encadenados por `uuid` / `parentUuid`, con `thinking`, `text` y `tool_use` anidados dentro de `message.content`. También eventos internos `queue-operation` a ignorar.
@@ -38,11 +38,11 @@ Para el modelo de amenazas ver `SECURITY.md` (cuando exista).
 - Confirmar si hay ajustes al plan.
 
 ### Próximo paso
-- **Hito 1 — Bootstrap**: `package.json`, `tsconfig.json` estricto, ESLint, Prettier, vitest, GitHub Actions CI (lint + test + build). Primer commit `chore: bootstrap`.
+- **Hito 1, Bootstrap**: `package.json`, `tsconfig.json` estricto, ESLint, Prettier, vitest, GitHub Actions CI (lint + test + build). Primer commit `chore: bootstrap`.
 
 ---
 
-## 2026-04-16 — Hito 1 · Bootstrap de toolchain
+## 2026-04-16, Hito 1 · Bootstrap de toolchain
 
 ### Qué hicimos
 - Nombre del paquete definido: **`exportal`** (el directorio y repo siguen como `ClaudeTool`; renombrar el repo de GitHub es decisión futura, no bloquea).
@@ -68,31 +68,31 @@ Para el modelo de amenazas ver `SECURITY.md` (cuando exista).
 - `npm audit` → 0 vulnerabilidades.
 
 ### Próximo paso
-- **Hito 2 — Core: reader + schema + parser**. Implementar:
-  - `src/core/reader.ts` — descubrir sesiones en `~/.claude/projects/` y streamear líneas de un `.jsonl`.
-  - `src/core/schema.ts` — Zod schemas versionados para los tipos de evento (`user`, `assistant`, `queue-operation`, ...).
-  - `src/core/parser.ts` — parseo línea-a-línea con fail-soft.
+- **Hito 2, Core: reader + schema + parser**. Implementar:
+  - `src/core/reader.ts`, descubrir sesiones en `~/.claude/projects/` y streamear líneas de un `.jsonl`.
+  - `src/core/schema.ts`, Zod schemas versionados para los tipos de evento (`user`, `assistant`, `queue-operation`, ...).
+  - `src/core/parser.ts`, parseo línea-a-línea con fail-soft.
   - Fixtures sintéticas en `tests/fixtures/` y tests unitarios por módulo.
 
 ---
 
-## 2026-04-16 — Hito 2 · MVP end-to-end funcional
+## 2026-04-16, Hito 2 · MVP end-to-end funcional
 
 ### Qué hicimos
 Cambio de estrategia respecto al plan original: en vez de ir capa-por-capa (reader → schema → parser → normalizer → formatter), fuimos directo a un **MVP funcional** (`exportal list` + `exportal export <sessionId>`) con todas las capas en su versión mínima. Razón: tener algo usable en días, no semanas, y dejar que los problemas reales guíen el refactor de los siguientes hitos.
 
 **Módulos nuevos en `src/`:**
-- `core/types.ts` — interfaces de eventos (`UserEvent`, `AssistantEvent`, `ContentBlock` unión discriminada) + type guards `isUserEvent` / `isAssistantEvent`. Sin Zod todavía.
-- `core/paths.ts` — constantes `CLAUDE_HOME` / `PROJECTS_DIR` + `encodeProjectDir(cwd)` que invierte la convención `d:\...` → `d--...` de Claude Code (best-effort, documentado como frágil).
-- `core/reader.ts` — `readJsonl(path)` fail-soft: salta líneas mal formateadas en vez de abortar. In-memory por ahora; streaming es refactor futuro.
-- `core/session.ts` — `listProjectDirs()`, `listSessionFiles(dir)`, `describeSession(file)` (deriva metadata del primer evento de cada tipo usando `??=`).
-- `redactors/paths.ts` — regex para paths Windows y `/home` / `/Users`. Exclusión de ``\`" '<>| ` `` en la clase de caracteres para no romper code spans de markdown.
-- `redactors/secrets.ts` — 5 patrones: Anthropic (`sk-ant-`), OpenAI (`sk-`/`sk-proj-`), GitHub clásico (`ghp_`…), GitHub fine-grained (`github_pat_`…), AWS access key (`AKIA…`). Reporta `byType`.
-- `redactors/index.ts` — `redact(text, report)` componedor con `RedactionReport` mutable para acumular contadores sin recrear objetos por línea.
-- `formatters/markdown.ts` — convierte eventos a Markdown con header + merge de turnos consecutivos del mismo rol. Ignora `tool_use` y `thinking` en MVP.
-- `cli/commands/list.ts` — defaults al cwd actual; soporta `--all` y `--project <dir>`.
-- `cli/commands/export.ts` — valida `sessionId` con regex, `--out`, `--no-redact`, imprime resumen de redacción a stderr.
-- `cli/index.ts` — `commander` como único framework CLI.
+- `core/types.ts`, interfaces de eventos (`UserEvent`, `AssistantEvent`, `ContentBlock` unión discriminada) + type guards `isUserEvent` / `isAssistantEvent`. Sin Zod todavía.
+- `core/paths.ts`, constantes `CLAUDE_HOME` / `PROJECTS_DIR` + `encodeProjectDir(cwd)` que invierte la convención `d:\...` → `d--...` de Claude Code (best-effort, documentado como frágil).
+- `core/reader.ts`, `readJsonl(path)` fail-soft: salta líneas mal formateadas en vez de abortar. In-memory por ahora; streaming es refactor futuro.
+- `core/session.ts`, `listProjectDirs()`, `listSessionFiles(dir)`, `describeSession(file)` (deriva metadata del primer evento de cada tipo usando `??=`).
+- `redactors/paths.ts`, regex para paths Windows y `/home` / `/Users`. Exclusión de ``\`" '<>| ` `` en la clase de caracteres para no romper code spans de markdown.
+- `redactors/secrets.ts`, 5 patrones: Anthropic (`sk-ant-`), OpenAI (`sk-`/`sk-proj-`), GitHub clásico (`ghp_`…), GitHub fine-grained (`github_pat_`…), AWS access key (`AKIA…`). Reporta `byType`.
+- `redactors/index.ts`, `redact(text, report)` componedor con `RedactionReport` mutable para acumular contadores sin recrear objetos por línea.
+- `formatters/markdown.ts`, convierte eventos a Markdown con header + merge de turnos consecutivos del mismo rol. Ignora `tool_use` y `thinking` en MVP.
+- `cli/commands/list.ts`, defaults al cwd actual; soporta `--all` y `--project <dir>`.
+- `cli/commands/export.ts`, valida `sessionId` con regex, `--out`, `--no-redact`, imprime resumen de redacción a stderr.
+- `cli/index.ts`, `commander` como único framework CLI.
 
 **Tests (23 pasando en 8 archivos):**
 - Fixture sintética `tests/fixtures/minimal.jsonl` con eventos válidos + línea corrupta + `queue-operation` (basura ignorable) para verificar fail-soft.
@@ -108,57 +108,57 @@ Cambio de estrategia respecto al plan original: en vez de ir capa-por-capa (read
 - **`RedactionReport` mutable**: no es el estilo más puro, pero evita allocar un objeto por cada string redactado. Sigue siendo testeable porque el composer devuelve el mismo report pasado.
 
 ### Verificación
-- `npm run ci` — 23/23 tests ✓, lint ✓, typecheck ✓, build ✓.
+- `npm run ci`, 23/23 tests ✓, lint ✓, typecheck ✓, build ✓.
 - Manual: `node dist/cli/index.js list` encontró la sesión actual (111 turnos). `export` la volcó a 516 líneas de Markdown con 6 paths redactados correctamente, code spans preservados.
 - Bug encontrado y arreglado en el manual test: regex de paths no excluía backticks, por lo que consumía el cierre de code spans. Agregado ``\` `` a la exclusion class + test de regresión.
 
 ### Limitaciones conocidas (para próximos hitos)
 - Encoding del project dir es heurístico (``[:\\/.] → -``). Si Claude Code cambia la convención, solo `--all` va a seguir funcionando.
-- Sin validación de esquema — un evento con forma inesperada se ignora silenciosamente.
+- Sin validación de esquema, un evento con forma inesperada se ignora silenciosamente.
 - Sin preview interactiva antes de escribir con `--out`.
 - `tool_use` y `thinking` no se renderean.
 - Las regex de secretos tienen falsos negativos por diseño (el detector es una señal, no la garantía).
 
 ### Próximo paso
-- **Hito 3 — Endurecimiento**: Zod schemas versionados, preview interactiva obligatoria antes de `--out`, `--include-tools` y `--include-thinking`, más patrones de secretos, streaming reader para sesiones grandes.
+- **Hito 3, Endurecimiento**: Zod schemas versionados, preview interactiva obligatoria antes de `--out`, `--include-tools` y `--include-thinking`, más patrones de secretos, streaming reader para sesiones grandes.
 
 ---
 
-## 2026-04-16 — Hito 3 · Zod schemas + soporte de `/compact`
+## 2026-04-16, Hito 3 · Zod schemas + soporte de `/compact`
 
 ### Qué hicimos
 Alcance reducido respecto al plan original: en vez de meter Zod + preview interactiva + flags de tools/thinking en el mismo hito, separamos. **Este hito cubre Zod schemas y compact.** Preview interactiva pasa a Hito 4, tools/thinking a Hito 5 (opcional). Razón: el usuario pidió explícitamente "ir de a poco pero saber que lo que estamos haciendo está perfecto", y Zod + compact ya es un delta sustancial que merece su propia verificación.
 
 **Módulos nuevos y refactors:**
-- `src/core/schema.ts` — Zod schemas para todos los tipos de evento (`user`, `assistant`, `system`). Cada objeto usa `.passthrough()` para forward-compat con futuros campos que Claude Code agregue. Los bloques de contenido (`text`, `thinking`, `tool_use`, `tool_result`) son una `z.discriminatedUnion('type', …)`. Export `parseEvent(raw): Event | null` con `safeParse` → fail-soft en la frontera. El tipo `CompactBoundary` se deriva como `SystemEvent & { subtype: 'compact_boundary' }`.
-- `src/core/compact.ts` — helpers de compact: `isCompactBoundary`, `isCompactSummaryUser`, `findLatestCompactBoundaryIndex` (scan inverso manual, ver decisión abajo), `skipBeforeLatestCompact` (slice desde el boundary más reciente).
-- `src/core/types.ts` — colapsado a re-exports de `schema.ts` + la interfaz `SessionMetadata`, que ahora incluye `compactCount: number`.
-- `src/core/reader.ts` — ahora retorna `Event[]` validado. Cualquier línea cuyo `JSON.parse` falle **o** cuyo `parseEvent` devuelva `null` (ej: `queue-operation`, `attachment`, `ai-title`) se descarta silenciosamente. Dos capas de fail-soft.
-- `src/core/session.ts` — usa `event.type === 'user' | 'assistant'` directo (ya no hay type guards manuales). Eventos `isCompactSummary: true` **no cuentan** como turno para evitar doble conteo; los `compact_boundary` incrementan el nuevo `compactCount`.
-- `src/formatters/markdown.ts` — firma cambió a `events: readonly Event[]`. Renderiza:
+- `src/core/schema.ts`, Zod schemas para todos los tipos de evento (`user`, `assistant`, `system`). Cada objeto usa `.passthrough()` para forward-compat con futuros campos que Claude Code agregue. Los bloques de contenido (`text`, `thinking`, `tool_use`, `tool_result`) son una `z.discriminatedUnion('type', …)`. Export `parseEvent(raw): Event | null` con `safeParse` → fail-soft en la frontera. El tipo `CompactBoundary` se deriva como `SystemEvent & { subtype: 'compact_boundary' }`.
+- `src/core/compact.ts`, helpers de compact: `isCompactBoundary`, `isCompactSummaryUser`, `findLatestCompactBoundaryIndex` (scan inverso manual, ver decisión abajo), `skipBeforeLatestCompact` (slice desde el boundary más reciente).
+- `src/core/types.ts`, colapsado a re-exports de `schema.ts` + la interfaz `SessionMetadata`, que ahora incluye `compactCount: number`.
+- `src/core/reader.ts`, ahora retorna `Event[]` validado. Cualquier línea cuyo `JSON.parse` falle **o** cuyo `parseEvent` devuelva `null` (ej: `queue-operation`, `attachment`, `ai-title`) se descarta silenciosamente. Dos capas de fail-soft.
+- `src/core/session.ts`, usa `event.type === 'user' | 'assistant'` directo (ya no hay type guards manuales). Eventos `isCompactSummary: true` **no cuentan** como turno para evitar doble conteo; los `compact_boundary` incrementan el nuevo `compactCount`.
+- `src/formatters/markdown.ts`, firma cambió a `events: readonly Event[]`. Renderiza:
   - `compact_boundary` → línea de blockquote con trigger y preTokens.
   - usuario con `isCompactSummary: true` → su propia sección `## Compact summary` (en vez de mislabelarlo como `## User`).
   - `FormatOptions.skipPrecompact` → descarta todo antes del boundary más reciente.
   - Header: `- **Compactions:** N` si hay al menos una, y `- **Pre-compact events:** omitted` si el flag está activo.
-- `src/cli/commands/export.ts` — nueva flag `--skip-precompact`.
+- `src/cli/commands/export.ts`, nueva flag `--skip-precompact`.
 
 **Tests (37 pasando en 10 archivos):**
-- `tests/core/schema.test.ts` — valida happy-path, passthrough de campos desconocidos, rechazo de tipos unmodeled (`queue-operation`, `attachment`), rechazo de payloads inválidos, soporte de `isCompactSummary`.
-- `tests/core/compact.test.ts` — identifica boundary y summary, encuentra el índice del boundary, funciona con sesiones sin compact.
-- `tests/fixtures/with-compact.jsonl` — fixture sintética: user, assistant, boundary, compact summary, user, assistant.
-- `tests/formatters/markdown.test.ts` — extendido con dos tests de rendering de compact (con y sin `skipPrecompact`).
+- `tests/core/schema.test.ts`, valida happy-path, passthrough de campos desconocidos, rechazo de tipos unmodeled (`queue-operation`, `attachment`), rechazo de payloads inválidos, soporte de `isCompactSummary`.
+- `tests/core/compact.test.ts`, identifica boundary y summary, encuentra el índice del boundary, funciona con sesiones sin compact.
+- `tests/fixtures/with-compact.jsonl`, fixture sintética: user, assistant, boundary, compact summary, user, assistant.
+- `tests/formatters/markdown.test.ts`, extendido con dos tests de rendering de compact (con y sin `skipPrecompact`).
 - Tests existentes de `reader` y `session` actualizados para reflejar la nueva semántica (queue-operation ya no aparece en la salida, `compactCount: 0` en la fixture minimal).
 
 ### Decisiones técnicas del hito
 - **Validar en el reader, no en callers**: el pre-review inicial dejaba `reader.ts` sin cambios, pero al escribir `parseEvent` quedó claro que la frontera natural es el reader. Mover la validación a los callers duplicaría el `parseEvent` en cada punto de entrada y dejaría el tipo `unknown[]` filtrándose. Desviación explícita del pre-review, documentada aquí.
 - **`.passthrough()` en todos los objetos**: el formato `.jsonl` de Claude Code no está documentado. Si Anthropic agrega un campo `turnIndex` mañana, no queremos invalidar eventos válidos. Trade-off: algunos typos pasan desapercibidos. Mitigado por fixtures + tests que chequean campos específicos.
 - **Compact summary es `## Compact summary`, no `## Assistant (compact summary)`**: estructuralmente es un evento `user`, pero el contenido fue generado por Claude durante `/compact`. Etiquetarlo como assistant sería engañoso; `## Compact summary` es fiel a la naturaleza bridge-summary del evento.
-- **Scan inverso manual para `findLatestCompactBoundaryIndex`**: `Array.prototype.findLastIndex` es ES2023 y el target del proyecto es ES2022. Preferimos un loop manual antes que ampliar `lib` a `ES2023.Array` — menos superficie de cambio por una necesidad puntual.
+- **Scan inverso manual para `findLatestCompactBoundaryIndex`**: `Array.prototype.findLastIndex` es ES2023 y el target del proyecto es ES2022. Preferimos un loop manual antes que ampliar `lib` a `ES2023.Array`, menos superficie de cambio por una necesidad puntual.
 - **`isCompactSummary` user events no cuentan como turno**: si los contáramos, `describeSession` reportaría 1 turno extra por cada compact. Son sintéticos del harness, no del usuario humano.
 - **Reset de `lastRole` tras un boundary o summary**: el merge de turnos consecutivos se interrumpe visualmente al cruzar un compact, así la estructura post-compact comienza con un `## User` o `## Assistant` nuevo aunque el último evento real haya sido del mismo rol.
 
 ### Verificación
-- `npm run ci` — 37/37 tests ✓, lint ✓, typecheck ✓, build ✓.
+- `npm run ci`, 37/37 tests ✓, lint ✓, typecheck ✓, build ✓.
 - Manual contra una sesión real con 2 compactions (`d--Dionisio-ClockInTransnova/04f5ef13-…jsonl`):
   - Sin flag: 1549 líneas, header reporta `**Compactions:** 2`, ambos boundaries visibles con trigger y preTokens, dos secciones `## Compact summary` intactas, 92 paths redactados.
   - Con `--skip-precompact`: 1180 líneas, solo el boundary más reciente, header muestra `**Pre-compact events:** omitted`, 90 paths redactados.
@@ -168,21 +168,21 @@ Alcance reducido respecto al plan original: en vez de meter Zod + preview intera
 - Sigue sin haber preview interactiva antes de escribir (Hito 4).
 - `tool_use` y `thinking` siguen omitidos (Hito 5, opt-in).
 - Streaming reader sigue pendiente; in-memory es suficiente por ahora.
-- Si Claude Code introduce un nuevo `subtype` de `system`, se parsea (passthrough) pero no se renderea especialmente — solo `compact_boundary` tiene tratamiento.
+- Si Claude Code introduce un nuevo `subtype` de `system`, se parsea (passthrough) pero no se renderea especialmente, solo `compact_boundary` tiene tratamiento.
 
 ### Próximo paso
-- **Hito 4 — Preview interactiva obligatoria**: mostrar las primeras/últimas N líneas antes de escribir con `--out`, confirmación `[y/N]`, flag `--yes` para CI. Sin prompt para stdout (no es escritura persistente).
+- **Hito 4, Preview interactiva obligatoria**: mostrar las primeras/últimas N líneas antes de escribir con `--out`, confirmación `[y/N]`, flag `--yes` para CI. Sin prompt para stdout (no es escritura persistente).
 
 ---
 
-## 2026-04-17 — Hito 4 · Preview interactiva + hardening de escritura
+## 2026-04-17, Hito 4 · Preview interactiva + hardening de escritura
 
 ### Qué hicimos
 Este hito arrancó como "preview obligatoria antes de `--out`" y creció a tres mejoras chicas pero relevantes que comparten el mismo espíritu (prevenir sorpresas en la escritura a disco): preview + confirm, no-pisa-sin-permiso, y escritura atómica. Todo pensado para que la semántica se trasvase idéntica a la extensión VS Code en Fase 3, donde el mismo `buildPreview()` alimenta un webview y `confirm()` se reemplaza por un botón.
 
 **Módulos nuevos:**
-- `src/cli/preview.ts` — función pura `buildPreview(markdown, outPath, report, redactionEnabled, { headLines, tailLines })` + helper `humanSize(bytes)`. Head/tail/gap si supera el umbral, documento entero si es corto, footer con path + tamaño legible + resumen de redacción. Sin side-effects, 100% testeable.
-- `src/cli/prompt.ts` — `confirm(question): Promise<boolean>` con `node:readline/promises`, output a **stderr** para no contaminar stdout. Default **No**: solo `y` / `yes` (case-insensitive, tras `.trim()`) retorna `true`. `stdinIsTTY()` para detectar pipes.
+- `src/cli/preview.ts`, función pura `buildPreview(markdown, outPath, report, redactionEnabled, { headLines, tailLines })` + helper `humanSize(bytes)`. Head/tail/gap si supera el umbral, documento entero si es corto, footer con path + tamaño legible + resumen de redacción. Sin side-effects, 100% testeable.
+- `src/cli/prompt.ts`, `confirm(question): Promise<boolean>` con `node:readline/promises`, output a **stderr** para no contaminar stdout. Default **No**: solo `y` / `yes` (case-insensitive, tras `.trim()`) retorna `true`. `stdinIsTTY()` para detectar pipes.
 
 **`src/cli/commands/export.ts` reescrito:**
 - Dos ramas: stdout (como antes, sin cambios) vs `--out` (flujo nuevo).
@@ -208,7 +208,7 @@ Este hito arrancó como "preview obligatoria antes de `--out`" y creció a tres 
 - **Separación `preview.ts` pura + `prompt.ts` con I/O**: la pura se testea a muerte, la de I/O se smoke-testea. Esta frontera es exactamente la que la extensión de Fase 3 va a explotar: reusar `buildPreview()` directo y reemplazar `confirm()` por UI.
 
 ### Verificación
-- `npm run ci` — 46/46 tests ✓, lint ✓, typecheck ✓, build ✓.
+- `npm run ci`, 46/46 tests ✓, lint ✓, typecheck ✓, build ✓.
 - Smoke tests automatizables (bash):
   1. `--out --yes` → escribe, no deja `.tmp`, exit 0, resumen de redacción post-write. ✓
   2. `--out --yes` sobre archivo existente → error claro "already exists. Pass --force". Archivo original intacto. ✓
@@ -226,17 +226,17 @@ Este hito arrancó como "preview obligatoria antes de `--out`" y creció a tres 
 ### Limitaciones conocidas (para próximos hitos)
 - `tool_use` y `thinking` siguen omitidos del markdown (Hito 5, opcional).
 - El preview trunca líneas, no los runs de conversación completos. Si la conversación arranca con una pregunta de 40 líneas, el "head" va a estar todo dentro de ese primer turno. Aceptable: el header antes de los 15 siempre es parte del head.
-- Sin paginación del preview para documentos gigantes — si querés ver las 500 líneas del medio, abrís el archivo con `--yes` y lo inspeccionás vos.
+- Sin paginación del preview para documentos gigantes, si querés ver las 500 líneas del medio, abrís el archivo con `--yes` y lo inspeccionás vos.
 
 ### Próximo paso
-- **Hito 5 (opcional) — Opt-in render de `tool_use` / `thinking`**: flags `--include-tools` y `--include-thinking`. Decisión de UX pendiente (colapsables, summary-only, full). Podría saltarse si preferimos ir directo a **Hito 6 — Fase 2 (import desde ZIP de claude.ai)**, que tiene más valor de producto.
+- **Hito 5 (opcional), Opt-in render de `tool_use` / `thinking`**: flags `--include-tools` y `--include-thinking`. Decisión de UX pendiente (colapsables, summary-only, full). Podría saltarse si preferimos ir directo a **Hito 6, Fase 2 (import desde ZIP de claude.ai)**, que tiene más valor de producto.
 
 ---
 
-## 2026-04-17 — Hito 5 · Opt-in render de `tool_use`, `tool_result` y `thinking`
+## 2026-04-17, Hito 5 · Opt-in render de `tool_use`, `tool_result` y `thinking`
 
 ### Qué hicimos
-Dos flags nuevas, ortogonales, apagadas por defecto: `--include-tools` y `--include-thinking`. El default del exporter sigue siendo "conversación legible como chat" (solo texto). Las flags agregan fidelidad sin romper el caso común. Decidimos hacerlo ahora — en vez de saltarlo hacia Fase 2 — porque es barato y completa la herramienta: la extensión VS Code de Fase 3 va a exponer estas flags como toggles en la UI reusando exactamente el mismo `formatAsMarkdown`.
+Dos flags nuevas, ortogonales, apagadas por defecto: `--include-tools` y `--include-thinking`. El default del exporter sigue siendo "conversación legible como chat" (solo texto). Las flags agregan fidelidad sin romper el caso común. Decidimos hacerlo ahora, en vez de saltarlo hacia Fase 2, porque es barato y completa la herramienta: la extensión VS Code de Fase 3 va a exponer estas flags como toggles en la UI reusando exactamente el mismo `formatAsMarkdown`.
 
 **`src/formatters/markdown.ts`:**
 - `FormatOptions` gana `includeTools?: boolean` e `includeThinking?: boolean`.
@@ -251,7 +251,7 @@ Dos flags nuevas, ortogonales, apagadas por defecto: `--include-tools` y `--incl
 - `--include-tools` y `--include-thinking` como flags booleanas independientes. Se pasan al formatter solo si están activas (patrón `...(opts.foo === true && { foo: true })` consistente con `exactOptionalPropertyTypes`).
 
 **`tests/formatters/markdown.test.ts`:**
-- 5 casos nuevos bajo `formatAsMarkdown — tools and thinking rendering`:
+- 5 casos nuevos bajo `formatAsMarkdown, tools and thinking rendering`:
   1. Default sin flags → solo texto, sin `<details>`, sin `*[thinking]*` (regresión explícita).
   2. Solo `includeThinking` → blockquote con label y multilínea; sin `<details>`.
   3. Solo `includeTools` → `<details>` con tool_use y tool_result; redacción aplica a paths dentro del JSON de input.
@@ -263,11 +263,11 @@ Dos flags nuevas, ortogonales, apagadas por defecto: `--include-tools` y `--incl
 - **Orden de bloques preservado**: si el asistente emitió `[thinking, tool_use, text, tool_use, text]`, el markdown lo refleja tal cual. Reordenar (tipo "primero todo el texto, después las tools") rompería el hilo causal.
 - **Tool result NO se aparea visualmente con su tool_use**: viven en eventos distintos (assistant emite el call, el siguiente user event trae el result). Apararelos visualmente exigiría indexar los tool_use_ids y reordenar. Decidimos **no hacerlo**: el `id: <toolu_...>` en el summary ya permite correlacionarlos para quien los quiera buscar, y el orden cronológico es más honesto.
 - **JSON input pasa por redact()**: los paths y secretos embebidos en un `Write` o `Edit` son exactamente el tipo de cosa que el redactor tiene que atrapar. Confirmado en el smoke test: al exportar nuestra propia sesión con `--include-tools`, la cuenta de paths redactados saltó de 14 a 308 y aparecieron "secretos" (falsos positivos por los fixtures `sk-ant-api03-abcdef...` que copy-pegamos en el código). Comportamiento correcto: fail-safe.
-- **Compact summary renderiza siempre como solo-texto**, incluso con flags activas. Un summary es conceptualmente text — no tiene sentido mostrar tools "dentro" de un resumen.
+- **Compact summary renderiza siempre como solo-texto**, incluso con flags activas. Un summary es conceptualmente text, no tiene sentido mostrar tools "dentro" de un resumen.
 - **Sin truncar inputs enormes**: un `Write` con 5000 líneas genera un `<details>` de 5000 líneas. Aceptable porque está colapsado por defecto. Si en la práctica molesta, `--tool-input-limit N` es un cambio chico. YAGNI por ahora.
 
 ### Verificación
-- `npm run ci` — 51/51 tests ✓ (5 nuevos), lint ✓, typecheck ✓, build ✓.
+- `npm run ci`, 51/51 tests ✓ (5 nuevos), lint ✓, typecheck ✓, build ✓.
 - Smoke test sobre la sesión actual del exportal (la que estamos conversando ahora):
 
   | flags | líneas | redacción |
@@ -282,7 +282,7 @@ Dos flags nuevas, ortogonales, apagadas por defecto: `--include-tools` y `--incl
 - Inspección visual del output: `<details>` + `<summary>` correctamente cerrados, fences JSON bien identados, `id:` visible para correlación. Triple-backtick en tool_result escapado con fence de 4 (confirmado en test dedicado).
 
 ### Falso positivo conocido
-- Grep sobre el export con `--include-tools` lo reporta como "Binary file matches" — hay algún escape de terminal (probablemente ANSI de algún `ls --color` o spinner de npm) capturado en un tool_result. No es problema del formatter; es fidelidad del contenido original. `grep -a` lo trata como texto y funciona normal. Si molesta, podríamos strip de control chars en `renderToolResultContent`, pero arriesgaría alterar contenido legítimo.
+- Grep sobre el export con `--include-tools` lo reporta como "Binary file matches", hay algún escape de terminal (probablemente ANSI de algún `ls --color` o spinner de npm) capturado en un tool_result. No es problema del formatter; es fidelidad del contenido original. `grep -a` lo trata como texto y funciona normal. Si molesta, podríamos strip de control chars en `renderToolResultContent`, pero arriesgaría alterar contenido legítimo.
 
 ### Estado de Fase 1
 Con Hito 5 cerrado, Fase 1 (CLI export de Claude Code → Markdown) está **funcionalmente completa**:
@@ -294,25 +294,25 @@ Con Hito 5 cerrado, Fase 1 (CLI export de Claude Code → Markdown) está **func
 - Opt-in de tools y thinking.
 
 ### Próximo paso
-- **Hito 6 — Fase 2 (inicio): import del ZIP de claude.ai**. Primero: inspeccionar un export real de claude.ai (pedirle al usuario que exporte su cuenta desde Settings → Export data) para entender estructura del ZIP, formato de los JSONs de conversación, y los assets adjuntos. Recién con eso claro, decidir alcance del hito.
+- **Hito 6, Fase 2 (inicio): import del ZIP de claude.ai**. Primero: inspeccionar un export real de claude.ai (pedirle al usuario que exporte su cuenta desde Settings → Export data) para entender estructura del ZIP, formato de los JSONs de conversación, y los assets adjuntos. Recién con eso claro, decidir alcance del hito.
 
 ---
 
-## Hito 6 — Import claude.ai ZIP: schema, reader y `import list` (2026-04-17)
+## Hito 6, Import claude.ai ZIP: schema, reader y `import list` (2026-04-17)
 
 ### Objetivo
-Primer paso concreto de Fase 2: leer un export oficial de claude.ai (`data-*-batch-0000.zip`) y listar las conversaciones que contiene. Sin markdown todavía — primero probamos que el pipeline de apertura + validación funciona, después pensamos el render.
+Primer paso concreto de Fase 2: leer un export oficial de claude.ai (`data-*-batch-0000.zip`) y listar las conversaciones que contiene. Sin markdown todavía, primero probamos que el pipeline de apertura + validación funciona, después pensamos el render.
 
 ### Inspección previa (antes de escribir código)
 - El ZIP trae 4 archivos JSON, cada uno un array top-level:
-  - `users.json` — perfiles de cuenta (UUID, nombre, email, teléfono).
-  - `memories.json` — el "conversation memory" consolidado de la cuenta.
-  - `projects.json` — proyectos del usuario, con docs anidados.
-  - `conversations.json` — el payload principal: array de conversaciones con mensajes.
+  - `users.json`, perfiles de cuenta (UUID, nombre, email, teléfono).
+  - `memories.json`, el "conversation memory" consolidado de la cuenta.
+  - `projects.json`, proyectos del usuario, con docs anidados.
+  - `conversations.json`, el payload principal: array de conversaciones con mensajes.
 - No hay directorios, ni binarios: los attachments vienen inline con `extracted_content` (texto ya extraído del PDF/DOC/etc.), y los `files` son solo referencias (`file_uuid` + `file_name`, sin los bytes).
-- Los senders son `human` / `assistant` (en Claude Code son `user` / `assistant` — atención al mapear después).
+- Los senders son `human` / `assistant` (en Claude Code son `user` / `assistant`, atención al mapear después).
 - Los bloques de contenido son `text`, `tool_use`, `tool_result`. **No hay `thinking`** en el export web.
-- Un `tool_use` tiene muchos campos MCP/integrations (`is_mcp_app`, `mcp_server_url`, `integration_name`, `integration_icon_url`, `icon_name`, etc.) — en la inspección inicial los anotamos todos.
+- Un `tool_use` tiene muchos campos MCP/integrations (`is_mcp_app`, `mcp_server_url`, `integration_name`, `integration_icon_url`, `icon_name`, etc.), en la inspección inicial los anotamos todos.
 - Un tamaño real: 7 conversaciones, 280 mensajes, la más grande con 246 mensajes.
 
 ### Alcance del hito (lo que SÍ entra)
@@ -322,26 +322,26 @@ Primer paso concreto de Fase 2: leer un export oficial de claude.ai (`data-*-bat
 4. **Tests**: schema (válidos, passthrough, rechazos) + reader con ZIPs sintéticos construidos in-memory con jszip (happy path, optional missing, optional invalid JSON, optional invalid schema, conversations missing, conversations invalid).
 
 ### Alcance del hito (lo que NO entra)
-- Markdown output de una conversación — eso es Hito 7.
+- Markdown output de una conversación, eso es Hito 7.
 - Manejo de attachments (solo validamos el schema, no los extraemos).
-- UI interactiva para seleccionar conversaciones — el listado por stdout alcanza para probar el pipeline.
-- Redactor sobre el output — todavía no estamos emitiendo contenido sensible; solo UUIDs y títulos.
+- UI interactiva para seleccionar conversaciones, el listado por stdout alcanza para probar el pipeline.
+- Redactor sobre el output, todavía no estamos emitiendo contenido sensible; solo UUIDs y títulos.
 
 ### Decisiones técnicas del hito
 - **jszip sobre adm-zip/yauzl**. Razones:
-  - API promise-native (`loadAsync`, `file().async('string')`) — encaja con el resto del código que ya es async/await.
+  - API promise-native (`loadAsync`, `file().async('string')`), encaja con el resto del código que ya es async/await.
   - **Zero native deps**: instalación idempotente en Windows/Linux/Mac sin node-gyp.
   - **Funciona idénticamente en el browser**: cuando lleguemos a Fase 3 (extensión VS Code) podemos reusar el mismo reader sin tocar nada. yauzl y adm-zip son Node-only.
   - `adm-zip` tuvo históricamente CVEs de path traversal. No nos afecta directamente (no extraemos a disco, solo leemos entries nombrados) pero es señal.
-- **Namespace `src/importers/claudeai/`**: dejamos la puerta abierta a otros importadores (ChatGPT exports, Gemini, lo que sea) sin refactor. El CLI subcomando `import <source>` también lo prevé — por ahora solo `--source claudeai` (default).
-- **Fail-soft en JSONs auxiliares, fail-hard en conversations.json**: la conversación es el payload principal; sin eso no hay herramienta. Los otros tres son contexto útil pero opcional — un usuario podría hacer un export recortado, o Anthropic podría cambiar el formato de `projects.json` sin tocar `conversations.json`, y no queremos que eso rompa el import. Las incidencias se exponen por `warnings[]` y el CLI las imprime a stderr.
-- **Schema defensivo en booleans**: `is_mcp_app` aparece como `null` en bloques reales (no `false` ni ausente). Lo definimos `.boolean().nullable().optional()`. Mismo patrón que usamos para los strings de integraciones (`integration_name`, `mcp_server_url`). Lección: nunca asumir `optional` es suficiente — Anthropic emite `null` explícito en varios campos.
+- **Namespace `src/importers/claudeai/`**: dejamos la puerta abierta a otros importadores (ChatGPT exports, Gemini, lo que sea) sin refactor. El CLI subcomando `import <source>` también lo prevé, por ahora solo `--source claudeai` (default).
+- **Fail-soft en JSONs auxiliares, fail-hard en conversations.json**: la conversación es el payload principal; sin eso no hay herramienta. Los otros tres son contexto útil pero opcional, un usuario podría hacer un export recortado, o Anthropic podría cambiar el formato de `projects.json` sin tocar `conversations.json`, y no queremos que eso rompa el import. Las incidencias se exponen por `warnings[]` y el CLI las imprime a stderr.
+- **Schema defensivo en booleans**: `is_mcp_app` aparece como `null` en bloques reales (no `false` ni ausente). Lo definimos `.boolean().nullable().optional()`. Mismo patrón que usamos para los strings de integraciones (`integration_name`, `mcp_server_url`). Lección: nunca asumir `optional` es suficiente, Anthropic emite `null` explícito en varios campos.
 - **ZIP in-memory completo (sin streaming)**: exports típicos son <10MB (prose + JSON). Streaming sumaría complejidad sin beneficio medible. Cuando alguien reporte un export de 100MB, revisamos.
 - **Tests con ZIPs sintéticos construidos en runtime**: usamos jszip para generar ZIPs en memoria dentro de `mkdtemp(os.tmpdir())`, cleanup con `afterEach`. Ventaja: no chequeamos fixtures binarios al repo, los escenarios (malformed JSON, schema inválido, archivos faltantes) son triviales de expresar en código, y cada test es autocontenido.
 
 ### Problema encontrado durante la prueba manual y cómo lo resolvimos
-- **Primer run contra el ZIP real**: `conversations.json failed schema validation`. Corrimos un script de debug con `safeParse` directo e imprimimos las 15 primeras issues — todas eran `is_mcp_app: null` en tool_use blocks. Nuestro schema lo tenía como `z.boolean().optional()`. Lo relajamos a `.nullable().optional()` y resolvió las 15 issues sin tocar más nada. Post-fix: el ZIP real lista correctamente las 7 conversaciones.
-- **Lint fallo en `import.ts`**: usamos el literal `'claudeai'` como tipo de `opts.source`, y ESLint se quejó de `template literal expression never` en la rama de error (TypeScript inferió `never` porque el if descarta el único valor posible). Solución: tipar `source: string` — es más honesto, el valor viene del runtime de commander y cualquiera puede pasar `--source algo_raro`.
+- **Primer run contra el ZIP real**: `conversations.json failed schema validation`. Corrimos un script de debug con `safeParse` directo e imprimimos las 15 primeras issues, todas eran `is_mcp_app: null` en tool_use blocks. Nuestro schema lo tenía como `z.boolean().optional()`. Lo relajamos a `.nullable().optional()` y resolvió las 15 issues sin tocar más nada. Post-fix: el ZIP real lista correctamente las 7 conversaciones.
+- **Lint fallo en `import.ts`**: usamos el literal `'claudeai'` como tipo de `opts.source`, y ESLint se quejó de `template literal expression never` en la rama de error (TypeScript inferió `never` porque el if descarta el único valor posible). Solución: tipar `source: string`, es más honesto, el valor viene del runtime de commander y cualquiera puede pasar `--source algo_raro`.
 
 ### Verificación
 - `npm run ci` → **68/68 tests** ✓ (17 nuevos: 10 schema, 7 reader), lint ✓, typecheck ✓, build ✓.
@@ -359,14 +359,14 @@ Primer paso concreto de Fase 2: leer un export oficial de claude.ai (`data-*-bat
   Coincide con la inspección inicial del ZIP. Sin warnings (los 4 JSON se parsearon OK).
 
 ### Próximo paso
-- **Hito 7 — render Markdown de una conversación de claude.ai**. `exportal import show <zip> <conversationId>` (o `--all`) que toma una conversación y emite Markdown con la misma estética que el export de Claude Code, reusando el redactor. Mapear `human` → `## User`, `assistant` → `## Assistant`. Decidir cómo mostrar tool_use/tool_result web-específicos (web_search con citations es el caso interesante) y cómo tratar attachments (`extracted_content` inline como bloque aparte? ignorar?). Decisión sobre archivos faltantes: probablemente omitir o mostrar solo el nombre.
+- **Hito 7, render Markdown de una conversación de claude.ai**. `exportal import show <zip> <conversationId>` (o `--all`) que toma una conversación y emite Markdown con la misma estética que el export de Claude Code, reusando el redactor. Mapear `human` → `## User`, `assistant` → `## Assistant`. Decidir cómo mostrar tool_use/tool_result web-específicos (web_search con citations es el caso interesante) y cómo tratar attachments (`extracted_content` inline como bloque aparte? ignorar?). Decisión sobre archivos faltantes: probablemente omitir o mostrar solo el nombre.
 
 ---
 
-## Hito 7 — Render Markdown de conversaciones claude.ai + `import show` (2026-04-17)
+## Hito 7, Render Markdown de conversaciones claude.ai + `import show` (2026-04-17)
 
 ### Objetivo
-Segundo paso de Fase 2: `exportal import show <zip> <conversationId>` que toma una conversación web y la emite como Markdown con la misma estética que el export de Claude Code. Con esto ya se puede "unir chats entre plataformas" copy-pasteando el resultado como contexto a Claude Code — el MVP funcional de la visión del producto.
+Segundo paso de Fase 2: `exportal import show <zip> <conversationId>` que toma una conversación web y la emite como Markdown con la misma estética que el export de Claude Code. Con esto ya se puede "unir chats entre plataformas" copy-pasteando el resultado como contexto a Claude Code, el MVP funcional de la visión del producto.
 
 ### Alcance del hito (cerrado)
 1. **Refactor preparatorio chico**:
@@ -376,12 +376,12 @@ Segundo paso de Fase 2: `exportal import show <zip> <conversationId>` que toma u
 2. **Formatter nuevo** `src/formatters/claudeai-markdown.ts`:
    - `## User` para sender `human`, `## Assistant` para sender `assistant`.
    - Merge de turnos consecutivos del mismo rol (como el formatter de Claude Code).
-   - `--include-tools` reutiliza `<details>` del shared module — idéntica UX visual.
+   - `--include-tools` reutiliza `<details>` del shared module, idéntica UX visual.
    - `--include-attachments` renderiza `extracted_content` como `<details><summary>📎 adjunto: file.txt</summary>`.
-   - `files[]` (referencias a binarios ausentes del ZIP) se imprimen como nota corta `*[archivo adjunto: X — binario no incluido]*`.
+   - `files[]` (referencias a binarios ausentes del ZIP) se imprimen como nota corta `*[archivo adjunto: X, binario no incluido]*`.
    - **Citations → footnotes Markdown** `[^N]` agrupadas al final del párrafo + sección `## Referencias` al pie con las URLs.
 3. **CLI nuevo**: `exportal import show <zip> <conversationId>`:
-   - Match exacto por UUID o por prefijo único (paste-friendly — podés agarrar los primeros 8 chars del `import list` output).
+   - Match exacto por UUID o por prefijo único (paste-friendly, podés agarrar los primeros 8 chars del `import list` output).
    - Opciones `--out`, `--no-redact`, `--include-tools`, `--include-attachments`, `--yes`, `--force`, `--source`.
    - Reusa toda la maquinaria de preview interactiva + atomic write + redacción del Hito 4.
 4. **Tests** (9 nuevos): header, merge de roles, redacción, citations con footnotes, default oculta tools, flags los muestran, attachments opt-in, file refs siempre visibles, skip de mensajes vacíos.
@@ -389,11 +389,11 @@ Segundo paso de Fase 2: `exportal import show <zip> <conversationId>` que toma u
 ### Decisiones técnicas
 - **Citations como footnotes agrupadas, no inline por offset**. Razón: claude.ai devuelve `start_index` / `end_index` sobre el texto original (pre-render), que puede haber sido modificado por tools. Un offset errado deforma el párrafo entero. Los markers agrupados al final del bloque (`... texto final.[^1][^2][^3]`) es el patrón que usan la mayoría de las UIs de AI (ChatGPT, Perplexity). Simple, robusto, y GitHub/VS Code lo renderizan nativo como nota al pie.
 - **Sección final `## Referencias`, no `## Footnotes`**. Argentinismo consciente: todo el resto del output (header, bloques de attachments, warnings) está en español rioplatense. Consistencia con el tono de la herramienta.
-- **Attachments opt-in, file refs always-on**. El `extracted_content` de un attachment es potencialmente enorme (un PDF de 20 páginas sale como texto plano) — por default lo escondemos. Las refs a archivos que NO están en el ZIP sí las mostramos siempre porque es info que el lector debería saber para entender por qué "el mensaje menciona una imagen que no veo".
+- **Attachments opt-in, file refs always-on**. El `extracted_content` de un attachment es potencialmente enorme (un PDF de 20 páginas sale como texto plano), por default lo escondemos. Las refs a archivos que NO están en el ZIP sí las mostramos siempre porque es info que el lector debería saber para entender por qué "el mensaje menciona una imagen que no veo".
 - **Match por prefijo único**. `import list` muestra UUIDs completos pero nadie los paste-ea enteros. `import show ... 81dce8b5` funciona si hay una única conversación que empieza con eso; si hay ambigüedad, explota con un error claro. UX decisión chica que ahorra mucha fricción en la práctica.
 - **Shared helpers vs "formatter universal"**. Consideramos unificar en un único formatter con un `adapter` por plataforma, pero los schemas son muy distintos (sender `human`/`user`, presencia/ausencia de `thinking`, citations, attachments). Hubiera terminado siendo un switch gigante. Lo que se puede compartir (render de tool calls, fencing) está en `markdown-shared.ts`; la lógica de ensamblado es específica por formatter. Menos acoplamiento, mismo resultado visual.
 - **Redacción pasa también sobre `## Referencias`**. Las URLs tipo `https://github.com/org/repo` rara vez matchean el redactor (no son paths locales ni tokens), pero corro el output por `redact()` igual. Fail-safe.
-- **No `--all`** todavía. Pensado para Hito 8 si hace falta — emitiría una carpeta con una MD por conversación, con filename sluggificado a partir del título. Por ahora el patrón "1 conversación = 1 markdown" + preview interactiva cubre el caso principal.
+- **No `--all`** todavía. Pensado para Hito 8 si hace falta, emitiría una carpeta con una MD por conversación, con filename sluggificado a partir del título. Por ahora el patrón "1 conversación = 1 markdown" + preview interactiva cubre el caso principal.
 
 ### Problemas durante la implementación
 - **Lint**: `parsed === null || parsed[0] === undefined` → arreglado con optional chaining `parsed?.[0] === undefined` (regla `@typescript-eslint/prefer-optional-chain`).
@@ -416,17 +416,17 @@ Segundo paso de Fase 2: `exportal import show <zip> <conversationId>` que toma u
 ### Estado del producto tras Hito 7
 El bucle completo `claude.ai → Markdown → pegar como contexto a Claude Code` **ya funciona**:
 1. Usuario exporta sus chats desde Settings → Export data en claude.ai → descarga el ZIP.
-2. `exportal import list <zip>` — ve sus conversaciones con IDs + títulos.
-3. `exportal import show <zip> <id> --out conv.md` — obtiene un Markdown limpio, redactado, listo para pegar.
+2. `exportal import list <zip>`, ve sus conversaciones con IDs + títulos.
+3. `exportal import show <zip> <id> --out conv.md`, obtiene un Markdown limpio, redactado, listo para pegar.
 4. Pega `conv.md` a Claude Code como contexto → la sesión de Claude Code arranca sabiendo todo lo que se discutió en la web.
 
 Fase 2 está **funcionalmente completa** para el flujo CLI. Lo que falta es la experiencia de un-click (Fase 3 = extensión VS Code).
 
 ### Próximo paso
-- **Hito 8 — cerrar bordes y empezar VS Code extension**. Opciones:
+- **Hito 8, cerrar bordes y empezar VS Code extension**. Opciones:
   1. `import show --all` para exportar toda la cuenta a una carpeta de una.
   2. Mejorar `export` para que acepte prefijo de sessionId (consistencia con `import show`).
-  3. Scaffold de extensión VS Code (`package.json` con activation events, un comando `Exportal: Import claude.ai ZIP`). Reusa `readClaudeAiExport` y `formatConversation` directo — no hay que reescribir nada.
+  3. Scaffold de extensión VS Code (`package.json` con activation events, un comando `Exportal: Import claude.ai ZIP`). Reusa `readClaudeAiExport` y `formatConversation` directo, no hay que reescribir nada.
   
   La 3 es la que mueve la aguja hacia "un click"; las 1 y 2 son QoL. Sugerencia: arrancar con (3) porque el pipeline CLI ya es robusto y validado; si aparece un bug lo arreglamos, pero invertir en un-click tiene más retorno.
 
@@ -437,7 +437,7 @@ Fase 2 está **funcionalmente completa** para el flujo CLI. Lo que falta es la e
 ### El problema real que resolvemos
 Claude tiene dos superficies principales hoy: **claude.ai** (web) donde el usuario conversa desde el browser con contexto general, y **Claude Code** (CLI + VS Code) donde el usuario edita código con contexto del repo. Son dos sistemas distintos que **no comparten memoria**.
 
-Escenario típico: en la web discutiste con Claude el diseño de una arquitectura durante 2 horas. Al día siguiente abrís Claude Code en el repo para implementarla — y Claude arranca desde cero, sin saber nada de lo que hablaste ayer. Copy-pastear la conversación entera como contexto es tedioso, frágil y expone secretos si no lo limpiás a mano.
+Escenario típico: en la web discutiste con Claude el diseño de una arquitectura durante 2 horas. Al día siguiente abrís Claude Code en el repo para implementarla, y Claude arranca desde cero, sin saber nada de lo que hablaste ayer. Copy-pastear la conversación entera como contexto es tedioso, frágil y expone secretos si no lo limpiás a mano.
 
 ### Por qué un CLI no alcanza
 El CLI que acabamos de construir (`exportal import list/show`) ya resuelve el problema **técnicamente**: descargás el ZIP, corrés dos comandos, tenés un `.md` limpio y redactado listo para pegar. Pero el flujo exige:
@@ -462,49 +462,49 @@ Todo el trabajo duro ya está hecho en los hitos 1-7 del CLI:
 - **Parseo del ZIP** → `readClaudeAiExport()` ya probado con schemas Zod tolerantes a cambios.
 - **Render Markdown** → `formatConversation()` con redacción, citations, tool collapsibles.
 - **Redacción** → módulo independiente, cubierto por tests.
-- **Decisiones de UX** sobre qué mostrar por default (tools no, attachments no, file refs sí) — ya tomadas y validadas.
+- **Decisiones de UX** sobre qué mostrar por default (tools no, attachments no, file refs sí), ya tomadas y validadas.
 
-La extensión importa esas funciones y las envuelve en 4 llamadas a la API de VS Code (`showOpenDialog`, `showQuickPick`, `openTextDocument`, `showTextDocument`). Nada más. Estimación: ~200 líneas de UI + manifest + bundling. El valor NO está en la cantidad de código — está en que **por fin el usuario final puede usarlo con un click**.
+La extensión importa esas funciones y las envuelve en 4 llamadas a la API de VS Code (`showOpenDialog`, `showQuickPick`, `openTextDocument`, `showTextDocument`). Nada más. Estimación: ~200 líneas de UI + manifest + bundling. El valor NO está en la cantidad de código, está en que **por fin el usuario final puede usarlo con un click**.
 
 ### Por qué jszip era la decisión correcta
 En Hito 6 elegimos `jszip` sobre `adm-zip`/`yauzl` por dos razones: zero native deps y compatibilidad browser. La segunda es la que paga ahora: **una extensión VS Code corre en un Electron renderer** (o en un worker Node según API), y `jszip` funciona idéntico en ambos. Si hubiéramos elegido `yauzl`, estaríamos reescribiendo el reader en este mismo hito.
 
 ### Por qué VS Code primero (y no una app standalone o un plugin de Claude Code)
-- **VS Code es donde ya vive Claude Code**. El usuario no abre una app nueva — extiende la que ya tiene abierta.
+- **VS Code es donde ya vive Claude Code**. El usuario no abre una app nueva, extiende la que ya tiene abierta.
 - **El marketplace de VS Code** distribuye un `.vsix` con todo adentro (incluidas las deps bundleadas). El usuario hace "Install" y listo. No `npm install`, no Node, no compilación local.
 - **La API de VS Code nos da gratis** diálogos nativos, QuickPick, editor, file system access. Construir esto como app standalone duplicaría el trabajo.
 - **Plugin para Claude Code**: Claude Code aún no expone una API de plugins suficiente para esto. La extensión VS Code es el siguiente-mejor-lugar porque convive con Claude Code en el mismo proceso.
 
-Cuando Anthropic publique una API de plugins para Claude Code, migrar el core (`readClaudeAiExport`, `formatConversation`) es trivial — por eso los mantuvimos desacoplados del CLI desde el día uno.
+Cuando Anthropic publique una API de plugins para Claude Code, migrar el core (`readClaudeAiExport`, `formatConversation`) es trivial, por eso los mantuvimos desacoplados del CLI desde el día uno.
 
 ---
 
-## Hito 8 — Scaffold de extensión VS Code (2026-04-17)
+## Hito 8, Scaffold de extensión VS Code (2026-04-17)
 
 ### Objetivo
 Primer MVP visible de Fase 3: una extensión VS Code que ejecuta el pipeline completo `claude.ai ZIP → Markdown en el editor` sin que el usuario toque una terminal. El "click de un botón" de la visión del producto.
 
 ### Alcance del hito (cerrado)
-1. **Manifest** (`package.json`): agregamos los campos que VS Code exige — `publisher`, `engines.vscode`, `main`, `activationEvents`, `contributes.commands`, `categories`, `keywords`, `displayName`.
+1. **Manifest** (`package.json`): agregamos los campos que VS Code exige, `publisher`, `engines.vscode`, `main`, `activationEvents`, `contributes.commands`, `categories`, `keywords`, `displayName`.
 2. **Un comando**: `Exportal: Import claude.ai ZIP` registrado como `exportal.importFromZip`.
 3. **Entry point** (`src/extension/extension.ts`, ~110 LOC): `activate()` registra el comando, el handler abre `showOpenDialog` → `readClaudeAiExport()` (con `withProgress`) → `showQuickPick` → `formatConversation()` → `openTextDocument` + `showTextDocument`.
 4. **Bundling** (`esbuild.config.mjs`): un único `dist/extension/extension.cjs` con todas las deps (jszip, zod, etc.) bundleadas, `vscode` marcado como external porque lo provee el host.
 5. **Dev loop** (`.vscode/launch.json` + `tasks.json`): F5 → rebuildea vía task → abre Extension Development Host → listo para probar.
-6. **Integración con CI existente**: el script `build` ahora corre `tsc` (CLI) **y** `esbuild` (extensión). Ambos salen a `dist/`. Nada del CLI se rompió — los 77 tests siguen pasando.
+6. **Integración con CI existente**: el script `build` ahora corre `tsc` (CLI) **y** `esbuild` (extensión). Ambos salen a `dist/`. Nada del CLI se rompió, los 77 tests siguen pasando.
 
 ### Decisiones técnicas
 - **Mismo paquete, no monorepo**. Evaluamos separar en `packages/core`, `packages/cli`, `packages/extension` con workspaces. Conclusión: **overhead sin beneficio** para el tamaño actual (~10 archivos core). Mantenemos un único `package.json` con dos entry points (`bin` → CLI, `main` → extensión bundle). Si en el futuro la extensión y el CLI divergen mucho, se separa; hoy no.
 - **`main` pisado por la extensión**. El campo `main` apunta ahora al bundle de la extensión (`./dist/extension/extension.cjs`). VS Code lo necesita ahí. Como el paquete es `private: true` y nadie lo consume como library ESM, reapuntar `main` no rompió nada. Si algún día se usa como library, agregamos un `exports` map.
-- **tsc NO emite la extensión**. `tsconfig.build.json` excluye `src/extension/**` — esbuild se encarga de transpilar + bundlear. Ventajas: (1) un único archivo CJS para VS Code, (2) evitamos el dual-package hazard (ESM+CJS conviviendo), (3) `tsc` sigue siendo el sanity check de typecheck global pero no produce outputs duplicados.
+- **tsc NO emite la extensión**. `tsconfig.build.json` excluye `src/extension/**`, esbuild se encarga de transpilar + bundlear. Ventajas: (1) un único archivo CJS para VS Code, (2) evitamos el dual-package hazard (ESM+CJS conviviendo), (3) `tsc` sigue siendo el sanity check de typecheck global pero no produce outputs duplicados.
 - **CJS output, aunque el source es ESM**. VS Code extensions todavía se cargan con `require()` en el Extension Host. esbuild transpila ESM → CJS transparente. En 2026 VS Code está migrando a ESM pero todavía no es mainstream; arrancar con CJS es la opción segura.
 - **Redacción forzada, sin toggle**. La decisión de UX del Hito 7 (default on) pasa a ser **no negociable** en la extensión. Quien necesite output raw usa el CLI con `--no-redact`. Simplicidad sobre flexibilidad: la extensión es para el 95% de casos donde "seguro" es más importante que "flexible".
 - **`openTextDocument({content})` vs escribir a disco**. El markdown se abre como documento `Untitled` en el editor. El usuario decide si guarda, copia, o tira. Ventaja: nunca dejamos archivos huérfanos ni pisamos cosas; el "save" es una acción explícita del usuario.
 - **Progress notification durante el parseo del ZIP**. Un ZIP grande (7 conversaciones, 280 mensajes) tarda 1-2s. Sin feedback visual, el usuario piensa que la extensión se colgó. `vscode.window.withProgress` da la notificación nativa "leyendo ZIP..." sin bloquear la UI.
 - **Warnings como `showWarningMessage` non-blocking**. Si el ZIP tiene `users.json` corrupto pero `conversations.json` OK, mostramos un warning y seguimos. No frenamos el flujo principal por información secundaria.
-- **`@types/vscode ^1.116.0` pero `engines.vscode: ^1.85.0`**. Los types son los más nuevos (para autocompletado actualizado), pero declaramos compatibilidad desde 1.85 (que cubre VS Code de finales 2023 en adelante) para no excluir a usuarios con instalaciones viejas. Si usamos una API que no existe en 1.85, TypeScript no nos avisa — por ahora solo usamos APIs estables y viejas (showOpenDialog, showQuickPick, openTextDocument, registerCommand, withProgress).
+- **`@types/vscode ^1.116.0` pero `engines.vscode: ^1.85.0`**. Los types son los más nuevos (para autocompletado actualizado), pero declaramos compatibilidad desde 1.85 (que cubre VS Code de finales 2023 en adelante) para no excluir a usuarios con instalaciones viejas. Si usamos una API que no existe en 1.85, TypeScript no nos avisa, por ahora solo usamos APIs estables y viejas (showOpenDialog, showQuickPick, openTextDocument, registerCommand, withProgress).
 
 ### Lo que NO entra en este hito
-- Tests unitarios de la extensión. Requiere `@vscode/test-electron` o mockear toda la API de `vscode` — ambos duplican el código de prueba que ya tenemos sobre el core. Prioridad: cuando la extensión crezca más allá del wrapper delgado actual.
+- Tests unitarios de la extensión. Requiere `@vscode/test-electron` o mockear toda la API de `vscode`, ambos duplican el código de prueba que ya tenemos sobre el core. Prioridad: cuando la extensión crezca más allá del wrapper delgado actual.
 - Publicación al marketplace. Para eso hace falta crear una cuenta de Azure DevOps + Publisher en Visual Studio Marketplace, generar PAT, correr `vsce publish`. Lo dejamos para cuando haya algo que publicar con confianza (después de dogfooding).
 - Segundo comando "export Claude Code session". El flujo de claude.ai → Claude Code es el camino crítico del producto. El inverso (Claude Code → markdown) ya lo cubre el CLI `exportal export`; el equivalente en extensión es un nice-to-have de Hito 9+.
 
@@ -513,7 +513,7 @@ Primer MVP visible de Fase 3: una extensión VS Code que ejecuta el pipeline com
 
 ### Verificación
 - `npm run ci` → **77/77 tests** ✓, lint ✓, typecheck ✓, build ✓ (tsc + esbuild, bundle = 832 KB).
-- **Prueba manual F5** por el usuario: command palette → "Exportal: Import claude.ai ZIP" → file picker → ZIP real (`data-...-batch-0000.zip`) → QuickPick con 7 conversaciones → selección → editor untitled con markdown completo (header, `## User`, `## Assistant`, redacción activa). **Screenshot confirmado**. El flujo fue literal: **3 clicks desde el palette al editor abierto** — exactamente el valor que la motivación del hito prometía.
+- **Prueba manual F5** por el usuario: command palette → "Exportal: Import claude.ai ZIP" → file picker → ZIP real (`data-...-batch-0000.zip`) → QuickPick con 7 conversaciones → selección → editor untitled con markdown completo (header, `## User`, `## Assistant`, redacción activa). **Screenshot confirmado**. El flujo fue literal: **3 clicks desde el palette al editor abierto**, exactamente el valor que la motivación del hito prometía.
 
 ### Estado del producto tras Hito 8
 Fase 3 tiene MVP funcional:
@@ -526,7 +526,7 @@ Fase 3 tiene MVP funcional:
 **El círculo se cerró**: lo que empezamos el 2026-04-?? como un CLI de debugging de `.jsonl` de Claude Code terminó hoy como una extensión que une las dos superficies de Claude con un click. Hitos 1-5 fueron la base (parseo + render + redacción + UX segura), 6-7 abrieron la dirección inversa (claude.ai → markdown), 8 lo convirtió en producto usable por humanos.
 
 ### Próximo paso
-- **Hito 9 — pulido para release**:
+- **Hito 9, pulido para release**:
   - Icono + README con screenshots.
   - `vscode-test` / `@vscode/test-electron` para tests de integración (aunque sea uno solo que verifique el smoke path).
   - Configurar `vsce package` para generar `.vsix`, probar instalación desde archivo.
@@ -535,13 +535,13 @@ Fase 3 tiene MVP funcional:
 
 ---
 
-## Hito 8.1 — Auto-detect del ZIP (post-review)
+## Hito 8.1, Auto-detect del ZIP (post-review)
 
 ### Motivación
 El usuario pidió simplificar aún más el flujo. Hito 8 ya había reducido el camino a 3 clicks (palette → file picker → quick pick de conversación → editor), pero el **file picker seguía siendo el paso molesto**: requiere acordarse de dónde se guardó el ZIP, navegar por carpetas, y encontrar el nombre correcto entre decenas de archivos en Downloads.
 
 ### Alcance cerrado
-- Nuevo módulo `src/extension/zip-finder.ts` con `findRecentClaudeAiExports()` — busca ZIPs con prefijo `data-` en `~/Downloads` y `~/Desktop`, últimos 7 días, ordenados por mtime descendente. Puro (no importa `vscode`), por lo que es testeable sin el host.
+- Nuevo módulo `src/extension/zip-finder.ts` con `findRecentClaudeAiExports()`, busca ZIPs con prefijo `data-` en `~/Downloads` y `~/Desktop`, últimos 7 días, ordenados por mtime descendente. Puro (no importa `vscode`), por lo que es testeable sin el host.
 - `pickZipFile()` en `extension.ts` reescrito con 3 ramas:
   - **0 candidatos** → file picker tradicional (fallback transparente).
   - **1 candidato** → importa directo con toast "Exportal: importando {nombre} ({hace N · Downloads})". Sin selector.
@@ -569,13 +569,13 @@ El usuario pidió simplificar aún más el flujo. Hito 8 ya había reducido el c
 
 ---
 
-## Hito 8.2 — Fallback por contenido para ZIPs renombrados (post-review)
+## Hito 8.2, Fallback por contenido para ZIPs renombrados (post-review)
 
 ### Motivación
-El usuario preguntó: "si el usuario le cambia el nombre al archivo, este no se detecta, no?". Confirmado — el fast-path por nombre (`data-*.zip`) deja afuera al usuario que renombra a algo como `mi-backup.zip`. El fallback actual era el file picker directo, con el cost psicológico de "la extensión me dijo que no encontró nada" sin intentar más.
+El usuario preguntó: "si el usuario le cambia el nombre al archivo, este no se detecta, no?". Confirmado, el fast-path por nombre (`data-*.zip`) deja afuera al usuario que renombra a algo como `mi-backup.zip`. El fallback actual era el file picker directo, con el cost psicológico de "la extensión me dijo que no encontró nada" sin intentar más.
 
 ### Alcance cerrado
-- Nueva función `scanZipsByContent()` en `zip-finder.ts` — escanea todo `*.zip` en Downloads/Desktop y peek con jszip para ver si contiene `conversations.json` en la raíz. Cap de tamaño 50 MB por defecto (configurable) para no abrir los 200 MB de modelos 3D que tiene el usuario en Downloads.
+- Nueva función `scanZipsByContent()` en `zip-finder.ts`, escanea todo `*.zip` en Downloads/Desktop y peek con jszip para ver si contiene `conversations.json` en la raíz. Cap de tamaño 50 MB por defecto (configurable) para no abrir los 200 MB de modelos 3D que tiene el usuario en Downloads.
 - `pickZipFile()` cambió: cuando 0 candidatos por nombre, **antes** de caer al file picker, muestra un InformationMessage con dos botones: `[Revisar .zip por contenido]` y `[Elegir archivo…]`. Si el usuario acepta revisar, disparo `scanZipsByContent()` con progress notification y reutilizo el quick pick de candidatos existente.
 - Si el content-scan tampoco encuentra nada: informo y ofrezco el file picker como última salida.
 - 5 tests nuevos cubriendo: detección con `conversations.json` presente, skip sin ese archivo, cap de tamaño, extensión incorrecta ignorada, ZIPs corruptos silenciosamente salteados.
@@ -603,12 +603,12 @@ El usuario preguntó: "si el usuario le cambia el nombre al archivo, este no se 
 
 ---
 
-## Hito 9a — README en UTF-8 y `.vsix` empaquetable (post-review)
+## Hito 9a, README en UTF-8 y `.vsix` empaquetable (post-review)
 
 ### Motivación
 Para compartir la extensión con cualquiera fuera del repo (incluso sin marketplace), hace falta un `.vsix` instalable vía `code --install-extension`. Antes de eso, había dos deudas técnicas que el usuario mismo no había notado:
 1. **El `README.md` existía en UTF-16 LE** (probablemente generado alguna vez desde PowerShell con redirección). Se ve como jeroglíficos tanto en GitHub como en el marketplace de VS Code.
-2. **Faltaba `.vscodeignore`** — sin ese archivo, `vsce package` empaqueta `src/`, `tests/`, `node_modules/` y todo, inflando el `.vsix` a decenas de MB.
+2. **Faltaba `.vscodeignore`**, sin ese archivo, `vsce package` empaqueta `src/`, `tests/`, `node_modules/` y todo, inflando el `.vsix` a decenas de MB.
 
 ### Alcance cerrado
 - `README.md` reescrito en UTF-8, reflejando el estado actual del producto (las 3 fases cerradas, no "Fase 1 en curso"). Secciones: qué resuelve, uso de la extensión, uso del CLI, principios, requisitos, desarrollo, licencia.
@@ -616,7 +616,7 @@ Para compartir la extensión con cualquiera fuera del repo (incluso sin marketpl
 - `.vscodeignore` escrito con filtros agresivos: excluye `src/`, `tests/`, `node_modules/`, config de tooling, y todo `dist/` salvo `dist/extension/extension.cjs` (el único archivo que la extensión necesita al runtime). Incluye también el sourcemap para no inflar el paquete.
 - `*.vsix` agregado al `.gitignore`.
 - `@types/vscode` bajado de `^1.116.0` a `~1.85.0` para cumplir con la regla de vsce (`@types/vscode` ≤ `engines.vscode`). No rompió nada porque no usamos APIs nuevas.
-- Campo `files` removido de `package.json` — vsce rechaza tener ambos (`.vscodeignore` y `files`) declarados, y al ser `"private": true` no publicamos a npm.
+- Campo `files` removido de `package.json`, vsce rechaza tener ambos (`.vscodeignore` y `files`) declarados, y al ser `"private": true` no publicamos a npm.
 
 ### Decisiones técnicas
 - **`.vscodeignore` en lugar de `files`**: vsce no soporta combinar ambos. Elegí `.vscodeignore` porque es el idiomático del ecosistema de extensiones y acepta patrones de glob y negación.
@@ -639,20 +639,20 @@ Para compartir la extensión con cualquiera fuera del repo (incluso sin marketpl
 - Probar instalación del `.vsix` en un VS Code limpio: `code --install-extension exportal-0.0.0.vsix`.
 - Si instala bien, Hito 9b puede ser: icono + screenshots + primer release en GitHub Releases con el `.vsix` como asset (evita la fricción del marketplace pero ya es compartible).
 
-## Hito 9b — Icono + botón en la status bar
+## Hito 9b, Icono + botón en la status bar
 
 **Fecha:** 2026-04-18
 
 ### Problema
 Post-9a la extensión era instalable desde `.vsix` pero:
-1. **Sin icono** — en el panel de Extensions aparecía como genérica.
-2. **Descubribilidad pésima** — única forma de disparar el comando era Ctrl+Shift+P → buscar "Exportal". El usuario tenía que *recordar* que la extensión existía.
+1. **Sin icono**, en el panel de Extensions aparecía como genérica.
+2. **Descubribilidad pésima**, única forma de disparar el comando era Ctrl+Shift+P → buscar "Exportal". El usuario tenía que *recordar* que la extensión existía.
 
 ### Alcance cerrado
 - **Icono** (`assets/icon.svg` + `assets/icon.png` 128×128): diseño minimalista, "E" blanca con acento naranja sobre fondo índigo. Script `scripts/build-icon.mjs` convierte SVG→PNG con `sharp`. `assets/*.svg` excluido del `.vsix` (solo se envía el PNG).
-- **StatusBarItem** en `extension.ts activate()`: texto `$(cloud-download) Exportal` en la esquina inferior izquierda, tooltip "Importar conversación de claude.ai", click dispara `exportal.importFromZip`. Usa el codicon built-in de VS Code — sin assets extra.
+- **StatusBarItem** en `extension.ts activate()`: texto `$(cloud-download) Exportal` en la esquina inferior izquierda, tooltip "Importar conversación de claude.ai", click dispara `exportal.importFromZip`. Usa el codicon built-in de VS Code, sin assets extra.
 - **`activationEvents: ["onStartupFinished"]`**: antes estaba vacío; con comando-only activation la status bar no aparecía hasta que el usuario ejecutara el comando (círculo vicioso). `onStartupFinished` activa al terminar el arranque, sin impactar el tiempo de carga percibido.
-- **`eslint.config.js`**: bloque nuevo para `scripts/**/*.mjs` con globals `console`/`process` — sin esto, `build-icon.mjs` fallaba lint con `no-undef`.
+- **`eslint.config.js`**: bloque nuevo para `scripts/**/*.mjs` con globals `console`/`process`, sin esto, `build-icon.mjs` fallaba lint con `no-undef`.
 
 ### Decisiones técnicas
 - **Status bar > command button en título de editor**: explorar la palette no escala. La status bar es persistente, minimalista y no invade la UI. Alignment Left porque la derecha la ocupan git/errors/etc.
@@ -674,76 +674,76 @@ Post-9a la extensión era instalable desde `.vsix` pero:
 - Commit 9b y release en GitHub Releases con el `.vsix` como asset (sigue evitando marketplace).
 - Hito 10+: puente Chrome ↔ VS Code (ver memoria `project_chrome_bridge.md`).
 
-## Hito 10a — Servidor HTTP local (puente claude.ai ↔ VS Code, paso 1)
+## Hito 10a, Servidor HTTP local (puente claude.ai ↔ VS Code, paso 1)
 
 **Fecha:** 2026-04-18
 
 ### Decisión de producto antes del código
 Revisé los Consumer Terms §3 de Anthropic: "crawl, scrape, or otherwise harvest data" y "access the Services through automated or non-human means" están prohibidos salvo vía API key oficial. Leer el DOM o endpoints internos de claude.ai desde una extensión de Chrome cae bajo esa prohibición.
 
-**Pivot**: en vez de scrapear claude.ai, la extensión de Chrome observa cuando el usuario dispara el export oficial (vía `chrome.downloads` API) y reenvía el path del ZIP a VS Code. Zero scraping — solo automatiza un flujo que el usuario ya inicia manualmente.
+**Pivot**: en vez de scrapear claude.ai, la extensión de Chrome observa cuando el usuario dispara el export oficial (vía `chrome.downloads` API) y reenvía el path del ZIP a VS Code. Zero scraping, solo automatiza un flujo que el usuario ya inicia manualmente.
 
 ### Alcance cerrado (10a)
-- `src/extension/http-server.ts` — servidor HTTP local, puro (sin imports de `vscode`), testeable con `fetch`. API: `startServer(token, onImport)` + `generateToken()`. Acepta `POST /import` con `{ zipPath: string }`.
-- `tests/extension/http-server.test.ts` — 14 tests cubriendo: método/path incorrectos (405/404), auth (token correcto / incorrecto / ausente / longitud distinta → 401), validación (JSON malo → 400, schema malo → 400, body > 64 KB → 413), handler que tira → 500, selección de puerto en rango 9317-9326, falloff al próximo puerto ocupado, generación de tokens únicos.
-- `extension.ts activate()` — arranca el servidor en background, genera/persiste token en `context.globalState`, registra cleanup. Nuevo comando `exportal.showPairingInfo` que copia el token al portapapeles.
+- `src/extension/http-server.ts`, servidor HTTP local, puro (sin imports de `vscode`), testeable con `fetch`. API: `startServer(token, onImport)` + `generateToken()`. Acepta `POST /import` con `{ zipPath: string }`.
+- `tests/extension/http-server.test.ts`, 14 tests cubriendo: método/path incorrectos (405/404), auth (token correcto / incorrecto / ausente / longitud distinta → 401), validación (JSON malo → 400, schema malo → 400, body > 64 KB → 413), handler que tira → 500, selección de puerto en rango 9317-9326, falloff al próximo puerto ocupado, generación de tokens únicos.
+- `extension.ts activate()`, arranca el servidor en background, genera/persiste token en `context.globalState`, registra cleanup. Nuevo comando `exportal.showPairingInfo` que copia el token al portapapeles.
 - Refactor: extraje `openConversationFromZip(zipPath)` del command original para que el flujo del puente y el flujo del file-picker compartan la misma lógica de renderizado.
 
 ### Decisiones técnicas
 - **Bind a `127.0.0.1`, no `localhost`**: evita resolución DNS y asegura que nunca expongamos a otras interfaces de red.
 - **Token Bearer + comparación timing-safe**: `crypto.timingSafeEqual` sobre buffers del mismo tamaño (con early-return en longitudes distintas). 256 bits crypto-random, hex.
 - **Puerto fijo en rango 9317-9326**: Chrome puede probar los 10 en secuencia para descubrir al VS Code activo sin handshake de filesystem (MV3 no da filesystem). 10 puertos cubren múltiples VS Code corriendo a la vez en la misma máquina.
-- **Content-Length + streaming limit**: doble defensa. Content-Length rechaza fast path (< 1 ms). Streaming drena el body si el cliente mintió en Content-Length, marca flag `exceeded`, y al `end` rechaza — sin `req.destroy()` porque eso corta el socket antes de que el 413 se flushee al cliente.
+- **Content-Length + streaming limit**: doble defensa. Content-Length rechaza fast path (< 1 ms). Streaming drena el body si el cliente mintió en Content-Length, marca flag `exceeded`, y al `end` rechaza, sin `req.destroy()` porque eso corta el socket antes de que el 413 se flushee al cliente.
 - **Zod para validar payload**: ya era dep del proyecto, reutilizable. Trae mensajes de error estructurados gratis.
-- **Arranque no bloqueante**: si el puerto no está disponible o el server falla, la extensión sigue funcionando vía status bar — solo se pierde el puente de Chrome.
+- **Arranque no bloqueante**: si el puerto no está disponible o el server falla, la extensión sigue funcionando vía status bar, solo se pierde el puente de Chrome.
 - **Token persistido en `globalState`**: sobrevive reinstalls del `.vsix`, pero es per-usuario (no per-workspace). El pairing se hace una vez.
 
 ### Verificación
 - `npm run ci` → 109/109 tests (de 95 → +14), lint, typecheck, build ✓.
 - Bundle: 844 KB (+5.6 KB de http-server.ts; zod ya venía).
-- No toqué assets ni `.vscodeignore` — el `.vsix` del hito 9b sigue siendo válido conceptualmente; solo crece el bundle ~6 KB al reempaquetar.
+- No toqué assets ni `.vscodeignore`, el `.vsix` del hito 9b sigue siendo válido conceptualmente; solo crece el bundle ~6 KB al reempaquetar.
 
 ### Lo que NO entra acá
 - Extensión de Chrome (10b).
 - Captura del evento de descarga (10c).
 - Handshake de pairing en la UI (Chrome extension pide token → usuario lo copia desde VS Code). Ya está el camino: `exportal.showPairingInfo` copia al portapapeles. La UI del Chrome viene en 10c-d.
-- UI visual del puerto actual en la status bar (lo pensé, pero el usuario no necesita saber el puerto — el Chrome ext lo descubre solo probando el rango).
+- UI visual del puerto actual en la status bar (lo pensé, pero el usuario no necesita saber el puerto, el Chrome ext lo descubre solo probando el rango).
 
 ### Próximo paso (10b)
-Skeleton de extensión de Chrome MV3: manifest + service worker + options page para pegar el token. Sin funcionalidad real — solo validar que se carga unpacked y que el options page persiste el token en `chrome.storage`.
+Skeleton de extensión de Chrome MV3: manifest + service worker + options page para pegar el token. Sin funcionalidad real, solo validar que se carga unpacked y que el options page persiste el token en `chrome.storage`.
 
-## Audit pre-10b (bugfixes) + Hito 10b — Chrome companion skeleton
+## Audit pre-10b (bugfixes) + Hito 10b, Chrome companion skeleton
 
 **Fecha:** 2026-04-18
 
 ### Audit: bugs encontrados y arreglados (antes de arrancar 10b)
 
-1. **Bridge devolvía `200 ok:true` cuando el ZIP fallaba al leerse** — `openConversationFromZip` atrapaba el error, lo mostraba como `showErrorMessage` y retornaba normal. El handler HTTP respondía 200, engañando al cliente futuro. **Fix**: opción `{ rethrow: true }` en la ruta del bridge. La ruta del command sigue igual (usuario ve el error en VS Code, no hay caller externo al que informar).
+1. **Bridge devolvía `200 ok:true` cuando el ZIP fallaba al leerse**, `openConversationFromZip` atrapaba el error, lo mostraba como `showErrorMessage` y retornaba normal. El handler HTTP respondía 200, engañando al cliente futuro. **Fix**: opción `{ rethrow: true }` en la ruta del bridge. La ruta del command sigue igual (usuario ve el error en VS Code, no hay caller externo al que informar).
 2. **Race en `activate()`**: `startBridgeServer` es async y el dispose se pusheaba en el `.then()`. Si VS Code desactivaba la ext antes de que el server estuviera listening, el push caía en un subscriptions array ya disposado → server huérfano con puerto ocupado hasta fin del proceso. **Fix**: registrar disposable sincrónicamente con flag `disposed`; cuando el handle resuelve, si ya se desactivó, cerrar; si no, guardar el handle para que el dispose lo cierre.
-3. **JSDoc de `activate()` obsoleto** — describía el flujo original (palette → file picker), no el actual (status bar + auto-detect + bridge). **Fix**: reescrito enumerando las 3 capas reales.
-4. **UX flaco en `showPairingInfoCommand`** — mensaje genérico que no explicaba para qué sirve el token. **Fix**: mensaje ahora dice explícitamente "para emparejar la extensión de Chrome".
+3. **JSDoc de `activate()` obsoleto**, describía el flujo original (palette → file picker), no el actual (status bar + auto-detect + bridge). **Fix**: reescrito enumerando las 3 capas reales.
+4. **UX flaco en `showPairingInfoCommand`**, mensaje genérico que no explicaba para qué sirve el token. **Fix**: mensaje ahora dice explícitamente "para emparejar la extensión de Chrome".
 
 **Verificación**: `npm run ci` → 109/109 tests ✓. Los cambios son internos al flujo del bridge, no rompen tests existentes.
 
-### Hito 10b — Chrome companion extension skeleton
+### Hito 10b, Chrome companion extension skeleton
 
 **Alcance cerrado**: extensión MV3 *unpacked*-installable, sin funcionalidad de puente real todavía.
 
-- `chrome/manifest.json` — MV3, `minimum_chrome_version: 116`, permisos mínimos (`storage`), host permission para `http://127.0.0.1/*`, icono reusado de `assets/icon.png`.
-- `chrome/background.js` — service worker stub con listeners `install`/`activate` vacíos. Notas sobre la efimeridad de los service workers MV3 para que en 10c no caiga en el pozo común de guardar estado en variables de módulo.
-- `chrome/options.html` + `chrome/options.js` — página de opciones con input de token + botón Guardar/Borrar + validación de regex `/^[0-9a-f]{64}$/`. Persiste en `chrome.storage.local` bajo la clave `exportal.pairingToken`.
-- `chrome/icon-128.png` — copia de `assets/icon.png`.
-- `eslint.config.js` — bloque nuevo para `chrome/**/*.js` con globals (`chrome`, `document`, `self`, `window`, `HTMLInputElement`).
-- `.vscodeignore` — `chrome/**` excluido del `.vsix` (vive junto a la VS Code ext pero no se empaqueta con ella).
+- `chrome/manifest.json`, MV3, `minimum_chrome_version: 116`, permisos mínimos (`storage`), host permission para `http://127.0.0.1/*`, icono reusado de `assets/icon.png`.
+- `chrome/background.js`, service worker stub con listeners `install`/`activate` vacíos. Notas sobre la efimeridad de los service workers MV3 para que en 10c no caiga en el pozo común de guardar estado en variables de módulo.
+- `chrome/options.html` + `chrome/options.js`, página de opciones con input de token + botón Guardar/Borrar + validación de regex `/^[0-9a-f]{64}$/`. Persiste en `chrome.storage.local` bajo la clave `exportal.pairingToken`.
+- `chrome/icon-128.png`, copia de `assets/icon.png`.
+- `eslint.config.js`, bloque nuevo para `chrome/**/*.js` con globals (`chrome`, `document`, `self`, `window`, `HTMLInputElement`).
+- `.vscodeignore`, `chrome/**` excluido del `.vsix` (vive junto a la VS Code ext pero no se empaqueta con ella).
 
 ### Decisiones técnicas
 
 - **JS plano, sin build**: el skeleton es trivial (manifest + storage.set + storage.get). Si en 10c-d crece, migrar a TS es mecánico. Evita agregar otro pipeline de esbuild.
-- **`minimum_chrome_version: 116`** — cualquier Chrome moderno. Permite usar `chrome.storage.local` con Promises (sin callbacks).
+- **`minimum_chrome_version: 116`**, cualquier Chrome moderno. Permite usar `chrome.storage.local` con Promises (sin callbacks).
 - **`permissions: ["storage"]` solo**: `downloads` viene en 10c. Minimizar permisos al principio reduce la fricción del permission-dialog en Chrome Web Store si alguna vez publicamos.
 - **`host_permissions` a `http://127.0.0.1/*`**: sin esto, `fetch()` desde el service worker a localhost se bloquea por mixed-content aunque sea mismo host. El path glob cubre los 10 puertos del rango.
 - **Options page usa solo web platform APIs + `chrome.storage`**: zero deps. Dark-mode nativo vía `color-scheme: light dark` + `color-mix()`.
-- **Código en el mismo repo** bajo `chrome/`: un DEVLOG, un CI, una PR por feature cross-cut. No monorepo-tooling — solo un directorio.
+- **Código en el mismo repo** bajo `chrome/`: un DEVLOG, un CI, una PR por feature cross-cut. No monorepo-tooling, solo un directorio.
 
 ### Verificación manual pendiente
 
@@ -765,7 +765,7 @@ Skeleton de extensión de Chrome MV3: manifest + service worker + options page p
 
 Listener a `chrome.downloads.onCreated` filtrando por nombre `data-*.zip` (o por contenido de claude.ai). Al matchear, probar POST a `http://127.0.0.1:PORT/import` con el token guardado, recorriendo el rango 9317-9326. Feedback visual vía `chrome.notifications` o al icono.
 
-## Hito 10c — Auto-forward de exports de claude.ai a VS Code
+## Hito 10c, Auto-forward de exports de claude.ai a VS Code
 
 **Fecha:** 2026-04-19
 
@@ -780,7 +780,7 @@ Eliminar todo input manual del usuario después de disparar el export en claude.
 ### Decisiones técnicas
 - **Listener top-level en `onChanged`, no en `onCreated`**: MV3 evicts el service worker a los ~30s idle. Un listener dinámico registrado tras `onCreated` se pierde si el worker muere antes del fin de la descarga. Top-level `onChanged` se re-registra en cada wake-up y garantiza que capturamos el evento `complete` sin importar cuánto tardó la descarga.
 - **Doble filtro (filename + URL/referrer)**: el patrón de filename `data-*.zip` es bastante específico pero tolerante a colisiones. Exigir que la URL tenga `claude.ai` evita que cualquier ZIP llamado `data-x.zip` bajado de otro lado dispare el flujo.
-- **Port probing en orden con caché**: arranca por el último puerto exitoso. Si falla, recorre el rango. Cache vive en `storage.session` para que se resetee en cada reinicio de Chrome — si VS Code abre en otro puerto entre sesiones, re-descubrimos rápido.
+- **Port probing en orden con caché**: arranca por el último puerto exitoso. Si falla, recorre el rango. Cache vive en `storage.session` para que se resetee en cada reinicio de Chrome, si VS Code abre en otro puerto entre sesiones, re-descubrimos rápido.
 - **Detección de auth error por short-circuit**: si un puerto responde 401, asumimos que es Exportal con token mal y paramos de probar. Un 401 desde otro servicio arbitrario sería un bug en ese servicio, no nuestro problema.
 - **Badge en lugar de notificaciones**: evita agregar el permiso `notifications` (más fricción si publicamos al Web Store). Estados: `OK` verde, `AUTH` rojo (token rechazado), `OFF` rojo (no hay servidor), `SET` amarillo (token sin configurar).
 - **`chrome.storage.session` vs `storage.local`**: token es persistente (`local`), último puerto es efímero (`session`). Ambas usan el mismo permiso `storage`.
@@ -800,11 +800,11 @@ Eliminar todo input manual del usuario después de disparar el export en claude.
 
 ### Próximos pasos posibles
 - **10d** (opcional): packaging del `.crx` y distribución. Primera versión puede ir como zip en GitHub Releases (sideload con "Load unpacked"), esquivando Chrome Web Store mientras validamos el producto.
-- **10e** (opcional): content script en claude.ai que pone un botón "Enviar a VS Code" al lado del botón de export, eliminando incluso el paso de disparar el export — mismo efecto pero más polish.
+- **10e** (opcional): content script en claude.ai que pone un botón "Enviar a VS Code" al lado del botón de export, eliminando incluso el paso de disparar el export, mismo efecto pero más polish.
 
 ---
 
-## Hito 10d — Packaging del companion para distribución
+## Hito 10d, Packaging del companion para distribución
 **Fecha:** 2026-04-19
 
 ### Objetivo
@@ -841,7 +841,7 @@ Poder publicar el companion en GitHub Releases como un `.zip` que cualquiera baj
 
 ---
 
-## Hito 10e — One-click export desde claude.ai (API interna)
+## Hito 10e, One-click export desde claude.ai (API interna)
 **Fecha:** 2026-04-19
 
 ### Objetivo
@@ -857,11 +857,11 @@ Eliminar el paso "disparar export oficial → esperar email → bajar ZIP". Desd
 - Toast de éxito en la ext de VS Code después del import (commit `ea94518`): antes solo se abría el tab, ahora también aparece un mensaje no-modal "Exportado: <título>".
 
 ### Decisiones técnicas
-- **Content script en vez de extension-page popup**: el botón tiene que vivir *dentro* de claude.ai para no romper el flujo del usuario. Un popup exige click al icono del toolbar + tener el tab activo — UX peor.
-- **Reusar cookies de sesión con `credentials: 'include'`**: el fetch desde el content script hereda las cookies de claude.ai automáticamente. No necesitamos OAuth ni manejar tokens — la sesión del browser *es* la credencial.
-- **`chat_conversations/<id>?tree=True&rendering_mode=messages`**: es el endpoint exacto que usa la UI. Devuelve el árbol completo con tool_use, thinking, resultados, attachments — todo lo que nuestro parser ya sabe procesar.
+- **Content script en vez de extension-page popup**: el botón tiene que vivir *dentro* de claude.ai para no romper el flujo del usuario. Un popup exige click al icono del toolbar + tener el tab activo, UX peor.
+- **Reusar cookies de sesión con `credentials: 'include'`**: el fetch desde el content script hereda las cookies de claude.ai automáticamente. No necesitamos OAuth ni manejar tokens, la sesión del browser *es* la credencial.
+- **`chat_conversations/<id>?tree=True&rendering_mode=messages`**: es el endpoint exacto que usa la UI. Devuelve el árbol completo con tool_use, thinking, resultados, attachments, todo lo que nuestro parser ya sabe procesar.
 - **Primera org de la lista**: el 99% de los usuarios tienen 1 org. Si alguien tiene múltiples, arreglamos cuando pase.
-- **Ruta `/import/inline` separada de `/import`**: `/import` acepta un path a un ZIP local; `/import/inline` acepta el JSON de una conversación específica. Shapes distintas, validación distinta, respuestas distintas — mejor rutas separadas que un discriminated union.
+- **Ruta `/import/inline` separada de `/import`**: `/import` acepta un path a un ZIP local; `/import/inline` acepta el JSON de una conversación específica. Shapes distintas, validación distinta, respuestas distintas, mejor rutas separadas que un discriminated union.
 - **Escribir el JSON a tmp y delegar en el pipeline existente**: evita reimplementar el parseo. El único costo es un write+read efímero; a cambio, todo el código de redacción/formatting sigue pasando por el mismo path probado.
 
 ### Verificación
@@ -872,32 +872,32 @@ Eliminar el paso "disparar export oficial → esperar email → bajar ZIP". Desd
 ### Lo que NO entra en 10e
 - UI de selector de org si el usuario tiene más de una.
 - Manejo de conversaciones muy largas con paginación (si existe en la API interna; hasta ahora el endpoint devuelve todo de una).
-- Polish del panel (estilos, keyboard shortcuts, branding) — viene en la sesión siguiente.
+- Polish del panel (estilos, keyboard shortcuts, branding), viene en la sesión siguiente.
 
 ### Próximos pasos
 - Sesión de pulido: darle identidad visual al panel, atajos de teclado, onboarding claro, y hardening del error handling para release v0.1.0.
 
 ---
 
-## v0.1.0 — Pulido, hardening y primera release
+## v0.1.0, Pulido, hardening y primera release
 **Fecha:** 2026-04-20
 
 ### Objetivo
-Dejar el producto en estado de "instalable por un tercero sin que explote". No feature work nuevo — todo lo que falta para que el camino feliz sea agradable, los errores sean informativos, y los artifacts sean reproducibles.
+Dejar el producto en estado de "instalable por un tercero sin que explote". No feature work nuevo, todo lo que falta para que el camino feliz sea agradable, los errores sean informativos, y los artifacts sean reproducibles.
 
 ### Alcance cerrado
 
 **UX del panel en claude.ai** (commit `86903d4`):
 - Panel siempre-expandido reemplazado por **FAB circular + popover**. El FAB es un círculo navy pequeño en esquina inferior derecha con el ícono de download-arrow y un acento naranja; click lo expande al popover con los dos botones.
 - **Atajos de teclado** `Alt+Shift+E` (exportar este chat) y `Alt+Shift+O` (preparar export oficial). Listeners en fase de captura, guardados a rutas `/chat/<uuid>` y a no-concurrent-action. Toast de feedback.
-- **Paleta del logo**: navy `#1e1b4b`, naranja `#fb923c`, blanco. Primer intento fue botón primario naranja sobre popover navy — el usuario lo vetó inmediatamente ("se asimila a los colores de Boca Juniors"). Cambiado a botón primario **blanco con texto navy bold**, secundario navy con texto blanco. El naranja queda como acento chico en el FAB (línea de base) y en el ícono del companion.
+- **Paleta del logo**: navy `#1e1b4b`, naranja `#fb923c`, blanco. Primer intento fue botón primario naranja sobre popover navy, el usuario lo vetó inmediatamente ("se asimila a los colores de Boca Juniors"). Cambiado a botón primario **blanco con texto navy bold**, secundario navy con texto blanco. El naranja queda como acento chico en el FAB (línea de base) y en el ícono del companion.
 - Onboarding: modal `showInformationMessage({ modal: true })` al primer activate de la ext VS Code, con el token + pasos numerados + "Copiar token". Re-abrible con comando `Exportal: Show bridge pairing token`.
 - `chrome/options.html`: acento actualizado al naranja de marca, botón Guardar con peso 700 para contraste, CSS var `--brand-navy`.
 
 **Hardening del error handling** (commit `f2ce90d`):
 - Clase `BridgeError` exportada en `src/extension/http-server.ts` con código `invalid_shape`. El dispatcher `sendHandlerError` mapea BridgeError → 422 con `{error: 'invalid_shape', message}`; errores genéricos → 500 `import_failed`.
 - `handleBridgeImportInline` ahora lanza `BridgeError('invalid_shape')` cuando el JSON no matchea el shape de Zod, en vez de un Error genérico. El content script lo distingue del 404/410 de "bridge desactualizado" y deja de probar puertos.
-- `chrome/background.js`: `forwardInlineConversation` distingue 422/413 (definitivo, abortar probing) de 404 (sigue probando — puede ser otro puerto).
+- `chrome/background.js`: `forwardInlineConversation` distingue 422/413 (definitivo, abortar probing) de 404 (sigue probando, puede ser otro puerto).
 - Content script: AbortController con timeout de 15s en los fetch a claude.ai para no quedar colgados.
 - Cross-realm error handling: `explainError` duck-typea `.message` en vez de `instanceof Error` (Errors cruzan mal entre realms: content-script ↔ page ↔ vm sandbox de tests).
 
@@ -909,8 +909,8 @@ Dejar el producto en estado de "instalable por un tercero sin que explote". No f
 
 **Release hygiene** (commits `f764f30`, `c3e80b0`):
 - Ambas extensiones a versión `0.1.0` (primera release "usable").
-- `CHANGELOG.md` en formato Keep-a-Changelog con entrada `[0.1.0] — 2026-04-20` listando features agregados + notas de seguridad.
-- `README.md` reescrito: sección "Cómo se usa — camino feliz" lidera con FAB + atajos; tabla comparativa "Exportar este chat" vs "Preparar export oficial"; leyenda de estados del badge; 3 screenshots con URLs absolutas a `raw.githubusercontent.com` (funcionan en GitHub, en el Marketplace y en el `.vsix`).
+- `CHANGELOG.md` en formato Keep-a-Changelog con entrada `[0.1.0], 2026-04-20` listando features agregados + notas de seguridad.
+- `README.md` reescrito: sección "Cómo se usa, camino feliz" lidera con FAB + atajos; tabla comparativa "Exportar este chat" vs "Preparar export oficial"; leyenda de estados del badge; 3 screenshots con URLs absolutas a `raw.githubusercontent.com` (funcionan en GitHub, en el Marketplace y en el `.vsix`).
 - `docs/screenshots/`: `fab.png`, `onboarding.jpeg` (token blurreado a mano), `options.png` (con banner verde "Emparejado").
 
 ### Decisiones técnicas
@@ -921,7 +921,7 @@ Dejar el producto en estado de "instalable por un tercero sin que explote". No f
 - **Duck-typing `.message` en `explainError`**: `instanceof Error` falla cuando el Error cruza realms (content script → page, vm sandbox → outer). Chequear `typeof err.message === 'string'` funciona igual y cubre el caso de tests.
 - **`BridgeError` en vez de códigos mágicos en mensajes**: antes el content script parseaba el string del error para decidir si seguir probando puertos. Ahora hay un canal estructurado (`{error: <code>}`) y una clase tipada del lado del server. Fail-soft para errores no mapeados.
 - **Screenshots con URLs absolutas a raw.githubusercontent.com**: vsce warneaba sobre relative image paths. Absolutas resuelven en GitHub web, Marketplace, y dentro del `.vsix` sin cambio.
-- **Onboarding modal bloqueante**: `showInformationMessage({ modal: true })` fuerza al usuario a leer el token antes de seguir. Alternativa era un toast no-modal que se podía ignorar — descartada porque el usuario que ignora el token llega al companion sin nada para pegar y no entiende por qué no funciona.
+- **Onboarding modal bloqueante**: `showInformationMessage({ modal: true })` fuerza al usuario a leer el token antes de seguir. Alternativa era un toast no-modal que se podía ignorar, descartada porque el usuario que ignora el token llega al companion sin nada para pegar y no entiende por qué no funciona.
 
 ### Verificación
 - `npm run ci` → 135 tests (109 previos + 26 nuevos de pure.js), lint, typecheck, build ✓.
@@ -930,7 +930,7 @@ Dejar el producto en estado de "instalable por un tercero sin que explote". No f
 
 ### Lo que NO entra en v0.1.0
 - Publicación en Chrome Web Store (requiere cuenta de developer de pago + review).
-- Publicación en VS Code Marketplace (pendiente de decisión del usuario — el `.vsix` ya está listo).
+- Publicación en VS Code Marketplace (pendiente de decisión del usuario, el `.vsix` ya está listo).
 - GitHub Action de release automático (manual por ahora con `gh release create`).
 - Soporte para usuarios con múltiples orgs de claude.ai.
 - Telemetría o crash reporting (explicito: zero-network, nada sale de la máquina).
@@ -942,7 +942,7 @@ Dejar el producto en estado de "instalable por un tercero sin que explote". No f
 
 ---
 
-## Hito 18 — Auto-attach del export al chat de Claude Code (v0.2.0)
+## Hito 18, Auto-attach del export al chat de Claude Code (v0.2.0)
 **Fecha:** 2026-04-20
 
 ### Objetivo
@@ -956,8 +956,8 @@ listo para enviar.
 Auditoría del `extension.js` de la extensión oficial Claude Code
 (`anthropic.claude-code` v2.1.114 instalada localmente) para mapear los
 comandos públicos. Hallazgos relevantes:
-- `claude-vscode.sidebar.open` — abre el panel lateral.
-- `claude-vscode.insertAtMention` — lee el **editor activo**, toma
+- `claude-vscode.sidebar.open`, abre el panel lateral.
+- `claude-vscode.insertAtMention`, lee el **editor activo**, toma
   `workspace.asRelativePath(document.fileName)`, y dispara un evento
   interno que agrega `@<ruta>` al input del chat (con soporte para
   rangos de línea si hay selección).
@@ -986,9 +986,9 @@ comandos públicos. Hallazgos relevantes:
   llaman a ambos helpers en vez de hacer `openTextDocument` inline.
 
 **[src/extension/export-paths.ts](src/extension/export-paths.ts)** (nuevo):
-- `buildExportTimestamp(date)` — `YYYY-MM-DD-HHmm`, ordenable
+- `buildExportTimestamp(date)`, `YYYY-MM-DD-HHmm`, ordenable
   lexicográficamente.
-- `slugify(raw)` — lowercase, NFD + strip diacríticos, colapsar no-
+- `slugify(raw)`, lowercase, NFD + strip diacríticos, colapsar no-
   alfanuméricos a `-`, trim, cap a 40 chars, placeholder
   `conversacion` si el input no tiene alfanuméricos.
 - Módulo separado del `extension.ts` para que los tests lo importen
@@ -1021,13 +1021,13 @@ comandos públicos. Hallazgos relevantes:
   historial de imports como archivos normales.
 - **Filename `<timestamp>-<slug>.md`**: timestamp con precisión de
   minuto + slug corto del título. Colisiones solo si el mismo chat se
-  exporta dos veces en el mismo minuto — en ese caso `writeFile`
+  exporta dos veces en el mismo minuto, en ese caso `writeFile`
   sobrescribe, lo cual es el comportamiento deseado (misma conversación).
 - **Setting opt-out (default on)**: discutido con el usuario.
   Justificado porque es el camino feliz esperado; si molesta, un
   toggle en `settings.json` alcanza.
 - **Try/catch en `attachToClaudeCodeIfAvailable`**: el contrato de
-  compatibilidad con Claude Code es frágil — es una extensión de
+  compatibilidad con Claude Code es frágil, es una extensión de
   tercero cuyos comandos podrían renombrarse. El import no debería
   fallar si el auto-attach falla.
 - **Slug con strip de diacríticos (NFD + regex de combining marks)**:
@@ -1054,7 +1054,7 @@ comandos públicos. Hallazgos relevantes:
 ### Lo que NO entra en 18
 - Selector de conversación integrado al chat (el user pasa siempre por
   el archivo abierto).
-- Limpieza automática de `.exportal/` viejos — el usuario administra
+- Limpieza automática de `.exportal/` viejos, el usuario administra
   su workspace.
 - Auto-attach para el flujo de ZIP/QuickPick cuando hay múltiples
   conversaciones: funciona igual (ambos call-sites usan el helper),
@@ -1063,11 +1063,11 @@ comandos públicos. Hallazgos relevantes:
 ### Próximos pasos
 - Verificación manual en escenario real.
 - Cuando sea estable, evaluar Hito 19 (reconstruir `.jsonl` para que
-  aparezca en `/resume`) — solo si el Hito 18 resulta insuficiente.
+  aparezca en `/resume`), solo si el Hito 18 resulta insuficiente.
 
 ---
 
-## Hito 11 — GitHub Action de release automático
+## Hito 11, GitHub Action de release automático
 **Fecha:** 2026-04-20
 
 ### Objetivo
@@ -1075,11 +1075,11 @@ Eliminar el paso manual de release: `npm run package:all` + crear el
 release en la web + adjuntar los dos artifacts. Con tag-push alcanza.
 
 ### Alcance cerrado
-[.github/workflows/release.yml](.github/workflows/release.yml) — corre
+[.github/workflows/release.yml](.github/workflows/release.yml), corre
 en `push` de tags `v*`:
 1. `npm ci` + `npm run ci` (lint/typecheck/tests/build) como
    pre-requisito.
-2. `npm run package:all` — genera `exportal-<ver>.vsix` y
+2. `npm run package:all`, genera `exportal-<ver>.vsix` y
    `exportal-companion-<ver>.zip`.
 3. Sanity check: los nombres de archivo coinciden con el tag (detecta
    drift entre `package.json`/`manifest.json` y el tag pusheado).
@@ -1097,7 +1097,7 @@ en `push` de tags `v*`:
   tightening (abril 2023) los workflows corren con permisos read-only
   salvo que se pidan. Sin esto, `gh-release` falla al publicar.
 - **`softprops/action-gh-release@v2`**: es la acción estándar del
-  ecosistema — mantenida, versionada, con semver estable. Alternativa
+  ecosistema, mantenida, versionada, con semver estable. Alternativa
   (`gh release create` en bash) requeriría authenticar el CLI y es más
   frágil ante cambios de gh.
 - **Sanity check de versiones**: si alguien pushea `v0.3.0` pero
@@ -1116,7 +1116,7 @@ en `push` de tags `v*`:
 - Local: `npm run package:all` verificado, genera ambos artifacts con
   los nombres correctos. El `awk` del CHANGELOG extrae la entrada
   `[0.2.0]` sin ruido.
-- Si la primera release falla, iteramos sobre el YAML — es un solo
+- Si la primera release falla, iteramos sobre el YAML, es un solo
   archivo, cambios rápidos.
 
 ### Lo que NO entra
@@ -1129,7 +1129,7 @@ en `push` de tags `v*`:
 
 ---
 
-## 2026-04-20 — Hito 15 · Send Claude Code session to claude.ai (v0.3.0)
+## 2026-04-20, Hito 15 · Send Claude Code session to claude.ai (v0.3.0)
 
 ### Qué hicimos
 - Nuevo comando `exportal.sendSessionToClaudeAi` en la extensión:
@@ -1144,7 +1144,7 @@ en `push` de tags `v*`:
   confirmación explícita antes de copiar. claude.ai acepta payloads
   grandes pero los renderiza mal y a veces los trunca.
 - Toast post-acción: "Markdown copiado. Pegalo con Ctrl+V en el chat
-  nuevo" — el usuario sabe que el paso siguiente es manual.
+  nuevo", el usuario sabe que el paso siguiente es manual.
 
 ### Decisiones clave y por qué
 - **Paste manual, no automation**: claude.ai no expone API pública de
@@ -1162,7 +1162,7 @@ en `push` de tags `v*`:
   para un flujo ocasional.
 - **`openExternal(claude.ai/new)`**: usa el browser default. No
   asumimos que el usuario tiene una tab abierta ni intentamos
-  encontrarla — siempre abre un chat limpio.
+  encontrarla, siempre abre un chat limpio.
 - **Redacción on, sin flag en UI**: mismo principio fail-closed de
   toda la extensión. Si alguien necesita raw, el CLI está ahí.
 
@@ -1174,7 +1174,7 @@ en `push` de tags `v*`:
 
 ### Lo que NO entra
 - Hito 19 (reconstruir `.jsonl` para que aparezca en `/resume` de
-  Claude Code) — ese era el camino *web → VS Code* alternativo al
+  Claude Code), ese era el camino *web → VS Code* alternativo al
   auto-attach, no el *VS Code → web* de esta entrada. Sigue en ROADMAP.
 - Selector de modelo / sistema de plantillas ("iniciá el prompt con X
   instrucción"). YAGNI hasta ver el patrón de uso real.
@@ -1184,7 +1184,7 @@ en `push` de tags `v*`:
 
 ---
 
-## 2026-04-21 — Hito 12 · Publicación al VS Code Marketplace
+## 2026-04-21, Hito 12 · Publicación al VS Code Marketplace
 
 ### Qué hicimos
 - Repo ClaudeTool pasó a visibilidad pública en GitHub. Habilitó
@@ -1209,7 +1209,7 @@ en `push` de tags `v*`:
   verificar un dominio propio. No tenemos dominio personal ni vale la
   pena sacarlo solo por esto. Se puede agregar después.
 - **Repo público**: decisión aplazada desde sesiones anteriores. El
-  driver real fue el Marketplace — un proyecto published con código
+  driver real fue el Marketplace, un proyecto published con código
   cerrado pierde credibilidad. Además el README del Marketplace queda
   mejor con imágenes de `raw.githubusercontent.com`, que ahora sí
   funcionan.
@@ -1229,15 +1229,15 @@ en `push` de tags `v*`:
 
 ---
 
-## 2026-04-21 → 2026-04-23 — Hito 13 · Publicación al Chrome Web Store
+## 2026-04-21 → 2026-04-23, Hito 13 · Publicación al Chrome Web Store
 
 ### Qué hicimos
 - Preparamos toda la documentación que Google exige para review de
   una extensión:
-  - `docs/PRIVACY.md` — política de privacidad con detalle de cada
+  - `docs/PRIVACY.md`, política de privacidad con detalle de cada
     permiso, explícito que no hay analytics, no servidores remotos,
     loopback-only.
-  - `docs/CHROME_WEB_STORE_LISTING.md` — borrador listo-para-pegar
+  - `docs/CHROME_WEB_STORE_LISTING.md`, borrador listo-para-pegar
     con todos los campos del dashboard: single purpose, justificación
     por permiso, data usage disclosure, privacy policy URL.
 - Pago de la cuenta de developer (US$5 one-time) en Chrome Web Store.
@@ -1258,7 +1258,7 @@ en `push` de tags `v*`:
 - **Single purpose estrecho y claro**: "Export claude.ai
   conversations to a local VS Code extension". No promovemos
   features secundarios (atajos de teclado, badge) como propósito
-  primario — eso complica el review.
+  primario, eso complica el review.
 - **Justificación de `host_permissions: 127.0.0.1`**: éste es el
   permiso que más suele disparar review manual. Lo justificamos
   explícito: "loopback only, bearer-token auth, traffic never leaves
@@ -1278,15 +1278,15 @@ en `push` de tags `v*`:
   release actual (~1 por sprint) el upload manual desde el dashboard
   es más barato en mantenimiento.
 - Update de screenshots del listing a las del diseño citrus. Las del
-  navy+orange siguen arriba — pendiente en ROADMAP near-term.
+  navy+orange siguen arriba, pendiente en ROADMAP near-term.
 
 ---
 
-## 2026-04-21 — Hito 24 · Internacionalización (es + en)
+## 2026-04-21, Hito 24 · Internacionalización (es + en)
 
 ### Qué hicimos
 - Ambas extensiones pasan a seguir el idioma de la UI del usuario.
-  Default `en`, fallback traducido `es`. No hay toggle manual — lo que
+  Default `en`, fallback traducido `es`. No hay toggle manual, lo que
   cada runtime expone (`vscode.env.language`, `chrome.i18n`) manda.
 - **VS Code**
   - `package.nls.json` / `package.nls.es.json` para strings del
@@ -1318,7 +1318,7 @@ en `push` de tags `v*`:
     `explainError()` ahora devuelve **IDs de mensaje** (`errSessionExpired`,
     `errBridgeOffline`, …). El content script los resuelve contra el
     locale activo. Tests actualizados a `toBe('errSessionExpired')`.
-- Badges (`OK`/`SET`/`AUTH`/`OFF`/`OLD`/`ERR`) no se traducen —
+- Badges (`OK`/`SET`/`AUTH`/`OFF`/`OLD`/`ERR`) no se traducen,
   decidimos tratarlos como códigos tipo-HTTP, universales.
 - Todos los mensajes de `console.warn` quedan en inglés sin pasar por
   i18n: son para desarrolladores y el idioma source es inglés.
@@ -1349,12 +1349,12 @@ en `push` de tags `v*`:
 
 ### Pendiente
 - Release 0.4.0 (vsix + zip firmado del companion) cuando apruebe la
-  review del CWS de 0.3.0 — subir ambas versiones juntas evita
+  review del CWS de 0.3.0, subir ambas versiones juntas evita
   confundir a usuarios con "versión mínima para emparejar".
 
 ---
 
-## 2026-04-22 → 2026-04-23 — Hito 25 · Emparejamiento en un click
+## 2026-04-22 → 2026-04-23, Hito 25 · Emparejamiento en un click
 
 ### Qué hicimos
 Reemplazamos el flujo "copiá este token de VS Code y pegalo en las
@@ -1366,7 +1366,7 @@ Chrome. Shipped en v0.5.0 y ajustado a través de 0.5.1 → 0.5.6.
   Chrome"**. El handler escribe el token al clipboard (fallback),
   construye un `vscode.Uri.from({scheme:'https', authority:'claude.ai',
   path:'/', fragment:'exportal-pair=<token>'})` y llama
-  `vscode.env.openExternal`. El panel queda abierto — el usuario puede
+  `vscode.env.openExternal`. El panel queda abierto, el usuario puede
   re-disparar si Chrome no detecta el token.
 - **Consumo (content script claude.ai)**: `consumePairingFragment()`
   corre al cargar; usa `URLSearchParams` sobre el hash (tolera
@@ -1379,11 +1379,11 @@ Chrome. Shipped en v0.5.0 y ajustado a través de 0.5.1 → 0.5.6.
   persiste via `chrome.storage.local.set({[TOKEN_KEY]: token})`. El
   `storage.onChanged` listener que ya existía refresca el badge solo.
 - **Confirmation loop**: el service worker, tras guardar el token,
-  corre `pingBridge(token)` — probe de los puertos 9317-9326 con
+  corre `pingBridge(token)`, probe de los puertos 9317-9326 con
   `POST /ping` + Bearer. El endpoint `/ping` nuevo en `http-server.ts`
   valida el Bearer y dispara `onPing` en la extensión. Ahí
   `handlePairConfirmed()` muestra una notification, y si el webview
-  panel sigue abierto le manda `{type:'paired'}` — el webview swap-ea
+  panel sigue abierto le manda `{type:'paired'}`, el webview swap-ea
   a un overlay con check lime y auto-disposes a 2.5s. El debounce de
   3s en `handlePairConfirmed` evita doble-notification si el mismo
   tab de claude.ai se recarga.
@@ -1399,7 +1399,7 @@ Chrome. Shipped en v0.5.0 y ajustado a través de 0.5.1 → 0.5.6.
   vean la nueva UI una vez.
 - **Single-instance del webview**: referencia del panel en una var de
   módulo (`let pairingPanel`), no sobre `ExtensionContext` (que VS Code
-  congela y rechaza nuevos properties — error `object is not extensible`
+  congela y rechaza nuevos properties, error `object is not extensible`
   en la primera iteración).
 
 ### Decisiones clave y por qué
@@ -1438,7 +1438,7 @@ Chrome. Shipped en v0.5.0 y ajustado a través de 0.5.1 → 0.5.6.
 ### Verificación
 - End-to-end manual en Windows + Chrome 131 + VS Code 1.95: VS Code
   abre claude.ai, Chrome muestra toast lime "Emparejado con VS Code",
-  options page abre mostrando "¡Listo! — Todo conectado", VS Code
+  options page abre mostrando "¡Listo!, Todo conectado", VS Code
   recibe ping y muestra notification + overlay lime en el webview.
 - Logs `[Exportal] pair:` aparecen en la consola de claude.ai en
   cada paso.
@@ -1458,7 +1458,7 @@ Chrome. Shipped en v0.5.0 y ajustado a través de 0.5.1 → 0.5.6.
 
 ---
 
-## 2026-04-22 → 2026-04-23 — Hito 26 · Rediseño Graphite Citrus
+## 2026-04-22 → 2026-04-23, Hito 26 · Rediseño Graphite Citrus
 
 ### Qué hicimos
 Reescritura completa de la identidad visual de ambas extensiones, de
@@ -1502,7 +1502,7 @@ lime `#D4FF3A`). Shipped en v0.5.0 y pulido a través de 0.5.1 → 0.5.6.
   tab completa (no como popup embedded en `chrome://extensions`). El
   body es flex-centered en el viewport para que la card 420px quede
   en el medio.
-- **Pairing webview de VS Code**: adopta OnboardingVsCode — titlebar
+- **Pairing webview de VS Code**: adopta OnboardingVsCode, titlebar
   fake con 3 dots estilo macOS, mark + headline "Conectá tu navegador",
   stepper VS Code → Chrome → Listo, token card con borde punteado y el
   token en mono, y botones "Luego" (ghost) + "Copiar y abrir Chrome"
@@ -1512,7 +1512,7 @@ lime `#D4FF3A`). Shipped en v0.5.0 y pulido a través de 0.5.1 → 0.5.6.
 - **Status bar de VS Code**: codicon `$(export)` en lugar del genérico
   `$(cloud-download)`, para eco del motivo flecha-del-mark.
 - **Icon refresh**: `assets/icon.svg` reescrito como ExportalMark
-  — fondo `#0A0B0D`, trazos de la E en `#F2F3F0`, barra central +
+ , fondo `#0A0B0D`, trazos de la E en `#F2F3F0`, barra central +
   flecha en `#D4FF3A`. Regenerado a PNG 128×128 con `scripts/build-
   icon.mjs` y copiado a `chrome/icon-128.png`.
 - **i18n completo**: keys nuevos para los tres estados de options
@@ -1570,7 +1570,7 @@ lime `#D4FF3A`). Shipped en v0.5.0 y pulido a través de 0.5.1 → 0.5.6.
 - **Modo light**: el design tiene una paleta light shipped en
   `tokens.jsx` pero no la implementamos. Dark matchea el uso
   mayoritario de claude.ai (forzado dark) y VS Code (mayoría usa dark).
-  Si hay demanda, el CSS ya está scopeado via `--exp-*` — agregarlo
+  Si hay demanda, el CSS ya está scopeado via `--exp-*`, agregarlo
   después es viable.
 - **Densidad compact**: misma lógica. `cozy` es el único shipped.
 - **Refactor del renderizador para múltiples paletas**: el componente
@@ -1584,7 +1584,7 @@ lime `#D4FF3A`). Shipped en v0.5.0 y pulido a través de 0.5.1 → 0.5.6.
 
 ---
 
-## 2026-04-23 — Hito 27 · Soporte para Claude Design (v0.6.0)
+## 2026-04-23, Hito 27 · Soporte para Claude Design (v0.6.0)
 
 ### Qué hicimos
 Extendimos el FAB y el flujo de export inline para que también
@@ -1610,7 +1610,7 @@ por el ZIP oficial.
   → `currentRoute()`. El panel guarda `data-route-kind` y
   `data-route-id`. `syncPanel` rebuilda el panel cuando cambia la
   *kind* (chat ↔ design) porque el popover difiere (Design oculta
-  el botón de "Preparar export oficial" — el ZIP oficial matchea
+  el botón de "Preparar export oficial", el ZIP oficial matchea
   por chat UUID, y en Design la URL solo expone el project UUID,
   no el chat UUID activo). Nuevo dispatcher `fetchByRoute(route)`
   consume el route y llama `fetchConversation(id)` para chat o
@@ -1676,7 +1676,7 @@ por el ZIP oficial.
   zip empacado con `npm run package:chrome`.
 - Smoke test manual sobre el proyecto del usuario
   `https://claude.ai/design/p/ab145d0a-56e9-443b-8a4d-b655ef8ac02d`
-  pendiente — el código compila pero el end-to-end con el bridge
+  pendiente, el código compila pero el end-to-end con el bridge
   hay que probarlo en el browser. Plan: smoke test antes del tag
   v0.6.0.
 
@@ -1690,7 +1690,7 @@ por el ZIP oficial.
   proyecto Design tiene un campo `claudeMd` (presumiblemente el
   CLAUDE.md asociado al proyecto). Útil como contexto pero amplía
   el scope de "exportar el chat" a "exportar el chat + el system
-  prompt". Lo dejo afuera — el usuario puede pegarlo a mano si lo
+  prompt". Lo dejo afuera, el usuario puede pegarlo a mano si lo
   necesita.
 - **`assets` (los archivos generados por Claude Design)**: el
   proyecto tiene un dict `assets` con HTML/components/PNGs
@@ -1700,7 +1700,7 @@ por el ZIP oficial.
 - **`todos` / `composer.text` (estado del UI)**: irrelevante para
   el contexto de Claude Code.
 
-### Addendum 2026-04-23 (v0.6.1) — bug encoding UTF-8
+### Addendum 2026-04-23 (v0.6.1), bug encoding UTF-8
 
 Smoke test end-to-end del usuario sobre el proyecto Design pasó: el
 chat se exportó completo a `.exportal/<...>.md` con todos los
@@ -1732,7 +1732,7 @@ esto en futuros adapters de plataformas con base64 en el response.
 
 ---
 
-## 2026-04-23 — Hito 28 · Export de assets de Claude Design (v0.7.0)
+## 2026-04-23, Hito 28 · Export de assets de Claude Design (v0.7.0)
 
 ### Qué hicimos
 Extendimos el export de Claude Design para que también baje los
@@ -1743,16 +1743,16 @@ Claude Design eso es la mitad del valor.
 
 - **Recon (4 rondas en una sesión)**: documentado en commits sucesivos
   del ROADMAP. Hallazgos clave:
-  - `inner.assets[<name>].versions[i]` es metadata-only — `path`,
+  - `inner.assets[<name>].versions[i]` es metadata-only, `path`,
     `createdAt`, `chatId`, `status`, `subtitle`. Sin contenido.
   - `attachments` de los messages son skills del sistema, no archivos.
   - `ListFiles { project_id }` devuelve árbol top-level: 5 archivos +
     3 directorios en el proyecto del usuario.
   - `GetFile { project_id, path }` devuelve `{content (base64),
-    contentType}` — el contenido real, en el mismo encoding que
+    contentType}`, el contenido real, en el mismo encoding que
     `GetProject.data`.
   - Las descargas que hace el UI ("↓ Descargar todos") son client-side
-    renders a PNG via blob URLs — no van por la red.
+    renders a PNG via blob URLs, no van por la red.
 - **`chrome/content-script.js`**:
   - Factor común `callDesignRpc(method, body)` que abstrae los headers
     Connect-RPC + el handling de errores. Las 3 llamadas (`GetProject`,
@@ -1762,7 +1762,7 @@ Claude Design eso es la mitad del valor.
     cada uno. `allSettled` (no `Promise.all`) para que un archivo
     roto no tire toda la operación: silently se filtra del bundle.
   - `fetchDesignProject` ahora devuelve `{conversation, assets}`. La
-    fetch de files va en su propio try/catch — falla aislada deja
+    fetch de files va en su propio try/catch, falla aislada deja
     `assets: []` y el handler downstream omite la sección "Generated
     assets".
   - `fetchByRoute` simétrico: chats devuelven `{conversation, assets:
@@ -1773,7 +1773,7 @@ Claude Design eso es la mitad del valor.
     de forwardear al bridge: array de objetos con `{filename, content,
     contentType}` todos string. Otros valores se filtran silenciosamente.
   - `forwardInlineConversation(conversation, assets)` bundlea solo si
-    `assets.length > 0` — chats quedan byte-idénticos a antes.
+    `assets.length > 0`, chats quedan byte-idénticos a antes.
 - **`src/extension/http-server.ts`**:
   - Nuevo `InlineAsset = z.object({filename, content, contentType})`
     exportado como type para el handler.
@@ -1804,7 +1804,7 @@ Claude Design eso es la mitad del valor.
   de uso (proyecto del usuario) tiene 5 archivos top-level + 3
   directorios. Los archivos importantes (los HTML del design) están
   todos en root. Las carpetas son subcomponentes que rara vez se
-  necesitan. Recursión es scope creep para un MVP — si alguien la
+  necesitan. Recursión es scope creep para un MVP, si alguien la
   pide, hito separado.
 - **`Promise.allSettled` en lugar de `Promise.all`**: si un archivo
   específico tira 500 (raro pero posible), no debería tirar el
@@ -1855,7 +1855,7 @@ Claude Design eso es la mitad del valor.
   - Carpeta hermana `.exportal/2026-04-23-1331-exportal-exportal-chrome-extension/`
     se creó y contiene los 5 archivos con su contenido íntegro.
   - Filenames con espacio + acento (`Exportal Rediseño.html`) y dot
-    inicial (`.design-canvas.state.json`) preservados verbatim — la
+    inicial (`.design-canvas.state.json`) preservados verbatim, la
     sanitización los aceptó sin slugificar.
   - El chat sigue al final del .md con UTF-8 limpio (fix de v0.6.1).
   - Conversación de 14 mensajes completa, alternancia user/assistant
@@ -1871,7 +1871,7 @@ Claude Design eso es la mitad del valor.
 - **Render server-side a PNG**: lo que el UI hace al "↓ PNG" es
   client-side render. Nuestro export trae los HTML fuente. Si alguien
   quiere los PNGs renderizados, tiene que abrir el HTML local y hacer
-  el render — o pedir esto como feature (probablemente requeriría
+  el render, o pedir esto como feature (probablemente requeriría
   un headless browser corriendo del lado VS Code, scope grande).
 - **Handling de file conflicts si el directory ya existe**: el case
   típico es que cada export crea una carpeta nueva (timestamp es
@@ -1880,11 +1880,11 @@ Claude Design eso es la mitad del valor.
 
 ---
 
-## 2026-04-23 — Prep round pre-Hito 19 (v0.7.1)
+## 2026-04-23, Prep round pre-Hito 19 (v0.7.1)
 
 ### Qué hicimos
 Sesión corta de cleanup + docs antes de arrancar Hito 19 (.jsonl).
-Ningún feature nuevo — solo sweep de tech debt y refresh de
+Ningún feature nuevo, solo sweep de tech debt y refresh de
 documentación ahora que Hitos 27 y 28 están cerrados y el
 companion 0.7.0 está pendiente de review en CWS.
 
@@ -1898,7 +1898,7 @@ companion 0.7.0 está pendiente de review en CWS.
   - **TODO/FIXME/console.log/debugger/eslint-disable**: cero
     debt. El único `eslint-disable-next-line no-console` que
     quedó en `http-server.ts:214` era unused (la regla `no-console`
-    no está activa para ese path) — eslint mismo lo flageó.
+    no está activa para ese path), eslint mismo lo flageó.
     Removido.
   - **Imports muertos / dead exports**: ninguno encontrado.
 - **Header del content-script.js**: estaba describiendo dos export
@@ -1945,12 +1945,12 @@ companion 0.7.0 está pendiente de review en CWS.
   CI en Linux. A investigar durante Hito 19 si molesta.
 
 ### Próximo paso
-Hito 19 — recon del formato `.jsonl` con fixtures reales en
+Hito 19, recon del formato `.jsonl` con fixtures reales en
 `~/.claude/projects/`. Spec final post-recon.
 
 ---
 
-## 2026-04-23 — Hito 19 · Import como sesión de Claude Code (.jsonl, v0.8.0)
+## 2026-04-23, Hito 19 · Import como sesión de Claude Code (.jsonl, v0.8.0)
 
 ### Qué hicimos
 Cerramos el último gap del flujo claude.ai → Claude Code: hasta hoy
@@ -2010,7 +2010,7 @@ para que el usuario continúe el chat literal.
     `vscode.workspace.workspaceFolders[0].uri.fsPath`.
   - Detecta git branch via `git symbolic-ref --short HEAD` con
     timeout 2s y child_process. Si falla (no es repo, no hay git),
-    devuelve `''` — Claude Code real también deja branch vacío en
+    devuelve `''`, Claude Code real también deja branch vacío en
     proyectos sin git.
   - Detecta versión de Claude Code probando dos extension IDs
     candidatos (`anthropic.claude-code`, `Anthropic.claude-code`).
@@ -2058,7 +2058,7 @@ para que el usuario continúe el chat literal.
 - **Round-trip a través de `parseEvent` como test principal**: el
   schema Zod es estricto sobre los campos requeridos del envelope.
   Si un evento generado pasa `parseEvent`, sabemos que la shape
-  matchea lo que Claude Code reconoce — al menos en lo que nuestro
+  matchea lo que Claude Code reconoce, al menos en lo que nuestro
   reader chequea, que es a su vez la fuente de verdad de la nota
   de memoria. No reemplaza el smoke test contra Claude Code real,
   pero descarta toda una clase de bugs sin necesidad de un browser.
@@ -2066,7 +2066,7 @@ para que el usuario continúe el chat literal.
   el formato en una version futura, queremos que el `.jsonl`
   generado declare la versión local del usuario, no una nuestra
   outdated. Si la detección falla (extension no instalada bajo los
-  IDs probados), caemos al hardcoded `"2.1.114"` — la versión
+  IDs probados), caemos al hardcoded `"2.1.114"`, la versión
   cosmética del envelope no es load-bearing en lo que vimos.
 
 ### Verificación
@@ -2095,7 +2095,7 @@ para que el usuario continúe el chat literal.
   `exportal.jsonl.includeThinking = "skip" | "as-text"` si alguien
   lo pide.
 - **Replay real de tools de claude.ai**: ni siquiera el equipo de
-  Anthropic permite eso entre superficies — están desacopladas a
+  Anthropic permite eso entre superficies, están desacopladas a
   propósito.
 - **Modo "only-jsonl" (sin .md)**: el `.md` sigue siendo útil para
   leer el chat fuera de Claude Code, para git-trackear, para
@@ -2103,7 +2103,7 @@ para que el usuario continúe el chat literal.
 - **Auto-detect del workspace cwd vs el cwd original del chat**:
   el `.jsonl` se importa al workspace abierto, no al directory
   donde "originalmente" pasó la conversación claude.ai (que ni
-  siquiera tiene cwd — pasa en el browser). Es una decisión
+  siquiera tiene cwd, pasa en el browser). Es una decisión
   deliberada: importar al contexto donde el usuario va a continuar
   el trabajo, no a uno ficticio.
 - **Multi-folder workspace**: si el user tiene varios workspace
@@ -2111,7 +2111,7 @@ para que el usuario continúe el chat literal.
 
 ---
 
-## 2026-04-23 — v0.8.1 · Tab dedicada + strip del placeholder
+## 2026-04-23, v0.8.1 · Tab dedicada + strip del placeholder
 
 ### Qué hicimos
 - **Smoke test de v0.8.0 pasó end-to-end**. La conversación
@@ -2178,7 +2178,7 @@ para que el usuario continúe el chat literal.
 ### Lo que NO entra en v0.8.1
 - **Status pill del bridge en el panel**: el header del panel
   originalmente iba a tener un indicador verde/rojo del estado del
-  bridge local. Dejado para v0.8.2 — el footer note alcanza para
+  bridge local. Dejado para v0.8.2, el footer note alcanza para
   comunicar que el bridge arranca solo en el activate.
 - **Re-traducción del .md ya importado**: si alguien tiene `.md`
   exportados con la versión 0.8.0 sucia, se quedan así. El strip
@@ -2186,7 +2186,7 @@ para que el usuario continúe el chat literal.
 
 ---
 
-## 2026-04-23 — v0.8.2 · Discoverability + prep de Hito 21
+## 2026-04-23, v0.8.2 · Discoverability + prep de Hito 21
 
 ### Qué hicimos
 - **Tip de discoverability en la pairing panel.** Las features que
@@ -2201,13 +2201,13 @@ para que el usuario continúe el chat literal.
 - **README.md y README.vsix.md**: secciones nuevas
   *"Aparecer en /resume de Claude Code (opt-in)"* y *"Tab dedicada
   en VS Code"*. Ambos READMEs estaban desactualizados respecto a las
-  features de 0.8.0 y 0.8.1 — todo el texto de discovery estaba solo
+  features de 0.8.0 y 0.8.1, todo el texto de discovery estaba solo
   en CHANGELOG, que nadie lee salvo al investigar un bug.
 - **Prep round del Hito 21** (import de ChatGPT): scaffold del
   importer en `src/importers/chatgpt/` siguiendo la estructura de
   `claudeai/`. Tres archivos (`schema.ts`, `reader.ts`, `walk.ts`)
   + 15 tests contra fixture sintético. Nada wireado en la extensión
-  todavía — puro prep para arrancar rápido cuando llegue el ZIP real
+  todavía, puro prep para arrancar rápido cuando llegue el ZIP real
   de export de ChatGPT.
 
 ### Decisiones clave y por qué
@@ -2225,7 +2225,7 @@ para que el usuario continúe el chat literal.
   el tipo inferido, lo que hace que `conversation.mapping[k]` termine
   siendo `any` (TS7022 bajo `--strict`) y rompa los lints no-unsafe-*.
   Pero además, en la práctica, los formatters consumen campos
-  explícitos (`content_type`, `parts`, `author.role`) — los campos
+  explícitos (`content_type`, `parts`, `author.role`), los campos
   desconocidos que preservaría el passthrough nunca se leen. Usar
   strip (default) + campos explícitos opcionales da forward-compat
   sin pagar el costo de tipos. Si algún día necesitamos preservar
@@ -2233,7 +2233,7 @@ para que el usuario continúe el chat literal.
 - **Walk del árbol siguiendo sólo la rama activa (`current_node`)**:
   ChatGPT soporta branching (regenerate, edit) y guarda todas las
   ramas en `mapping`, pero el usuario cuando exporta espera ver lo
-  que estaba mirando — la rama activa. Cualquier otra estrategia
+  que estaba mirando, la rama activa. Cualquier otra estrategia
   (merge de ramas, incluir todas) introduce decisiones de UX sin
   beneficio claro.
 - **Dos commits separados**: `feat:` para el tip + READMEs (user-
@@ -2257,7 +2257,7 @@ para que el usuario continúe el chat literal.
 
 ---
 
-## 2026-04-25 — Mejoras al send-to-claude-ai + planning de menú jerárquico
+## 2026-04-25, Mejoras al send-to-claude-ai + planning de menú jerárquico
 
 ### Qué hicimos
 - **`sendSessionToClaudeAi` mejorado en dos frentes** (commit `a77c103`):
@@ -2274,7 +2274,7 @@ para que el usuario continúe el chat literal.
      (reusando `persistAndOpenMarkdown` del path de import) además de
      copiar al portapapeles. La notification ofrece botón "Reveal file"
      para que el usuario arrastre el `.md` a claude.ai. Eliminamos el
-     modal warning bloqueante a 150KB — ahora es un mensaje inline en
+     modal warning bloqueante a 150KB, ahora es un mensaje inline en
      la notification post-acción.
 
 ### Decisiones clave y por qué
@@ -2306,13 +2306,13 @@ para que el usuario continúe el chat literal.
 
 El usuario pidió rediseñar la sidebar tab de flat list a menú jerárquico
 con grupos lógicos (Settings, Importar de…, Exportar a…, Utilidades).
-Esto habilita una feature simétrica nueva — **enviar sesión de Claude
-Code a ChatGPT** — que es el mirror exacto del envío a claude.ai
+Esto habilita una feature simétrica nueva, **enviar sesión de Claude
+Code a ChatGPT**, que es el mirror exacto del envío a claude.ai
 (formatter común, distinto endpoint de browser).
 
 Bloqueado por diseño visual: el usuario está consultando con Claude
 Design el layout (accordion / dropdowns / botones agrupados con
-headers — TBD). Implementación arranca cuando llegue el diseño.
+headers, TBD). Implementación arranca cuando llegue el diseño.
 
 Mientras tanto, el ROADMAP captura el scope detallado en Hito 29
 (qué refactorear, qué decisiones quedan abiertas, qué queda fuera
@@ -2327,7 +2327,7 @@ de scope). Sin código nuevo hasta entonces.
 
 ---
 
-## 2026-04-26 — Hito 29 implementado · v0.9.0
+## 2026-04-26, Hito 29 implementado · v0.9.0
 
 ### Qué hicimos
 
@@ -2339,7 +2339,7 @@ que terminaron en el release `0.9.0`:
   `custom-title`, `last-prompt` que Claude Code escribe como sidecar
   metadata (antes los descartábamos como "unmodeled"). La QuickPick
   prioriza `customTitle ?? aiTitle ?? firstUserText` para el label.
-- Sort por `lastActiveAt` (file mtime) en vez de startedAt — la
+- Sort por `lastActiveAt` (file mtime) en vez de startedAt, la
   sesión más activa queda arriba.
 - Detail line: turns + git branch + cwd basename + sessionId.
 - `.md` siempre se guarda en `.exportal/` como fallback drag-drop
@@ -2373,7 +2373,7 @@ que terminaron en el release `0.9.0`:
 - **Intentamos drag-drop sobre filas de import. Falló.** VS Code
   tiene una limitación arquitectural: el workbench (parent window)
   intercepta los drops de archivos externos antes de que lleguen al
-  webview iframe. Confirmado con DevTools del user — cero eventos en
+  webview iframe. Confirmado con DevTools del user, cero eventos en
   consola al arrastrar.
 - **Pivot a auto-detect + live watch:** mejor UX que drag-drop para
   el caso de uso real (descargar zip de Chrome → importar). Cuando
@@ -2383,12 +2383,12 @@ que terminaron en el release `0.9.0`:
   y muestra un sub-hint verde con filename + tiempo relativo en la
   fila. Click → import directo sin file picker.
 - **Watch en tiempo real:** `fs.watch` sobre Downloads/Desktop con
-  debounce de 1.5s y gated por visibility — el panel se entera
+  debounce de 1.5s y gated por visibility, el panel se entera
   apenas termina una descarga (Chrome cierra `.crdownload` y rename
   al `.zip`), sin necesidad de toggle del panel. Cero costo cuando
   el panel está cerrado.
 - Sacamos el código muerto de drag-drop. Mantuvimos los estados
-  visuales `working`/`done`/`error` — sirven para click-triggered
+  visuales `working`/`done`/`error`, sirven para click-triggered
   imports (file picker o detected-zip).
 
 ### Decisiones clave y por qué
@@ -2403,7 +2403,7 @@ que terminaron en el release `0.9.0`:
   descargué algo y quiero importarlo" es de minutos. Zips viejos
   ensucian el panel y no son accionables.
 - **Visibility-gated watcher**: `fs.watch` cuesta poco pero no
-  cero — gatearlo por visibility evita gastar handles cuando el
+  cero, gatearlo por visibility evita gastar handles cuando el
   user no está mirando el panel.
 - **Debounce de 1.5s** (no 500ms): Chrome escribe `.crdownload`
   primero y luego rename a `.zip`. Si reaccionamos al primer event
@@ -2469,7 +2469,7 @@ que terminaron en el release `0.9.0`:
   de progreso. Bajo, no urgente.
 - **Capa 4 con SessionChip dinámico** en filas de Exportar:
   mostrar el título de la sesión que se va a enviar antes de
-  clickear. Útil pero no shippeable hoy — requiere file watcher
+  clickear. Útil pero no shippeable hoy, requiere file watcher
   separado en `~/.claude/projects/`. Backlog.
 - **Companion-installed warning** en el footer del panel: el
   diseño lo tiene, no lo implementamos porque requeriría un signal
@@ -2483,7 +2483,7 @@ que terminaron en el release `0.9.0`:
 
 ---
 
-## 2026-04-26 — v0.9.1 · ChatGPT validado contra cuenta real
+## 2026-04-26, v0.9.1 · ChatGPT validado contra cuenta real
 
 ### Qué hicimos
 
@@ -2492,7 +2492,7 @@ Llegó el ZIP de export de la cuenta principal de ChatGPT (queued
 al chat, escribí un script local
 (`scripts/chatgpt-shape-report.mjs`) que escanea el ZIP y produce
 un **shape report**: counts de `content_type`, roles, recipients,
-keys observados — todo metadata, cero contenido. Eso reveló
+keys observados, todo metadata, cero contenido. Eso reveló
 dos problemas serios que 0.9.0 no manejaba:
 
 **1. Format chunked no soportado.** Cuentas grandes (145+
@@ -2500,16 +2500,16 @@ conversaciones en este caso) no tienen `conversations.json`
 singular sino `conversations-000.json`, `conversations-001.json`,
 etc., más un `export_manifest.json` nuevo. Nuestro reader
 buscaba solo el archivo singular y fallaba con
-*"missing conversations.json — is this the right ZIP?"*. **Bug
+*"missing conversations.json, is this the right ZIP?"*. **Bug
 bloqueante: cuentas grandes no podían importar nada.**
 
 **2. Cinco `content_type` nuevos** que no estaban en docs públicas:
-- `thoughts` (39 msgs en la cuenta del user) — reasoning intermedio
+- `thoughts` (39 msgs en la cuenta del user), reasoning intermedio
   de modelos tipo o1/o3
-- `reasoning_recap` (32 msgs) — resumen del razonamiento
-- `tether_quote` (10) y `tether_browsing_display` (10) — citations
+- `reasoning_recap` (32 msgs), resumen del razonamiento
+- `tether_quote` (10) y `tether_browsing_display` (10), citations
   de browsing
-- `system_error` (8) — errores de tools
+- `system_error` (8), errores de tools
 
 Más:
 - **161 mensajes con multimodal real** (`image_asset_pointer`
@@ -2526,13 +2526,13 @@ Más:
 **Reader (Tier 1)**: `findConversationFiles()` busca primero
 `conversations.json` (small accounts); si no, escanea por
 `conversations-NNN.json`, los ordena alfabéticamente
-(`localeCompare` — funciona porque OpenAI usa zero-padding) y los
+(`localeCompare`, funciona porque OpenAI usa zero-padding) y los
 concatena. Per-chunk JSON parse failures generan warnings y
-continúan en lugar de abortar — un chunk corrupto no rompe el
+continúan en lugar de abortar, un chunk corrupto no rompe el
 import del resto. Throw solo si zero conversations parsean exitosamente.
 
 **Schema (Tier 2)**: 12 campos opcionales nuevos en
-`MessageContentSchema` — `url`, `title`, `domain`, `tether_id`,
+`MessageContentSchema`, `url`, `title`, `domain`, `tether_id`,
 `thoughts`, `summary`, `content`, `name`, `result`, `assets`,
 `response_format_name`, `source_analysis_msg_id`. Todos optional,
 backward compat preservado.
@@ -2571,21 +2571,21 @@ Refactor menor: extraje `maybeRedact` como closure local en
 - **Sort de chunks por `localeCompare`** y no parseando el número:
   más simple, funciona porque OpenAI usa zero-padding consistente
   (`-000`, `-001`). Si en algún momento rompen la convención (ej.
-  `-1`, `-2`, `-10`), el sort se confunde — defendible si pasa,
+  `-1`, `-2`, `-10`), el sort se confunde, defendible si pasa,
   pero por ahora es robusto.
 - **Per-chunk parse fallback con warning** en vez de aborto:
   preferimos importar el 90% de las conversaciones y avisar del
   10% perdido que perder todo por un chunk corrupto. Los warnings
   hoy van a console (via toast), con espacio para mejor UX
   futura (mostrar lista detallada en el panel).
-- **Ningún `passthrough()` en el schema** — sigo el principio de
+- **Ningún `passthrough()` en el schema**, sigo el principio de
   v0.8.2: campos optional explícitos, lo demás se descarta. Los
   campos descartados que vimos (`atlas_mode_enabled`,
   `is_starred`, `default_model_slug`, etc.) no los necesitamos
-  para renderizar — si en algún momento sí, los agregamos al
+  para renderizar, si en algún momento sí, los agregamos al
   schema y aparecen automáticamente.
 - **`renderTetherCitation` muestra el dominio solo cuando NO hay
-  URL**: si la URL está, ya contiene el dominio implícitamente —
+  URL**: si la URL está, ya contiene el dominio implícitamente,
   redundancia visual. Solo cuando el citation viene sin URL
   explícita (raro pero observado) mostramos el dominio para que
   el reader sepa de dónde vino.
@@ -2593,11 +2593,11 @@ Refactor menor: extraje `maybeRedact` como closure local en
   linkear al archivo físico: el ZIP contiene los files
   (`file-XXX.jpeg`), pero exponerlos al workspace requiere copiar
   los binarios al `.exportal/<title>/` y reescribir las
-  references en el `.md`. Ese trabajo es Tier 3 — el marker
+  references en el `.md`. Ese trabajo es Tier 3, el marker
   legible alcanza por ahora para que el usuario sepa que hubo una
   imagen.
 - **`system` role sigue skippeado** (316 mensajes en la cuenta
-  del user) — son model conditioning, no contenido user-visible.
+  del user), son model conditioning, no contenido user-visible.
   Si en algún momento descubrimos que algunos system messages SON
   contenido (ej. "Memory updated" notifications), podemos hacer
   el skip más selectivo.
@@ -2614,14 +2614,14 @@ Refactor menor: extraje `maybeRedact` como closure local en
 
 ### Lo que NO entra en v0.9.1
 
-- **Tier 3 — imágenes inline**: copiar los `file-XXX.jpeg` del
+- **Tier 3, imágenes inline**: copiar los `file-XXX.jpeg` del
   ZIP al `<workspace>/.exportal/<title>/` y reescribir las
   references como `![](./file-XXX.jpeg)` para que el preview de
   markdown muestre las imágenes. Trabajo más grande, va a 0.10.0.
 - **Auto-attribution de attachments[] en metadata** (149 msgs):
   los `metadata.attachments[]` también describen archivos
   uploadeados pero por un canal distinto al multimodal_text.
-  Renderizarlos requiere mirar la shape exacta primero —
+  Renderizarlos requiere mirar la shape exacta primero,
   pendiente para cuando aparezca un caso visible que se note como
   contenido perdido.
 - **Detección/handling especial para tools tipo `bio`,
@@ -2635,7 +2635,7 @@ Refactor menor: extraje `maybeRedact` como closure local en
 
 ---
 
-## 2026-04-26 — v0.9.2 · Hot-fix: nullable fields + per-conversation parsing
+## 2026-04-26, v0.9.2 · Hot-fix: nullable fields + per-conversation parsing
 
 ### Qué hicimos
 
@@ -2647,7 +2647,7 @@ shape; skipped."*
 
 Diagnostiqué con un script nuevo (`scripts/chatgpt-validate.mjs`) que
 corre el schema contra cada conversación y reporta los errores sin
-filtrar contenido. Output: **102/145 OK, 43/145 fallan** — todas por
+filtrar contenido. Output: **102/145 OK, 43/145 fallan**, todas por
 la misma razón: tres fields que declaramos como `.optional()` pero
 OpenAI manda como `null`. Zod hace diferencia entre missing
 (satisfies optional) y null (rejects unless `.nullable()`).
@@ -2678,7 +2678,7 @@ las buenas se importan. Robustez sobre strictness.
 los fields son `string | null | undefined` en vez de `string | undefined`:
 - `renderTetherCitation`: los checks `!== undefined` trataban `null`
   como "definido", rompiendo la lógica. Convertí los reads a
-  `??  undefined` upfront — el resto del código sigue chequeando
+  `??  undefined` upfront, el resto del código sigue chequeando
   contra undefined uniformemente.
 - `case 'code'`: `fenceCode` espera `string | undefined` para el
   language tag. Pasamos `content.language ?? undefined` para coercer
@@ -2696,7 +2696,7 @@ diagnostiquen sin pedir al user que comparta el zip.
   fixture con `tether_id: null`, `assets: null`, etc. Antes del fix
   fallaba; ahora pasa.
 - "skips one bad conversation but keeps the rest in the same chunk":
-  array de [good, bad] — antes el array entero se descartaba; ahora
+  array de [good, bad], antes el array entero se descartaba; ahora
   el good se importa con warning sobre el bad.
 
 ### Decisiones clave y por qué
@@ -2709,7 +2709,7 @@ diagnostiquen sin pedir al user que comparta el zip.
 - **Per-conversation parsing en lugar de array-level**: cuando el
   array es grande (cientos de conversations), una sola con shape
   ligeramente distinta tiraba todas. Ahora la unidad de fallo es la
-  conversación individual — losses pequeñas en vez de losses
+  conversación individual, losses pequeñas en vez de losses
   totales. Para shapes evolving este patrón es necesario.
 - **Coerce `?? undefined` upfront** en vez de cambiar todos los
   checks a `!= null` (loose equality): mantiene los downstream
@@ -2732,7 +2732,7 @@ diagnostiquen sin pedir al user que comparta el zip.
 ### Lo que NO entra en v0.9.2
 - **Shape inspector más profundo** que reporte fields no observados
   en el schema actual (sería útil para el próximo "OpenAI agregó X
-  field"). Pendiente — el script actual solo reporta failures, no
+  field"). Pendiente, el script actual solo reporta failures, no
   silently-stripped fields.
 - **Refactor del schema a un esquema canónico para multi-IA** (Hito
   20 del ROADMAP): seguimos con dos importers paralelos por ahora,
@@ -2741,7 +2741,7 @@ diagnostiquen sin pedir al user que comparta el zip.
 
 ---
 
-## 2026-04-26 — v0.10.0 · One-click ChatGPT (Hito 30)
+## 2026-04-26, v0.10.0 · One-click ChatGPT (Hito 30)
 
 ### Qué hicimos
 
@@ -2762,7 +2762,7 @@ ROADMAP completo, end-to-end, en una pasada.
 
 2. **`chrome/manifest.json`**: agregué `"https://chatgpt.com/*"` al
    `content_scripts[].matches`. Sigue solo `claude.ai` y `chatgpt.com`
-   — no `chat.openai.com` legacy porque ya redirige.
+  , no `chat.openai.com` legacy porque ya redirige.
 
 3. **`chrome/content-script.js`**:
    - `currentRoute()` pasa `window.location.host` además de pathname.
@@ -2780,7 +2780,7 @@ ROADMAP completo, end-to-end, en una pasada.
      (chat_messages array).
    - El secondary button ("Preparar export oficial") y el
      Alt+Shift+O shortcut siguen siendo no-op en ChatGPT (por la
-     misma lógica que en Design — `route.kind !== 'chat'` early
+     misma lógica que en Design, `route.kind !== 'chat'` early
      return).
 
 4. **`chrome/background.js`**:
@@ -2807,11 +2807,11 @@ ROADMAP completo, end-to-end, en una pasada.
    - `tests/chrome/pure.test.ts`: 10 tests cubren la detección
      ChatGPT (extract function + routeFromPath multi-host
      dispatch). El test crítico: `routeFromPath('/c/<uuid>')` SIN
-     host explícito devuelve undefined — para evitar que un path
+     host explícito devuelve undefined, para evitar que un path
      accidental cross-matchee. Solo cuando host === 'chatgpt.com'
      se reconoce el route.
    - `tests/extension/http-server.test.ts`: 3 tests cubren el
-     nuevo provider field — un payload válido con provider:'chatgpt'
+     nuevo provider field, un payload válido con provider:'chatgpt'
      llega al handler con el provider; un provider inválido
      (`'random_thing'`) tira 400.
 
@@ -2836,7 +2836,7 @@ ROADMAP completo, end-to-end, en una pasada.
 - **Retry de 401 en `fetchChatGptConversation`**: ChatGPT tokens
   son JWTs de vida corta. Si entre el `/session` fetch y el
   `/conversation` fetch el token expira, reintentamos con un
-  refresh. Limit a UNA sola retry — más probable que sea bug
+  refresh. Limit a UNA sola retry, más probable que sea bug
   (session realmente expired) que race transient.
 - **Visual del FAB inalterado entre proveedores**: el FAB es
   Exportal-branded (no provider-branded). Eso lo deja consistente
@@ -2860,13 +2860,13 @@ ROADMAP completo, end-to-end, en una pasada.
   devuelve `image_asset_pointer` references pero no los bytes.
   Para bundlear las imágenes al `.md` necesitaríamos scrapear
   también `/backend-api/files/<id>/download` y meter los archivos
-  al workspace. Tier 3 del Hito 21 — propio release futuro.
+  al workspace. Tier 3 del Hito 21, propio release futuro.
 - **`.jsonl` para `/resume` desde imports de ChatGPT**: el envelope
   Anthropic asume shapes claude. Para soportarlo necesitaríamos un
   generador chatgpt → claude-jsonl converter. No urgente.
 - **Detection automática de "no logueado a chatgpt.com"**: si el
   user no está logueado, el `/api/auth/session` falla con 401 y
-  el toast dice `session_expired` — clear next step (loguearse en
+  el toast dice `session_expired`, clear next step (loguearse en
   chatgpt.com en otra tab). Un check upfront sería polish.
 - **Indicador visual del provider en el popover**: hoy el FAB se ve
   igual en los dos sites. Sumar un chip "ChatGPT" o "claude.ai"
@@ -2874,7 +2874,7 @@ ROADMAP completo, end-to-end, en una pasada.
 
 ---
 
-## 2026-04-26 — v0.10.1 · Hot-fix Hito 30 + smoke test end-to-end OK
+## 2026-04-26, v0.10.1 · Hot-fix Hito 30 + smoke test end-to-end OK
 
 ### Qué hicimos
 
@@ -2889,7 +2889,7 @@ Agregué un `console.warn` en el silent-return path de `handlePrimaryClick`
 (`Exportal: ... ignoring click`). Reinstalación del companion + retry
 mostró el log:
 
-> `Exportal: handlePrimaryClick — panel has no route, ignoring click.`
+> `Exportal: handlePrimaryClick, panel has no route, ignoring click.`
 
 Pero el eval `document.getElementById('exportal-panel')?.dataset.routeKind`
 devolvía `'chatgpt'` correctamente. Contradicción aparente.
@@ -2904,7 +2904,7 @@ del consumidor. El dataset estaba bien, mi check lo rechazaba.
 
 - `panelRoute()` ahora lee la whitelist desde un nuevo
   `ExportalPure.KNOWN_ROUTE_KINDS` (constante en `pure.js`). Single
-  source of truth — agregar un proveedor nuevo es modificar una
+  source of truth, agregar un proveedor nuevo es modificar una
   línea en pure.js y todos los consumidores se actualizan.
 - 2 tests de regresión nuevos en `tests/chrome/pure.test.ts` que
   verifican que toda kind emitida por `routeFromPath` esté
@@ -2951,7 +2951,7 @@ similares).
   hardcoded check con `|| kind === 'chatgpt'`, refactoreé al
   pattern de single-source. Costo igual, beneficio futuro. Cuando
   agreguemos Gemini/Copilot, agregar a `KNOWN_ROUTE_KINDS` y
-  funciona — el check del consumidor no necesita touchearse.
+  funciona, el check del consumidor no necesita touchearse.
 - **Test de invariante en lugar de test del case específico**:
   testear "chatgpt está en la whitelist" sería test del fix del
   ticket. Test de invariante "toda kind emitida por routeFromPath
@@ -2966,7 +2966,7 @@ similares).
 - `npm run ci` → verde. 24 test files, 234 tests passan
   (232 → 234, +2 nuevos invariantes).
 - Smoke test del user end-to-end OK contra una conversación real.
-- Log diagnóstico activo — si reaparece un silent failure, se
+- Log diagnóstico activo, si reaparece un silent failure, se
   diagnostica en seconds.
 
 ### Lo que NO entra en v0.10.1
@@ -2979,13 +2979,13 @@ similares).
 
 ---
 
-## 2026-04-26 — Skip de `model_editable_context` en imports de ChatGPT (v0.10.2)
+## 2026-04-26, Skip de `model_editable_context` en imports de ChatGPT (v0.10.2)
 
 ### Qué hicimos
 Fix puntual del item del backlog dejado pendiente al cierre de
 0.10.1. En exports reales, ChatGPT emite mensajes con
 `author.role: 'assistant'` + `recipient: 'all'` cuyo
-`content.content_type` es `'model_editable_context'` — son
+`content.content_type` es `'model_editable_context'`, son
 configuración del modelo sobre sí mismo, no parte de la conversación
 visible. El fallback genérico de `renderBody` los pintaba como
 bloques `## Assistant\n\n\`[model_editable_context]\`\n\n{json}`
@@ -3014,7 +3014,7 @@ que ensuciaban el `.md` sin aportar nada (visto en
   no agregue separador. Hacer lo mismo por content_type mantiene
   los dos skips uniformes y no requiere tocar el fallback genérico
   del switch (que queremos preservar para content_types nuevos
-  desconocidos — esos sí se loguean con marker para no perderlos
+  desconocidos, esos sí se loguean con marker para no perderlos
   silenciosamente).
 - **`ReadonlySet<string>` sobre array literal**: la lookup es
   O(1), y la lista va a crecer a medida que aparezcan otros
@@ -3027,7 +3027,7 @@ que ensuciaban el `.md` sin aportar nada (visto en
   forma.
 
 ### Verificación
-- `npm run ci` — lint ✓, typecheck ✓, 235/235 tests ✓ (+1 nuevo),
+- `npm run ci`, lint ✓, typecheck ✓, 235/235 tests ✓ (+1 nuevo),
   build ✓.
 - Flake intermitente (documentado en ROADMAP) reapareció en la
   primera corrida con el patrón típico: 24 test files con
@@ -3037,14 +3037,14 @@ que ensuciaban el `.md` sin aportar nada (visto en
   + `node_modules/.cache` y reintentar → corrida limpia con cwd en
   mayúscula `D:/Dionisio/ClaudeTool`. **Refuerza la hipótesis del
   Hito 4** sobre la correlación entre el casing del drive y el
-  flake — la pista del path con drive en minúscula vs mayúscula
+  flake, la pista del path con drive en minúscula vs mayúscula
   vuelve a aparecer 9 días después del primer reporte.
 
 ### Release
 - **v0.10.2** publicada. `package.json` y `chrome/manifest.json`
   bumpeados; entrada en `CHANGELOG.md` siguiendo el formato Keep a
   Changelog (Fixed + Notes). El `package-lock.json` se mantuvo en
-  0.9.1 como en 0.9.2 / 0.10.0 / 0.10.1 — el lock viene
+  0.9.1 como en 0.9.2 / 0.10.0 / 0.10.1, el lock viene
   desincronizado del bump manual desde hace cinco releases; tocarlo
   acá rompería el patrón sin beneficio para este patch.
 - README sin cambios: no menciona versión, los enlaces al
@@ -3060,7 +3060,7 @@ que ensuciaban el `.md` sin aportar nada (visto en
 
 ---
 
-## 2026-04-26 — Botón "Download JSON" en el FAB de chatgpt.com (v0.11.0)
+## 2026-04-26, Botón "Download JSON" en el FAB de chatgpt.com (v0.11.0)
 
 ### Qué hicimos
 Power-user feature pedida por el user en la misma sesión que cerró
@@ -3072,7 +3072,7 @@ el primary `"Export this chat"` (NextAuth session + Bearer al
 `/backend-api/conversation/<id>`), pero en vez de mandarlo al
 bridge, escribe el JSON puro a disco vía Blob + anchor click.
 
-Discusión previa al hito: el user planteó dos caminos —
+Discusión previa al hito: el user planteó dos caminos,
 **(A)** adaptar el JSON de ChatGPT al `.jsonl` para `/resume` con
 warning de experimental, vs **(B)** download crudo del JSON.
 Decisión: arrancar por B (~30 min, bajo riesgo, no compromete el
@@ -3100,12 +3100,12 @@ detallado (mapping de content_types, UUIDs sintéticos, decisión del
   que monta el secondary con label `btnDownloadJson` y handler
   `handleDownloadJsonClick`.
 - Nuevo handler `handleDownloadJsonClick` que:
-  1. Valida la ruta (early return + console.warn si no aplica —
+  1. Valida la ruta (early return + console.warn si no aplica,
      mismo patrón defensivo que ganamos en 0.10.1).
   2. Muestra `feedbackSearching` durante el fetch (chatgpt suele
      responder en sub-2s pero el feedback evita la sensación de
      click muerto).
-  3. Reusa `fetchChatGptConversation(route.id)` directamente — no
+  3. Reusa `fetchChatGptConversation(route.id)` directamente, no
      hace falta pasar por `fetchByRoute` porque no construimos el
      payload del bridge.
   4. Triggerea download con `triggerJsonDownload(json, filename)`.
@@ -3113,7 +3113,7 @@ detallado (mapping de content_types, UUIDs sintéticos, decisión del
      en fallo.
 - Nuevo helper `triggerJsonDownload(data, filename)`: idiom estándar
   de Blob + anchor.click() + URL.revokeObjectURL en setTimeout(1s).
-  Sin permisos nuevos en el manifest — `<a download>` ya está
+  Sin permisos nuevos en el manifest, `<a download>` ya está
   habilitado por el host_permissions existente.
 
 **i18n (`_locales/en` + `_locales/es`):**
@@ -3142,11 +3142,11 @@ detallado (mapping de content_types, UUIDs sintéticos, decisión del
   capability visible al user, SemVer minor.
 
 ### Verificación
-- `npm run ci` — lint ✓, typecheck ✓, **242/242 tests ✓** (+7
+- `npm run ci`, lint ✓, typecheck ✓, **242/242 tests ✓** (+7
   nuevos), build ✓.
 - Smoke test browser-real: el user instaló el vsix 0.11.0 +
   unpacked del companion, exportó una conversación real de
-  chatgpt.com — `.md` se ve bien (sin bloques huecos de
+  chatgpt.com, `.md` se ve bien (sin bloques huecos de
   `model_editable_context`, validando además 0.10.2 end-to-end), y
   el botón "Download JSON" baja correctamente el `.json` crudo a
   Downloads.
@@ -3160,18 +3160,18 @@ detallado (mapping de content_types, UUIDs sintéticos, decisión del
 
 ### Próximo paso
 - Hito 24 (jsonl para `/resume` desde ChatGPT) anotado en ROADMAP
-  con scope detallado — disparador: cuando el user decida
+  con scope detallado, disparador: cuando el user decida
   arrancarlo, probablemente después de Hito 22 (Gemini import)
   para que el mapping cubra dos providers de una.
 - Observación menor del smoke test: las citations de browsing de
   ChatGPT (`citeturn0search8`, etc.) pasan literal al `.md` porque
   son tokens inline dentro del `text` content_type, no un type
   separado. Si molesta, sumar un post-process al texto que las
-  reemplace por footnotes — hito chico aparte, no bloqueante.
+  reemplace por footnotes, hito chico aparte, no bloqueante.
 
 ---
 
-## 2026-04-26 — Botón "Copiar y abrir Chrome" en el sidebar (v0.11.1)
+## 2026-04-26, Botón "Copiar y abrir Chrome" en el sidebar (v0.11.1)
 
 ### Qué hicimos
 UX polish chiquito que cierra una asimetría que el user notó: el
@@ -3179,7 +3179,7 @@ flow de auto-pair (copia el token + abre `claude.ai` con
 `#exportal-pair=<hex>` para que el Companion lo capture) hasta hoy
 solo vivía en el panel webview que abre `Ctrl+Shift+P` →
 *Exportal: Show pairing token*. La tab del sidebar (Bridge status →
-token block) tenía solo "Copy token" — copiaba, pero después había
+token block) tenía solo "Copy token", copiaba, pero después había
 que abrir Chrome a mano y pegar.
 
 Con esta release la tab gana un segundo botón al lado del copy:
@@ -3224,7 +3224,7 @@ hace el `pair-and-open` del Ctrl+Shift+P panel.
   existente, no nueva capability. <30 líneas de código nuevo.
 
 ### Verificación
-- `npm run ci` — lint ✓, typecheck ✓, 242/242 tests ✓ (sin tests
+- `npm run ci`, lint ✓, typecheck ✓, 242/242 tests ✓ (sin tests
   nuevos), build ✓.
 
 ### Release
@@ -3232,7 +3232,7 @@ hace el `pair-and-open` del Ctrl+Shift+P panel.
   bumpeados (manifest sin cambios reales, sigue patrón histórico).
 - Vsix nuevo: `exportal-0.11.1.vsix` armado para smoke test del
   user.
-- Companion no requiere update — el fragment `#exportal-pair=<hex>`
+- Companion no requiere update, el fragment `#exportal-pair=<hex>`
   ya lo entendía desde Hito 10.
 
 ### Próximo paso
@@ -3243,7 +3243,7 @@ hace el `pair-and-open` del Ctrl+Shift+P panel.
 
 ---
 
-## 2026-04-26 — Pair-and-open multi-IA via QuickPick (v0.11.2)
+## 2026-04-26, Pair-and-open multi-IA via QuickPick (v0.11.2)
 
 ### Qué hicimos
 Feedback del user sobre 0.11.1: el botón "Copiar y abrir Chrome"
@@ -3333,7 +3333,7 @@ hay una sola fuente de verdad.
   de 0.11.1 sin nueva capability principal. Patch (0.11.2) cubre.
 
 ### Verificación
-- `npm run ci` — lint ✓, typecheck ✓, **242/242 tests ✓** (sin
+- `npm run ci`, lint ✓, typecheck ✓, **242/242 tests ✓** (sin
   tests nuevos), build ✓.
 - Flake del cache aparece la primera corrida (1.85s, error de
   `config`); rm `node_modules/.vite` + retry → limpio. Mismo
@@ -3356,7 +3356,7 @@ hay una sola fuente de verdad.
 
 ---
 
-## 2026-04-26 — Auto-wake VS Code via `vscode://` cuando el bridge está offline (silent patch sobre v0.11.2)
+## 2026-04-26, Auto-wake VS Code via `vscode://` cuando el bridge está offline (silent patch sobre v0.11.2)
 
 ### Qué hicimos
 Silent patch (sin bump de versión, sin CHANGELOG, sin release): el
@@ -3366,7 +3366,7 @@ toast → user abría VS Code a mano → recargaba el chat → re-clickeaba
 el FAB. Ahora: `bridge_offline` → wake via `vscode://` → polling
 hasta 20s → retry. Si funciona, success transparente. Si no
 (VS Code no instalado, browser bloqueó el scheme handler, etc.),
-fallback al mismo `bridge_offline` que antes — sin regression.
+fallback al mismo `bridge_offline` que antes, sin regression.
 
 **`chrome/background.js`:**
 - Refactor: extraído `tryAllPortsForInline(body, token)` del flujo de
@@ -3397,7 +3397,7 @@ fallback al mismo `bridge_offline` que antes — sin regression.
   "mantengamos la versión y hagamoslo". Razón implícita: el feature
   es transparente al user feliz (cuando VS Code está abierto, el
   comportamiento es idéntico al de antes), y solo aporta cuando el
-  bridge falla — no merece release notes hasta que el siguiente bump
+  bridge falla, no merece release notes hasta que el siguiente bump
   legítimo lo arrastre.
 - **`chrome.tabs.create` sin `tabs` permission**: MV3 permite
   create/remove de tabs propias sin la permission (solo es needed
@@ -3413,19 +3413,19 @@ fallback al mismo `bridge_offline` que antes — sin regression.
   el user piensa que falló y conviene mostrar el error.
 - **No feedback visual durante el wait**: el FAB sigue mostrando
   `feedbackSending` ("Enviando a VS Code…") durante todo el wake +
-  retry. UX no ideal — durante 5-15s el user puede pensar que
-  cuelga — pero implementar feedback live requiere
+  retry. UX no ideal, durante 5-15s el user puede pensar que
+  cuelga, pero implementar feedback live requiere
   `chrome.runtime.sendMessage` desde background al content-script
   con eventos custom, scope creep para silent patch. Si después
   llega un report "parece colgarse", agregar el push de feedback.
 - **Confirm dialog del OS la primera vez**: "¿Abrir esto con
-  Visual Studio Code?" — friction inicial, pero el user clickea
+  Visual Studio Code?", friction inicial, pero el user clickea
   "Recordar / Always allow" y desaparece. No podemos suprimirlo;
   es policy del OS / browser.
 
 ### Verificación
-- `npm run ci` — lint ✓, typecheck ✓, 242/242 tests ✓ (sin tests
-  nuevos — la lógica nueva es network/orchestration sin pure
+- `npm run ci`, lint ✓, typecheck ✓, 242/242 tests ✓ (sin tests
+  nuevos, la lógica nueva es network/orchestration sin pure
   helpers que justifiquen unit tests; smoke test browser-real
   cubre).
 - Smoke test pendiente del user: con VS Code cerrado, click FAB en
@@ -3439,7 +3439,7 @@ fallback al mismo `bridge_offline` que antes — sin regression.
   feature nueva, o 0.11.3 si un fix lo justifica).
 - **No vsix/zip nuevos**: el user que quiera probarlo hace pull +
   reload del companion en `chrome://extensions` (carga unpacked).
-- Tests + lint del `companion` siguen verdes — el código está listo
+- Tests + lint del `companion` siguen verdes, el código está listo
   para shippear cuando el siguiente release lo lleve.
 
 ### Próximo paso
@@ -3453,34 +3453,34 @@ fallback al mismo `bridge_offline` que antes — sin regression.
 
 ---
 
-## 2026-04-29 (cierre) — Limpieza final del día
+## 2026-04-29 (cierre), Limpieza final del día
 
 ### Qué hicimos
 Barrido de hygiene antes de cerrar la sesión más larga del proyecto.
 Cinco issues encontrados y resueltos en una pasada.
 
 ### Issues encontrados + fix
-1. **`console.log` huérfano en `src/extension/extension.ts:174`** —
+1. **`console.log` huérfano en `src/extension/extension.ts:174`**,
    debug residual del flow del URI handler ("Exportal: URI handler
    invoked"). Removido. ESLint marcó `uri` como param sin uso, lo
    renombré a `_uri` para honrar la convención del repo. El comment
    adjacente se actualizó para reflejar que el handler es no-op por
    diseño.
-2. **2 vulnerabilidades moderate en npm audit** — ambas transitivas
+2. **2 vulnerabilidades moderate en npm audit**, ambas transitivas
    en `@azure/msal-node` (vsce dependency). `npm audit fix`
    resolvió clean: **0 vulnerabilities**, `package-lock.json`
    updated.
-3. **README.md y README.vsix.md sin link a `exportal.dev`** — la
+3. **README.md y README.vsix.md sin link a `exportal.dev`**, la
    landing está live hace horas pero los READMEs no la
    referenciaban. Agregado en el callout `> Status` de ambos.
-4. **`docs/screenshots/exportal-marquee-1400x560.png` untracked** —
+4. **`docs/screenshots/exportal-marquee-1400x560.png` untracked**,
    el marquee con bug de generación que sacamos de la landing. Lo
    borré local (estaba en `git status` como untracked desde el
    2026-04-26).
-5. **Vsix/zip artifacts en root** — ~30 archivos `exportal-*.vsix`
+5. **Vsix/zip artifacts en root**, ~30 archivos `exportal-*.vsix`
    y `exportal-companion-*.zip` de releases viejos. Están
    gitignored así que no se commitean, pero ocupan ~50MB en el
-   working dir. Decisión: **dejar como están** — Dioni puede
+   working dir. Decisión: **dejar como están**, Dioni puede
    borrarlos cuando quiera con `rm exportal-*.{vsix,zip}` o
    conservarlos como referencia histórica de releases pasados.
 
@@ -3512,9 +3512,9 @@ hasta hoy. Para referencia de scope:
 | 7 | `649d471` | GIF demo en README + Marketplace + landing |
 | 8 | `513f215` | Perf hints para LCP (no movieron la aguja) |
 | 9 | `22e8e8c` | GIF→MP4 swap, Lighthouse 100/100 |
-| 10 | `09226b5` | README MP4 — bare URL |
-| 11 | `b52d844` | README MP4 — `<video>` tag con URL absoluta |
-| 12 | `21f05a9` | README MP4 — user-attachments URL (la que funcionó) |
+| 10 | `09226b5` | README MP4, bare URL |
+| 11 | `b52d844` | README MP4, `<video>` tag con URL absoluta |
+| 12 | `21f05a9` | README MP4, user-attachments URL (la que funcionó) |
 | 13 | `739714c` | DEVLOG noche |
 | 14 | `9e5371b` | Auto-recovery del pairing token (ROADMAP backlog) |
 | 15 | `fcee211` | Hito 14: orgs en paralelo |
@@ -3543,15 +3543,15 @@ propagado, HTTPS cert emitido.
 **ROADMAP backlog activo después del cierre de hoy:**
 - Imágenes inline del export de ChatGPT (Tier 3 del Hito 21).
 - Flake intermitente del CI en Windows (no reproducible).
-- Hito 16 — Soporte para artifacts de claude.ai.
-- Hito 17 — Export parcial ("desde mensaje X").
+- Hito 16, Soporte para artifacts de claude.ai.
+- Hito 17, Export parcial ("desde mensaje X").
 
 Hito 14 y "Auto-recovery del pairing token" cerrados hoy y
 removidos del ROADMAP.
 
 ---
 
-## 2026-04-29 (noche, después aún) — Hito 14: probar orgs de claude.ai en paralelo
+## 2026-04-29 (noche, después aún), Hito 14: probar orgs de claude.ai en paralelo
 
 ### Qué hicimos
 Cerramos el Hito 14 del backlog (latency multi-org). Estaba marcado
@@ -3563,7 +3563,7 @@ líneas con cero riesgo y mismo patrón que ya usamos hoy a la mañana
 `fetchConversation` en el Chrome companion iteraba las orgs del
 user en serie hasta encontrar la que tenía el chat. Para users con
 1-2 orgs no se nota; para 3+ orgs el último org acertado paga
-sum(N) en el peor caso — entre 100 y 500ms de spinner extra antes
+sum(N) en el peor caso, entre 100 y 500ms de spinner extra antes
 de empezar el export real.
 
 ### El fix
@@ -3605,7 +3605,7 @@ ganancia de latencia perceptible para el percentil afectado.
   tests para fetchConversation requiere mocks de fetch que la
   test infrastructure no tiene hoy).
 
-### Sin tests nuevos — justificación
+### Sin tests nuevos, justificación
 El cambio no introduce paths nuevos: emite los mismos errores
 (`no_org`, `session_expired`, `claude_api_*`, `not_found`) en las
 mismas condiciones. La única diferencia observable es el orden de
@@ -3613,23 +3613,23 @@ ejecución (paralelo vs serial), que no es testeable sin tooling de
 timing y no afecta la API contract.
 
 ### Release / distribución
-Sin bump por ahora — silent patch en main. En el próximo release
+Sin bump por ahora, silent patch en main. En el próximo release
 oficial agregamos al CHANGELOG: *"Multi-org users see ~100-500ms
-faster chat exports — orgs are now probed in parallel instead of
+faster chat exports, orgs are now probed in parallel instead of
 sequentially"*.
 
 ---
 
-## 2026-04-29 (noche, después) — Auto-recovery del pairing token cuando el companion lo pierde
+## 2026-04-29 (noche, después), Auto-recovery del pairing token cuando el companion lo pierde
 
 ### Qué hicimos
 Cerramos el ítem del backlog del ROADMAP que llevaba meses
 abierto: cuando el chrome.storage del companion se resetea (fresh
 unpacked install, browser data wipe, etc.), el FAB en claude.ai/
-chatgpt.com fallaba con un mensaje opaco "Error — see console" y
+chatgpt.com fallaba con un mensaje opaco "Error, see console" y
 el user no tenía guía para recuperarse. Ahora cuando el background
 retorna `no_token`, el FAB muestra un mensaje específico
-("Pairing needed — opening Options…" / "Falta emparejar — abriendo
+("Pairing needed, opening Options…" / "Falta emparejar, abriendo
 Opciones…") Y abre programáticamente la Options page con el campo
 para pegar el token. Cero acción extra del user.
 
@@ -3638,8 +3638,8 @@ para pegar el token. Cero acción extra del user.
    `explainError`. Antes caía a `errGeneric` por default.
 2. `chrome/_locales/{en,es}/messages.json`: nuevo string
    `errNoToken`:
-   - en: *"Pairing needed — opening Options…"*
-   - es: *"Falta emparejar — abriendo Opciones…"*
+   - en: *"Pairing needed, opening Options…"*
+   - es: *"Falta emparejar, abriendo Opciones…"*
 3. `chrome/content-script.js`: nueva helper
    `maybeOpenOptionsForNoToken(err)` que duck-typea el error y, si
    matchea `'no_token'`, fire-and-forget
@@ -3654,7 +3654,7 @@ para pegar el token. Cero acción extra del user.
 ### Decisiones técnicas
 - **Open options inmediato vs. delayed**: descartamos el delay
   (esperar 2 clicks o 5s antes de abrir) porque `no_token` solo
-  aparece cuando el companion está genuinamente sin token — el
+  aparece cuando el companion está genuinamente sin token, el
   user no puede hacer NADA hasta pairear, entonces abrir options
   on-demand es exactamente lo que necesita.
 - **Fire-and-forget vs. await**: el `sendMessage` no se awaitea.
@@ -3674,7 +3674,7 @@ para pegar el token. Cero acción extra del user.
   abrirse la Options page con la card en estado 'waiting'.
 
 ### Release / distribución
-- Sin bump por ahora — silent patch acumulado en main. Cuando
+- Sin bump por ahora, silent patch acumulado en main. Cuando
   salga el próximo release oficial (probably 0.11.3 o 0.12.0),
   agregamos al CHANGELOG: *"Auto-recovery del pairing token: el
   FAB ahora abre solo la pestaña de Opciones cuando detecta que el
@@ -3682,7 +3682,7 @@ para pegar el token. Cero acción extra del user.
 
 ---
 
-## 2026-04-29 (noche) — Landing 100/100 en Lighthouse + video embed en README
+## 2026-04-29 (noche), Landing 100/100 en Lighthouse + video embed en README
 
 ### Qué hicimos
 Loop de optimización sobre la landing publicada esa misma tarde,
@@ -3697,7 +3697,7 @@ README además de en la landing.
    bound en Slow 4G (1.6 Mbps × 4s = ~5s).
 2. **Quick wins gratuitos** intentados primero: `<link rel="preload"
    as="image">` + `fetchpriority="high"` + `decoding="async"` en el
-   `<img>`. Resultado: nada — LCP siguió en 5.4s. Confirmó que el
+   `<img>`. Resultado: nada, LCP siguió en 5.4s. Confirmó que el
    problema es el peso del archivo, no la prioridad de scheduling.
 3. **Path real**: re-encoding del MP4 original (22.6 MB que Dioni
    ya tenía) a un MP4 chico via ffmpeg con
@@ -3716,7 +3716,7 @@ README además de en la landing.
 ### El problema del video en GitHub README
 GitHub markdown sanitiza `<video>` tags incluso con `src` absoluto.
 URL bare (`https://...exportal-demo.mp4` sola en una línea)
-tampoco autoembeba — se renderiza como link de download.
+tampoco autoembeba, se renderiza como link de download.
 
 **Solución que funciona**: subir el archivo via la UI de GitHub
 (arrastrar al comment box de un issue nuevo, sin submitear el
@@ -3745,13 +3745,13 @@ renderer distinto).
   recomprime de origen mejor que de un asset ya comprimido).
 
 ### Commits del loop (cronológico)
-1. `513f215` — preload + fetchpriority hints (no movió la aguja).
-2. `22e8e8c` — swap GIF (816 KB) → MP4 (165 KB). Lighthouse 100.
-3. `09226b5` — README primera intent: bare URL. Falló (renderizó
+1. `513f215`, preload + fetchpriority hints (no movió la aguja).
+2. `22e8e8c`, swap GIF (816 KB) → MP4 (165 KB). Lighthouse 100.
+3. `09226b5`, README primera intent: bare URL. Falló (renderizó
    como link).
-4. `b52d844` — README segundo intent: `<video>` tag con URL
+4. `b52d844`, README segundo intent: `<video>` tag con URL
    absoluta. Falló (GitHub stripeó el tag).
-5. `21f05a9` — README tercer intent: user-attachments URL. **Funciona**.
+5. `21f05a9`, README tercer intent: user-attachments URL. **Funciona**.
 
 ### Lo que ya queda perfecto
 - ✅ Landing 100/100/100/100 en mobile + desktop.
@@ -3766,7 +3766,7 @@ sigue siendo Chrome Web Store con la 0.5.7 trabada.
 
 ---
 
-## 2026-04-29 (tarde) — Landing en exportal.dev + OSS signals para awesome-lists
+## 2026-04-29 (tarde), Landing en exportal.dev + OSS signals para awesome-lists
 
 ### Qué hicimos
 Sesión de tarde (después de la entrada de la mañana). Construimos
@@ -3791,7 +3791,7 @@ señales de OSS maturity en el repo, y SEO essentials.
 - Animaciones: hero entrance staggered, sections reveal-on-scroll
   via IntersectionObserver, FAQ smooth expand JS-driven con
   scrollHeight medido (la primera versión usaba `grid-template-rows`
-  pero no animaba consistente — pivot a `height` explícito).
+  pero no animaba consistente, pivot a `height` explícito).
 - Favicon: copia de `assets/icon.svg` + `.png` a `docs/favicon.*`,
   con `<link>` priorizando SVG.
 - Decisión clave durante la iteración: las screenshots actuales
@@ -3799,7 +3799,7 @@ señales de OSS maturity en el repo, y SEO essentials.
   Code", "Ahora también ChatGPT") generadas para Chrome Web Store.
   No representan al producto funcionando, y mismatch con el inglés
   de la landing. Reemplazamos "See it in action" por "Under the
-  hood" — un Markdown sample real (frontmatter + `## User`/
+  hood", un Markdown sample real (frontmatter + `## User`/
   `## Assistant` + thinking + tool_use) y un diagrama SVG hand-
   drawn. Más honesto y técnicamente convincente que slides
   decoradas. Una versión polished del diagrama queda en queue
@@ -3815,9 +3815,9 @@ mantenimiento activo. Faltaban 3 de esas 5. Cerrado:
   3 piezas (Chrome companion + VS Code extension + CLI), cómo
   testear el bridge end-to-end, convenciones de commit (feat/
   fix/docs/chore con scopes), what we say no to (telemetry,
-  bidirectional sync, etc — copiado de ROADMAP), CoC reference.
+  bidirectional sync, etc, copiado de ROADMAP), CoC reference.
 - `CODE_OF_CONDUCT.md`: versión slim. **No inlineamos** el texto
-  del Contributor Covenant 2.1 — lo referenciamos por URL
+  del Contributor Covenant 2.1, lo referenciamos por URL
   canónica. Los content classifiers de Anthropic flagean el texto
   literal del Covenant cuando lo genera un LLM (falso positivo
   por las listas de prohibited behaviors), entonces pivotamos a
@@ -3830,7 +3830,7 @@ mantenimiento activo. Faltaban 3 de esas 5. Cerrado:
   changes flag.
 - `.github/FUNDING.yml`: archivo placeholder con todas las
   plataformas comentadas. Cuando Dioni active GitHub Sponsors o
-  Ko-fi se descomentan las líneas relevantes — hasta entonces
+  Ko-fi se descomentan las líneas relevantes, hasta entonces
   GitHub no muestra botón roto.
 
 ### SEO essentials para la landing
@@ -3842,7 +3842,7 @@ mantenimiento activo. Faltaban 3 de esas 5. Cerrado:
 Cambiamos `.claude/settings.local.json` por `.claude/` (carpeta
 entera). Defense-in-depth: cualquier archivo futuro que Claude
 Code cree dentro de `.claude/` queda automáticamente afuera.
-Verificado con `git check-ignore` — `.claude/anything.json` ya
+Verificado con `git check-ignore`, `.claude/anything.json` ya
 matchea la regla.
 
 ### Inventario de assets disponibles para el día de submissions
@@ -3871,7 +3871,7 @@ GIF + screenshots cuando Dioni tenga ganas.
 
 ---
 
-## 2026-04-29 — Plan de visibilidad acordado + READMEs traducidos al inglés
+## 2026-04-29, Plan de visibilidad acordado + READMEs traducidos al inglés
 
 ### Qué hicimos
 Sesión de planificación estratégica que arrancó importando a este
@@ -3880,10 +3880,10 @@ claude.ai (chat "Exportal Companion extension", 28 mensajes, UUID
 `00ef7e7b-04fe-4082-878d-2a9cca29df04`). Los docs viven hoy en
 `.exportal/` y son input puntual, no parte del repo:
 
-1. `1-exportal-plan-negocio.md` — posicionamiento, modelos de negocio,
+1. `1-exportal-plan-negocio.md`, posicionamiento, modelos de negocio,
    competencia, riesgos.
-2. `2-exportal-ejecucion.md` — semana 1-4 día por día.
-3. `3-exportal-ejemplos-copy.md` — copy listo para Chrome/VS Code
+2. `2-exportal-ejecucion.md`, semana 1-4 día por día.
+3. `3-exportal-ejemplos-copy.md`, copy listo para Chrome/VS Code
    listings, awesome-lists PRs/Issues, Reddit, X, Show HN, dev.to,
    landing HTML.
 
@@ -3893,7 +3893,7 @@ ritmo de releases). Esos puntos se reportaron y se ajustaron antes
 de ejecutar.
 
 ### Decisiones cerradas (todas guardadas en memoria de Claude Code)
-- **Licencia: MIT.** Closed source no protege — el `.crx` y `.vsix`
+- **Licencia: MIT.** Closed source no protege, el `.crx` y `.vsix`
   ya están a la vista. Audiencia técnica trata MIT como filtro de
   instalación, sobre todo en una extensión que toca cookies de
   sesión y abre HTTP local.
@@ -3949,7 +3949,7 @@ La versión trabada en review de Google es **0.5.7** (vieja), no la
 nueva versión saltando varias minor releases. **Mientras tanto el
 listing público de Chrome Web Store no refleja la 0.11.2** y por lo
 tanto no se puede vender "Claude.ai/ChatGPT bridge" en awesome-lists,
-Reddit, ni X — la versión publicada sigue siendo pre-ChatGPT.
+Reddit, ni X, la versión publicada sigue siendo pre-ChatGPT.
 
 Todo el lanzamiento coordinado (PRs/Issues a awesome-lists +
 post r/ClaudeAI + thread X + listing rewrites) queda **bloqueado
@@ -3957,8 +3957,8 @@ hasta que el ciclo de Chrome Web Store se desbloquee**. Timing
 incierto.
 
 ### Verificación
-- `npm run lint` — limpio.
-- `npm run typecheck` — limpio.
+- `npm run lint`, limpio.
+- `npm run typecheck`, limpio.
 - Build del `.vsix` no se corrió en esta sesión (cambio de
   package.json es metadata, no afecta tipos).
 
@@ -3971,12 +3971,12 @@ está trabado)
 - Armar landing page mínima en `docs/index.html` para GitHub Pages,
   con CNAME apuntando a `exportal.dev` cuando esté.
 - Verificar que el `.vsix` se sigue empaquetando limpio
-  (`npm run package:vsix`) — opcional, prudente antes de un
+  (`npm run package:vsix`), opcional, prudente antes de un
   futuro publish.
 
 ---
 
-## 2026-04-26 — Iteración del auto-wake hasta que funciona instantáneo (silent patches sobre v0.11.2)
+## 2026-04-26, Iteración del auto-wake hasta que funciona instantáneo (silent patches sobre v0.11.2)
 
 ### Qué hicimos
 La primera versión del auto-wake (entry anterior, commit `fd2cf6c`)
@@ -3986,37 +3986,37 @@ sleep por eviction del SW. Lo que siguió fueron 8 commits
 incrementales hasta llegar a un flow que el user verificó como
 "INSTANTANEO" end-to-end.
 
-Toda la iteración se hizo como **silent patches sobre v0.11.2**
-— sin bumpear versión, sin entries en CHANGELOG, sin release.
+Toda la iteración se hizo como **silent patches sobre v0.11.2**,
+sin bumpear versión, sin entries en CHANGELOG, sin release.
 Cuando se publique el próximo bump (0.11.3 o 0.12.0), todo este
 trabajo viaja consolidado en un solo bullet de release notes.
 
 ### Commits del silent patch (cronológico)
-1. `fd2cf6c` — Primera versión: wake desde el SW con
+1. `fd2cf6c`, Primera versión: wake desde el SW con
    `chrome.tabs.create`. **No funcionó** (sin user gesture context
    + SW eviction durante polling).
-2. `bddadc5` — Cambia URL de bare `vscode://` a
+2. `bddadc5`, Cambia URL de bare `vscode://` a
    `vscode://dioniipereyraa.exportal/wake` + logging diagnóstico.
    Sigue sin funcionar pero los logs dejaron rastro.
-3. `16edc47` — **Refactor mayor**: wake + polling se mueven al
+3. `16edc47`, **Refactor mayor**: wake + polling se mueven al
    content-script. Iframe oculto preserva user gesture; polling
    en page context no se evicta. Wake **abre VS Code** por
    primera vez, pero el feature todavía es lento.
-4. `7718af6` — Detección rápida de offline (quick `isBridgeReachable`
+4. `7718af6`, Detección rápida de offline (quick `isBridgeReachable`
    antes del POST grande) + wake budget 20s → 60s.
-5. `cd002df` — Single-payload export flow: ping pre-check + wake +
+5. `cd002df`, Single-payload export flow: ping pre-check + wake +
    un único POST en vez del antiguo "POST fail → wake → POST otra
    vez". Polling 800ms → 400ms.
-6. `cc86bfc` — **Defeat tab throttling**: el polling se mueve de
+6. `cc86bfc`, **Defeat tab throttling**: el polling se mueve de
    nuevo al SW pero esta vez vía Port persistente (`chrome.runtime.connect`
    → `pollBridgeReady`). El Port keep-alive previene eviction;
    y el SW no se throttla por tab visibility (cuando el user
    cambiaba de pestaña, el polling se congelaba en page context).
-7. `071912f` — `onUri` activation event en la VS Code extension
+7. `071912f`, `onUri` activation event en la VS Code extension
    + UriHandler no-op + paralelizar fetch chat con
    `ensureBridgeReady` + polling 100ms → 50ms.
-8. `6568ef0` — **El que finalmente lo arregló**: los logs del
-   user mostraron `pingBridge: 20165ms` — totalmente fuera de lo
+8. `6568ef0`, **El que finalmente lo arregló**: los logs del
+   user mostraron `pingBridge: 20165ms`, totalmente fuera de lo
    esperado. Causa: `isBridgeReachable` iteraba 10 ports en
    serie, y en máquinas con firewall estricto (Windows con AV)
    los fetches a ports cerrados esperan TCP timeout (~2s c/u)
@@ -4027,7 +4027,7 @@ trabajo viaja consolidado en un solo bullet de release notes.
 
 ### Decisiones técnicas (consolidadas)
 - **Iframe wake desde el content-script, no SW**: dos razones
-  ortogonales — (a) custom-scheme dispatch necesita user gesture
+  ortogonales, (a) custom-scheme dispatch necesita user gesture
   recent, que vive en la página y se pierde al pasar por
   `chrome.runtime.sendMessage`; (b) el iframe permite no abrir una
   pestaña visible (vs `chrome.tabs.create` que crea una tab que
@@ -4039,7 +4039,7 @@ trabajo viaja consolidado en un solo bullet de release notes.
   estable + cadencia rápida (50ms).
 - **`onUri` activation event**: la extensión Exportal se activa
   específicamente cuando llega `vscode://dioniipereyraa.exportal/wake`,
-  ahead of `onStartupFinished`. UriHandler es no-op — el activate
+  ahead of `onStartupFinished`. UriHandler es no-op, el activate
   itself es el punto. Probable ahorro: 5-15s en setups con muchas
   extensions.
 - **Parallel + timeboxed probes**: el bug del 20s revela que
@@ -4048,12 +4048,12 @@ trabajo viaja consolidado en un solo bullet de release notes.
   defensive enough para no asumir nada del entorno del user.
 - **No GUI feedback durante el cold start**: el FAB cambia el label
   a "Abriendo VS Code…" durante el wait. Sin progress bar ni
-  spinner extra — es suficiente para que el user sepa que estamos
+  spinner extra, es suficiente para que el user sepa que estamos
   esperando, no colgados.
 
 ### Verificación final
 Logs del user en la última iteración (post-`6568ef0`):
-- `pingBridge: ~500ms ok: false` (vs 20165ms antes — fix del firewall).
+- `pingBridge: ~500ms ok: false` (vs 20165ms antes, fix del firewall).
 - `Launched external handler for 'vscode://dioniipereyraa.exportal/wake'`.
 - `waitForBridge: ~5s ready: true` (cold start real de VS Code, sin
   bug del firewall añadiendo 20s).
@@ -4083,7 +4083,7 @@ Logs del user en la última iteración (post-`6568ef0`):
 
 ---
 
-## 2026-04-29 (madrugada) — Email Routing setup + página /support con form de contacto
+## 2026-04-29 (madrugada), Email Routing setup + página /support con form de contacto
 
 ### Qué hicimos
 Cerramos la pieza de canal de soporte público que faltaba para
@@ -4098,7 +4098,7 @@ matcheando 1-a-1 el design system de la landing.
   desde el Registrar). Custom address `support` → forward a
   `dpereyrabdev@gmail.com`. DNS records (MX route1/2/3 + TXT
   DKIM/SPF) agregados automáticamente porque el DNS también es
-  Cloudflare — un solo click "Enable Email Routing" hizo todo.
+  Cloudflare, un solo click "Enable Email Routing" hizo todo.
 - **Filter en Gmail** (necesario): regla
   `to:support@exportal.dev` → never spam + label "Exportal Support"
   + mark as important. La primera prueba cayó en Spam (mail
@@ -4111,7 +4111,7 @@ matcheando 1-a-1 el design system de la landing.
 - Subpágina del landing servida por GitHub Pages (`docs/` del
   propio repo, no subdominio aparte). URL clean `/support` via
   `docs/support/index.html` (carpeta con index, no archivo
-  `support.html` — GH Pages no reescribe extensiones por default).
+  `support.html`, GH Pages no reescribe extensiones por default).
 - **Match exacto del design system de docs/index.html**: light
   theme, blue accent `#1d4ed8`, system font stack, sticky header
   con brand "Exportal" + nav (con Support marcado como `current`),
@@ -4127,14 +4127,14 @@ matcheando 1-a-1 el design system de la landing.
   pidiendo versión + steps + screenshots).
 - **Submit AJAX** (no redirect a thank-you de Web3Forms): feedback
   inline en la misma página con tres estados visuales (sending /
-  success / error con paletas coherentes al design system —
+  success / error con paletas coherentes al design system,
   `--accent-soft` para success, `#fef2f2` para error). Form se
   resetea solo al éxito.
 - mailto en el hero como fallback para usuarios que prefieren su
   mail client (preserva ambas opciones sin duplicar info).
-- Sección "Before you write — quick checks" con los 4 buckets
+- Sección "Before you write, quick checks" con los 4 buckets
   más comunes de reports (pairing, badges OFF/AUTH/OLD, dónde se
-  guardan los exports, qué incluir en bug report) — self-help antes
+  guardan los exports, qué incluir en bug report), self-help antes
   del form para reducir noise.
 - Sección "Resources" como grid de `.feature` cards (mismo
   componente que la home) linkeando docs, changelog, security,
@@ -4143,7 +4143,7 @@ matcheando 1-a-1 el design system de la landing.
 ### Decisiones técnicas
 - **Email-first vs Issues-only para support**: el user prefería
   cero Issues públicas (miedo de "perder control del repo").
-  Aclarado: Issues abiertos NO dan write access — nadie puede
+  Aclarado: Issues abiertos NO dan write access, nadie puede
   modificar el repo sin colaborador status, los PRs son no-ops
   hasta que clickeás Merge. Camino del medio elegido: Issues
   siguen abiertos como trust signal (proyecto vivo, "no esconden
@@ -4166,7 +4166,7 @@ matcheando 1-a-1 el design system de la landing.
   ocupaban el apex. **Pivot a Opción A**: servir `/support` desde
   `docs/support/` del mismo repo, sin tocar DNS. Worker
   `small-resonance-3de0` eliminado por cleanup. Lección: el
-  user dijo "el repo es este ClaudeTool" — confirmé via DNS
+  user dijo "el repo es este ClaudeTool", confirmé via DNS
   inspection + grep local + `find` que la landing efectivamente
   vive en `docs/` (no en repo `dioniipereyraa.github.io` aparte
   como había asumido inicialmente).
@@ -4215,7 +4215,7 @@ matcheando 1-a-1 el design system de la landing.
   vive en `docs/support/` ahora).
 
 ### Release / distribución
-**Sin bump** — esta sesión no toca código de la extensión. Cambios
+**Sin bump**, esta sesión no toca código de la extensión. Cambios
 viven en landing (`docs/`), `package.json` (metadata) y
 `chrome/manifest.json` (homepage_url). El próximo release oficial
 viajará con todos los silent patches acumulados sobre 0.11.2.
@@ -4225,11 +4225,11 @@ viajará con todos los silent patches acumulados sobre 0.11.2.
   asistencia" del listing de Chrome Web Store y mandar a review.
 - (Opcional, post-aprobación) Verificar exportal.dev en Search
   Console (TXT record en Cloudflare) para activar el badge "URL
-  oficial verificada" en el listing — agregado al ROADMAP near-term.
+  oficial verificada" en el listing, agregado al ROADMAP near-term.
 
 ---
 
-## 2026-04-29 (madrugada, después) — Chrome Web Store 0.11.2 enviado a revisión
+## 2026-04-29 (madrugada, después), Chrome Web Store 0.11.2 enviado a revisión
 
 ### Qué hicimos
 Cierre del loop completo de listing prep y submission a Chrome Web
@@ -4239,7 +4239,7 @@ descripción multi-IA, política de privacidad pública, y el zip
 con todos los cambios de manifest. Al final: pre-flight check de
 7 items con OK del user, submit a review.
 
-### Pivot estratégico — Camino 2: reemplazar 0.5.7 con 0.11.2
+### Pivot estratégico, Camino 2: reemplazar 0.5.7 con 0.11.2
 La estrategia previa (memory `project_exportal_strategy.md`) era
 "esperar que Google apruebe 0.5.7, después subir nueva versión".
 Llevaba semanas trabada. Cuando empezamos a llenar el form de
@@ -4255,15 +4255,15 @@ la cola de Chrome Web Store. Pros: una sola review (código +
 listing en una pasada), manifest consistente con justificaciones,
 nuevo título descriptivo entra en este ciclo sin esperar otro
 upload, listing público refleja multi-IA. Contras: cancelar 0.5.7
-podía perder posición de cola — pero llevaba semanas sin moverse,
+podía perder posición de cola, pero llevaba semanas sin moverse,
 así que cero costo real.
 
 ### Listing title descriptivo (en + es localizados)
 - `chrome/_locales/en/messages.json` → `extName`:
-  *"Exportal — Bridge between Claude.ai/ChatGPT and Claude Code"*
+  *"Exportal, Bridge between Claude.ai/ChatGPT and Claude Code"*
   (58 chars, dentro de los 75 que soporta el store).
 - `chrome/_locales/es/messages.json` → `extName`:
-  *"Exportal — Puente entre Claude.ai/ChatGPT y Claude Code"*.
+  *"Exportal, Puente entre Claude.ai/ChatGPT y Claude Code"*.
 - VS Code Marketplace en paralelo: `package.json` `displayName`
   cambiado de literal `"Exportal"` a `"%extension.displayName%"`
   + nueva key `extension.displayName` en `package.nls.json` y
@@ -4275,7 +4275,7 @@ así que cero costo real.
   Grammarly, etc.) y matchean queries reales.
 - **Brand intacto**: el nombre del producto sigue siendo "Exportal"
   en todos lados (memory `project_exportal_strategy.md` decisión
-  cerrada el 2026-04-29 — no se vuelve a debatir). Lo que cambia
+  cerrada el 2026-04-29, no se vuelve a debatir). Lo que cambia
   es solo cómo se renderiza la card del listing en el store.
 
 ### Página /privacy en docs/privacy/index.html
@@ -4296,7 +4296,7 @@ así que cero costo real.
 - **Why**: campo "Política de privacidad" del Chrome Web Store es
   obligatorio cuando declarás cualquier data collection (y vamos
   a declarar Authentication info + Website content). Tener el doc
-  pre-existente como `.md` no era suficiente — Google necesita una
+  pre-existente como `.md` no era suficiente, Google necesita una
   URL HTML pública estable.
 
 ### Descripción larga: rewrite completo bilingüe
@@ -4314,7 +4314,7 @@ así que cero costo real.
 - **Why**: la descripción que estaba violaba 4 cosas: (a) framing
   "exporter" contradice posicionamiento "bridge" decidido en
   estrategia, (b) ChatGPT no aparecía pese a que el manifest lo
-  declara, (c) FAQ ausente — fricción al instalar para audiencia
+  declara, (c) FAQ ausente, fricción al instalar para audiencia
   preocupada por security/permisos, (d) sin disclaimer trademark
   Anthropic/OpenAI, riesgo de nota del reviewer.
 
@@ -4326,7 +4326,7 @@ así que cero costo real.
   cualquier chat a tu workspace de VS Code como Markdown, y
   continuá."*
 - **Tweak final del user**: la primera versión usaba em-dash
-  (`Markdown — and continue it`). User pidió swap por coma porque
+  (`Markdown, and continue it`). User pidió swap por coma porque
   el em-dash creaba un peso/pausa que no aportaba en una copy tan
   corta. Swappeado a coma en ambos locales.
 - Ese campo se lee del `.crx` del manifest, no se puede editar
@@ -4351,7 +4351,7 @@ así que cero costo real.
    dashboard (con título nuevo + short description nuevo + coma).
 2. ✅ Descripción larga bilingüe pegada en el dashboard.
 3. ✅ Screenshots s1, s2, s3, s6 subidas en ese orden (s0 retirada
-   por nicho-dentro-de-nicho — Claude Design solo).
+   por nicho-dentro-de-nicho, Claude Design solo).
 4. ✅ URL página principal: `https://exportal.dev/`.
 5. ✅ URL asistencia: `https://exportal.dev/support`.
 6. ✅ URL privacy policy: `https://exportal.dev/privacy`.
@@ -4363,7 +4363,7 @@ Cualquier rebote llegará por mail al user; trabajamos sobre el
 reason cuando llegue.
 
 ### Release / distribución
-**Sin bump** — toda esta sesión es metadata + landing + locales,
+**Sin bump**, toda esta sesión es metadata + landing + locales,
 no toca código de runtime de la extensión. La 0.11.2 sigue siendo
 el version number tanto del manifest del .crx como del package.json
 del .vsix. Próximo bump (probable 0.11.3 o 0.12.0) cuando entre el
@@ -4372,11 +4372,11 @@ oficial con CHANGELOG entry.
 
 ### Próximo paso
 - **Esperar aprobación Chrome Web Store** (1-3 días típico, pero
-  Google ha sido lento últimamente — tracking en ROADMAP near-term).
+  Google ha sido lento últimamente, tracking en ROADMAP near-term).
 - **vsce publish 0.11.2** al VS Code Marketplace cuando Dioni
   configure el PAT de Microsoft (para que el `displayName` nuevo
   tome efecto allá también). Bloqueante listado en ROADMAP.
-- **Cuando apruebe**: ejecutar plan de visibilidad — awesome-lists,
+- **Cuando apruebe**: ejecutar plan de visibilidad, awesome-lists,
   Reddit r/ClaudeAI, X thread, Show HN (copy ya preparado en
   `.exportal/3-exportal-ejemplos-copy.md`).
 - **Post-aprobación opcional**: verificar exportal.dev en Search
@@ -4385,14 +4385,14 @@ oficial con CHANGELOG entry.
 
 ---
 
-## 2026-04-29 (madrugada, después aún) — Audit + parche 0.11.3
+## 2026-04-29 (madrugada, después aún), Audit + parche 0.11.3
 
 ### Qué hicimos
 Después de cerrar el ciclo de submission a Chrome Web Store, el
 user pidió un sweep profundo del código buscando bugs / vulns /
 stale code. Hice el audit completo (registro en
-`AUDIT-2026-04-29.md`), categoricé por severidad — 0 HIGH, 7
-MEDIUM, 10 LOW de 17 hallazgos totales — y después arreglé 14 de
+`AUDIT-2026-04-29.md`), categoricé por severidad, 0 HIGH, 7
+MEDIUM, 10 LOW de 17 hallazgos totales, y después arreglé 14 de
 los 17 en una sola tanda, taggeada como release 0.11.3.
 
 ### Audit findings cerrados
@@ -4404,16 +4404,16 @@ los 17 en una sola tanda, taggeada como release 0.11.3.
 - Cobertura del path redactor pasó a incluir `/var/`, `/etc/`,
   `/opt/`, `/srv/`, `/mnt/`, `/tmp/` y el shortcut `~/`. El negative
   lookbehind sigue protegiendo URLs (`https://example.com/etc/x` no
-  matchea — verificado en test).
+  matchea, verificado en test).
 - Origin check defensa-in-depth en el HTTP bridge: si la request
   trae `Origin` y NO es `chrome-extension://*`, retorna 403. Sin
   Origin pasa (curl, internal). El bearer sigue siendo el security
   boundary real, esto es solo otra capa.
 - Cap de 200 MB en `readJsonl` para defender contra archivos
   `.jsonl` patológicos en `~/.claude/projects/`.
-- (Skipped) Token plaintext en `chrome.storage.local` — threat
+- (Skipped) Token plaintext en `chrome.storage.local`, threat
   model documentado, fuera de scope. (Skipped) Zip-bomb protection
-  — el cap de 50 MB upstream ya da defensa práctica.
+ , el cap de 50 MB upstream ya da defensa práctica.
 
 **Bugs (2/3)**:
 - Links muertos "docs" y "changelog" en el panel Exportal del
@@ -4422,7 +4422,7 @@ los 17 en una sola tanda, taggeada como release 0.11.3.
   para evitar que un futuro tweak los convierta en open redirect.
 - Comparación NaN en Content-Length: `Number.isFinite` guard para
   que el early reject funcione cuando el header llega no-numérico.
-- (Skipped) `actionInFlight` race en navigation rápida — edge case
+- (Skipped) `actionInFlight` race en navigation rápida, edge case
   sin impacto de seguridad ni datos.
 
 **Código viejo / stale (8/8)**:
@@ -4431,7 +4431,7 @@ los 17 en una sola tanda, taggeada como release 0.11.3.
   chatgpt.com) en vez de solo claude.ai.
 - JSDoc de `activate()` en `extension.ts` actualizado a multi-IA.
 - Status bar tooltip: `'Import claude.ai conversation'` →
-  `'Exportal — import an AI conversation'`.
+  `'Exportal, import an AI conversation'`.
 - `formatRelativeTime` traducido al inglés (`'3h ago'`, `'1 day
   ago'`, etc.) per la decisión de inglés-primario del 2026-04-29.
   Tests reescritos.
@@ -4451,7 +4451,7 @@ los 17 en una sola tanda, taggeada como release 0.11.3.
   envían Origin, (b) hay clientes legítimos sin Origin (curl
   para diagnóstico), (c) el bearer ya bloquea cualquier ataque
   real. La defensa solo cierra el caso de un sitio malicioso
-  con `Origin: https://evil.com` — improbable pero "para qué no".
+  con `Origin: https://evil.com`, improbable pero "para qué no".
 - **PEM regex con `[\s\S]*?` lazy** en vez del flag `s` (multi-
   line dot) por compatibilidad con vitest's vm sandbox que en
   algunos paths no acepta el flag.
@@ -4459,18 +4459,18 @@ los 17 en una sola tanda, taggeada como release 0.11.3.
   variantes válidas que documenta Stripe sin extender a
   webhook signing keys (`whsec_`) por riesgo de FP.
 - **Tests del PEM check** verifican que el contenido entre
-  BEGIN/END también desaparece — protege contra una regresión
+  BEGIN/END también desaparece, protege contra una regresión
   en la que la regex matchee solo el envelope.
 
 ### Verificación
 - `npm run lint` ✓
 - `npm run typecheck` ✓
-- `npm test` ✓ — 252/252 tests pasan (subió de 243 con los 9
+- `npm test` ✓, 252/252 tests pasan (subió de 243 con los 9
   nuevos para patterns extendidos del redactor).
 - `npm run ci` (lint + typecheck + test + build) ✓ end-to-end.
 
 ### Release / distribución
-**Bump a 0.11.3** — primer bump después de toda la cadena de
+**Bump a 0.11.3**, primer bump después de toda la cadena de
 silent patches sobre 0.11.2 (auto-recovery del companion, parallel
 org probing, listings rebrand, /support page, /privacy page, multi-
 IA descriptive title, audit-driven cleanup). El bump consolida
@@ -4496,14 +4496,14 @@ publishes desbloquean el nuevo título descriptivo en los listings.
 
 ---
 
-## 2026-04-30 — Hito 30 · Onboarding wizard de instalación (dos pasos)
+## 2026-04-30, Hito 30 · Onboarding wizard de instalación (dos pasos)
 
 ### Qué hicimos
 Reescribimos el webview de pairing (primer arranque + comando
 "Show pairing token") para separar la **instalación del companion
 de Chrome** del **paso de pairing**. El layout viejo asumía que el
 companion ya estaba instalado y solo mostraba el token + el botón
-"Copy and open Chrome" — un usuario nuevo sin companion clickeaba
+"Copy and open Chrome", un usuario nuevo sin companion clickeaba
 ese botón, abría claude.ai con el fragment de pairing, y como nadie
 capturaba el fragment se quedaba mirando claude.ai sin entender qué
 había pasado. Funnel-killer documentado en ROADMAP como prioridad
@@ -4511,14 +4511,14 @@ inmediata del cluster Hitos 30-34 acordado el 2026-04-30 con Dioni.
 
 El wizard nuevo tiene dos secciones explícitas, cada una con su
 propio CTA primario:
-- **Step 1 — Install the Chrome companion**: botón "Get from Chrome
+- **Step 1, Install the Chrome companion**: botón "Get from Chrome
   Web Store" que abre el listing oficial
   (`https://chromewebstore.google.com/detail/lmnmekfphhpfaciehfdaonjfchbicdnm`).
-- **Step 2 — Pair with VS Code**: token visible + COPY + botón
+- **Step 2, Pair with VS Code**: token visible + COPY + botón
   "Copy token and open Chrome" (igual al anterior pero etiquetado
   más descriptivamente).
 
-Al pie un skip link discreto ("Skip — I will set this up later")
+Al pie un skip link discreto ("Skip, I will set this up later")
 reemplaza al "Later" anterior, alineando con el copy del scope.
 
 ### Cambios concretos en `extension.ts`
@@ -4527,13 +4527,13 @@ reemplaza al "Later" anterior, alineando con el copy del scope.
   wizard nuevo una vez en su próxima activación.
 - Nueva constante `CHROME_COMPANION_STORE_URL`. Stripped el param
   `?utm_source=item-share-cb` que venía en la URL que Dioni copió
-  del botón "Share" del store — ruido de tracking, no aporta.
+  del botón "Share" del store, ruido de tracking, no aporta.
 - Nuevo handler `'open-store'` en `showPairingPanel.onDidReceiveMessage`
   que llama `vscode.env.openExternal` con la URL del store.
 - `renderPairingHtml` reescrito:
   - Removido el `.stepper` inline (VS Code → Chrome → Done) que
     duplicaba lo que ahora dicen las etiquetas "Step 1/Step 2".
-  - Removido el `.token-card` wrapper como concepto separado — el
+  - Removido el `.token-card` wrapper como concepto separado, el
     token row ahora vive dentro del `<section class="step">` del
     Step 2.
   - Borrados los CSS rules `.actions`, `.token-card`, `.token-label`,
@@ -4544,7 +4544,7 @@ reemplaza al "Later" anterior, alineando con el copy del scope.
 - Toast post-pairing en `handlePairConfirmed` actualizado de
   *"Exportal: pairing complete. Chrome is ready to export chats."*
   al copy actionable que pidió el scope: *"Exportal: paired with
-  Chrome. Try it now — open a chat in claude.ai or ChatGPT and
+  Chrome. Try it now, open a chat in claude.ai or ChatGPT and
   click the Export button."*
 - JSDoc de `activate()` y comentario de `showOnboardingIfNeeded`
   actualizados a la realidad de dos steps.
@@ -4552,10 +4552,10 @@ reemplaza al "Later" anterior, alineando con el copy del scope.
 ### Decisiones técnicas
 - **No tratamos de detectar "companion ya instalado"**: Chrome no
   expone cross-extension si otra extensión está instalada. La única
-  señal fiable es el `/ping` que el companion manda al bridge —
+  señal fiable es el `/ping` que el companion manda al bridge,
   eso ya dispara `handlePairConfirmed`, que pinta el overlay de
   éxito encima del wizard entero. No vale agregar una capa de
-  "skip to step 2 if installed" que adivinaría — el usuario que ya
+  "skip to step 2 if installed" que adivinaría, el usuario que ya
   tiene el companion ignora el Step 1 y baja al Step 2.
 - **`CHROME_COMPANION_STORE_URL` como constante, no setting**: no
   hay caso real de un usuario que quisiera apuntar a otra URL.
@@ -4571,7 +4571,7 @@ reemplaza al "Later" anterior, alineando con el copy del scope.
   y "Get" es el verbo correcto para enviar al store.
 
 ### Verificación
-- `npm run ci` (lint + typecheck + test + build) ✓ — 252/252 tests
+- `npm run ci` (lint + typecheck + test + build) ✓, 252/252 tests
   siguen pasando. Ningún test referenciaba el HTML viejo (no había
   tests para `renderPairingHtml`).
 - Build de la extensión: 947 KB, sin cambio significativo de tamaño.
@@ -4583,14 +4583,14 @@ reemplaza al "Later" anterior, alineando con el copy del scope.
 ### Decidido fuera de scope para esta tanda
 - **Tests del HTML rendering**: no hay tests para `renderPairingHtml`
   hoy. Agregarlos requeriría mockear el webview API. Bajo costo,
-  bajo valor — el HTML es contenido estático y las regresiones
+  bajo valor, el HTML es contenido estático y las regresiones
   serían visuales (no testeables sin snapshot/screenshot tests).
 - **Botón "Open companion options"**: el scope original lo mencionaba
   pero `chrome://extensions/?id=...` no se puede abrir cross-app
   desde fuera de Chrome. El user que necesita las options del
   companion las abre desde el icono del companion en el toolbar.
 
-### Iteración 2 (post-smoke-test) — cleanup del QuickPick de provider
+### Iteración 2 (post-smoke-test), cleanup del QuickPick de provider
 
 Smoke test de Dioni pasó OK pero levantó una pregunta legítima:
 *"¿es necesario que pregunte si pareo con claude.ai o chatgpt.com?
@@ -4628,11 +4628,11 @@ no aportaba valor.
   `'pairing provider preference cleared...'`).
 
 **Por qué hardcodear claude.ai específicamente**:
-- Es el AI sobre el que se centra Exportal — el dominio principal
+- Es el AI sobre el que se centra Exportal, el dominio principal
   de la herramienta. ChatGPT entró después como segundo proveedor.
 - Quien sólo usa ChatGPT puede instalar el companion igual; el
   content script vive en ambos hosts. La diferencia es solo qué
-  pestaña se abre durante el pairing — irrelevante después de que
+  pestaña se abre durante el pairing, irrelevante después de que
   el companion está pareado.
 - El próximo paso (futuro hito) es mover el trampoline a
   `exportal.dev/pair`, una landing page que servimos nosotros.
@@ -4640,7 +4640,7 @@ no aportaba valor.
   solo para parear, pero requiere update al manifest del companion
   + nueva submission al Chrome Web Store.
 
-### Iteración 3 — flake del CI documentado, con dato fresco
+### Iteración 3, flake del CI documentado, con dato fresco
 
 `npm run ci` después del cleanup falló con la firma exacta del
 flake registrado en ROADMAP: `TypeError: Cannot read properties
@@ -4662,7 +4662,7 @@ of undefined (reading 'config')` en los 24 test files, duration
 ### Verificación final post-cleanup
 - `npm run lint && npm run typecheck` ✓
 - `npm run test` ✓ (252/252, después del cache clear)
-- `npm run build` ✓ — extension.cjs bajó de 947.3 KB a 946.1 KB
+- `npm run build` ✓, extension.cjs bajó de 947.3 KB a 946.1 KB
   (1.2 KB de delta consistentes con el código removido).
 
 ### Próximo paso
@@ -4676,11 +4676,11 @@ of undefined (reading 'config')` en los 24 test files, duration
 
 ---
 
-## 2026-04-30 — Hito 31 · Sonido opt-out al exportar
+## 2026-04-30, Hito 31 · Sonido opt-out al exportar
 
 ### Qué hicimos
 Sumamos un chime corto que dispara cuando un export aterriza en
-VS Code. El user pide "feedback inmediato de éxito" — antes el
+VS Code. El user pide "feedback inmediato de éxito", antes el
 único signal era el success pulse visual, que se pierde si el
 user está mirando otra ventana cuando el export completa. Default
 ON con toggle obvio, alineado con la decisión que Dioni tomó el
@@ -4688,7 +4688,7 @@ ON con toggle obvio, alineado con la decisión que Dioni tomó el
 desactivarlo si quiere").
 
 ### Diseño del sonido
-Generado por **Web Audio API** — sin asset binario que shippear,
+Generado por **Web Audio API**, sin asset binario que shippear,
 sin licencia, customizable. Dos tonos ascendentes (E5 → B5,
 quinta perfecta), sine wave, ~200ms total. Volumen capeado a
 0.17 (subtle, no pretende competir con notificaciones del SO).
@@ -4704,7 +4704,7 @@ Estructura de la curva por nota:
 
 ### Cambios concretos
 - `chrome/content-script.js`:
-  - Nueva función `playSuccessTone()` (async — `AudioContext.resume()`
+  - Nueva función `playSuccessTone()` (async, `AudioContext.resume()`
     requiere await).
   - Wrapper `maybePlayExportSound()` que lee `chrome.storage.local.exportSound`
     (default `true`) y dispara solo si no está apagado.
@@ -4729,14 +4729,14 @@ Estructura de la curva por nota:
   - `init()` extendida para leer `SOUND_KEY` y reflejar el estado
     en el toggle.
   - `change` listener escribe a `chrome.storage.local.set({ exportSound })`
-    inmediatamente — el content script lee el storage en cada
+    inmediatamente, el content script lee el storage en cada
     export, no hace falta reload.
   - Click del Test button siempre toca, incluso con el toggle off,
     para que el user pueda escuchar antes de decidir.
 - `chrome/_locales/{en,es}/messages.json`: 3 nuevas strings
   (`exportSoundLabel`, `exportSoundDesc`, `testSoundButton`) en
   ambos locales. La copy del desc menciona explícitamente que
-  el system mute y tab mute siguen aplicando — no queremos que
+  el system mute y tab mute siguen aplicando, no queremos que
   el user piense que el toggle es la única vía para silenciar.
 
 ### Decisiones técnicas
@@ -4748,7 +4748,7 @@ Estructura de la curva por nota:
   El gesto del FAB click / Alt+Shift+E satisface la regla, así
   que `resume()` move el state a `running` y los tonos suenan.
   Si por alguna razón el gesto no cuenta (test cases raros), el
-  await rechaza y caemos a `return` silencioso — peor caso, no
+  await rechaza y caemos a `return` silencioso, peor caso, no
   hay sonido pero el resto del export funciona.
 - **`ctx.close()` después de 300ms**: cada export crea un
   AudioContext nuevo. Sin close() acumulamos contextos y
@@ -4757,13 +4757,13 @@ Estructura de la curva por nota:
   + un buffer.
 - **Volumen 0.15-0.17 (no 1.0)**: probado en headphones, los
   picos del oscilador puro a volumen completo son fuertes y
-  agresivos. 0.17 es subtle pero audible — siguiendo la guía
+  agresivos. 0.17 es subtle pero audible, siguiendo la guía
   del scope original ("estilo iMessage send, no notificación de
   WhatsApp").
 - **Toggle solo en companion (v1)**: el ROADMAP scope mencionaba
   toggle también en VS Code Settings. Ese requeriría extender el
   protocolo del bridge para sync (set/get de settings), trabajo
-  no trivial. Iteración 2 cuando haga falta — por ahora, el
+  no trivial. Iteración 2 cuando haga falta, por ahora, el
   toggle del companion + el `Test` button del options page
   cubren el caso de uso.
 
@@ -4773,7 +4773,7 @@ Estructura de la curva por nota:
   + retry → 252/252 limpio en 4.21s.
 - `npm run lint && npm run typecheck && npm run build` todo verde.
 - `npm run package:chrome` → `exportal-companion-0.11.3.zip`
-  generado limpio, 40.9 KB (vs ~40.7 KB anterior — delta consistente
+  generado limpio, 40.9 KB (vs ~40.7 KB anterior, delta consistente
   con las strings nuevas + el CSS del toggle).
 - **Smoke test pendiente para Dioni**: reload del companion en
   Chrome (chrome://extensions → reload Exportal Companion), abrir
@@ -4789,11 +4789,11 @@ Estructura de la curva por nota:
   hasta que aparezca demanda real ("usuarios que prefieren abrir
   VS Code antes que el options del companion para silenciar").
 - **Variantes de sonido** (click, chime, off): solo si el chime
-  default molesta a varios users. Default es siempre opcional —
+  default molesta a varios users. Default es siempre opcional,
   el toggle ya cubre "off".
 - **First-export hint**: el ROADMAP scope mencionaba un toast
-  no-bloqueante "Exported ✓ — silenciar sonido" la primera vez.
-  Diferido — el toggle en options + el Test button ya dan
+  no-bloqueante "Exported ✓, silenciar sonido" la primera vez.
+  Diferido, el toggle en options + el Test button ya dan
   visibilidad. Si el feedback es "no sabía cómo silenciarlo",
   agregamos el hint.
 
@@ -4806,20 +4806,20 @@ Estructura de la curva por nota:
 
 ---
 
-## 2026-04-30 — Release 0.11.4
+## 2026-04-30, Release 0.11.4
 
 ### Smoke test pasó + tweak final
 
 Dioni reload del companion + smoke test del Hito 31 → "funciona
 perfecto". Pidió un ajuste único: mover el tuning del chime de
-A=440Hz (E5 / B5) a A=432Hz. Razón / preferencia personal — no
+A=440Hz (E5 / B5) a A=432Hz. Razón / preferencia personal, no
 es un cambio funcional, solo perceptual.
 
 **Cambio aplicado**:
 - `chrome/content-script.js` y `chrome/options.js` (la duplicada):
-  - `playTone(659.25, ...)` → `playTone(432, ...)` — A=432Hz root
+  - `playTone(659.25, ...)` → `playTone(432, ...)`, A=432Hz root
     en vez de E5 (a 440tuning).
-  - `playTone(987.77, ...)` → `playTone(648, ...)` — quinta
+  - `playTone(987.77, ...)` → `playTone(648, ...)`, quinta
     perfecta arriba (432 × 1.5 = 648), preserva el "ascendente
     = éxito" del diseño original.
   - Volúmenes ligeramente ajustados (0.16 / 0.18) para compensar
@@ -4827,14 +4827,14 @@ es un cambio funcional, solo perceptual.
   - Comentarios actualizados en ambos lados.
 
 Mantuve la estructura de dos tonos en lugar de cortar a un solo
-432Hz puro porque el "ascendente" es lo que comunica "success" —
+432Hz puro porque el "ascendente" es lo que comunica "success",
 un solo tono se sentiría como un beep neutro. Le pregunté a Dioni
 en el commit anterior y la interpretación fue OK.
 
 ### Iteración fina sobre la duración
 
 Smoke test de Dioni con las frecuencias ajustadas a 432Hz: "se
-escucha mal el sonido, se corta muy rápido". Diagnóstico — el
+escucha mal el sonido, se corta muy rápido". Diagnóstico, el
 exponential decay terminaba en `startTime + duration`, y con
 duraciones de 100/140ms el decay no alcanzaba a llegar a silencio
 de forma natural antes del corte de la envolvente. El resultado
@@ -4850,10 +4850,10 @@ era un sonido punchy pero clipeado.
   cubrir el decay tail completo con margen.
 - `CHANGELOG.md` actualizado con la duración real (~390ms).
 
-No tocamos volúmenes ni envolvente shape — solo dimos espacio
+No tocamos volúmenes ni envolvente shape, solo dimos espacio
 para que el decay exponential respire.
 
-### Iteración 3 — rediseño a arpegio mayor
+### Iteración 3, rediseño a arpegio mayor
 
 Después del fix de duración Dioni reportó: "ahí suena mejor.
 Necesito que el sonido se sienta relajado y como de victoria.
@@ -4861,12 +4861,12 @@ Elegí 432Hz porque es la frecuencia de la dopamina." (referencia
 cultural a la teoría 432Hz tuning como "natural / armónico").
 
 El two-tone (root + quinta) sonaba "completo" pero no comunicaba
-bien "victoria" — falta el centro armónico que un acorde mayor
+bien "victoria", falta el centro armónico que un acorde mayor
 da. Pasé el sintetizador a un **arpegio mayor de tres notas**:
 
-- A 432Hz (root) — t0
-- C# 540Hz (tercera mayor) — t0 + 80ms (432 × 5/4 = 540)
-- E 648Hz (quinta perfecta) — t0 + 160ms (432 × 3/2 = 648)
+- A 432Hz (root), t0
+- C# 540Hz (tercera mayor), t0 + 80ms (432 × 5/4 = 540)
+- E 648Hz (quinta perfecta), t0 + 160ms (432 × 3/2 = 648)
 
 Cambios adicionales para "relajado":
 - **Volúmenes bajados** de 0.16-0.18 a 0.10-0.13. Más ambiental,
@@ -4878,7 +4878,7 @@ Cambios adicionales para "relajado":
   tails se solapen y formen un "swell" continuo en vez de tres
   notas separadas.
 - **Total**: ~710ms (excede el rango 200-400ms del scope
-  original, pero el rango era una guía aproximada — un sonido
+  original, pero el rango era una guía aproximada, un sonido
   de "victoria" verdadero necesita más tiempo para construir
   el arco).
 - `setTimeout` que cierra el AudioContext: 500 → 900ms para
@@ -4888,7 +4888,7 @@ CHANGELOG.md actualizado con la descripción nueva del sonido y
 una nota corta sobre la elección de 432Hz por preferencia del
 autor (sin meterse en la discusión científica).
 
-### Iteración 4 — A/B/C/D entre variantes, elegimos el arpegio
+### Iteración 4, A/B/C/D entre variantes, elegimos el arpegio
 
 Después del rediseño a arpegio Dioni reportó "este sonido está
 bueno pero siento que molesta en vez de emitir relajación".
@@ -4909,13 +4909,13 @@ rango de 700ms:
 
 Diseñamos 4 variantes contrastantes, sumamos un bloque DEV-only
 en el options page con 4 botones de test:
-- **Variant 1 — Bell 432**: campana en 432Hz con armónicos
+- **Variant 1, Bell 432**: campana en 432Hz con armónicos
   octava + octava-quinta. Decay largo. "Contemplativo".
-- **Variant 2 — Swell**: acorde A mayor entero con envolvente
+- **Variant 2, Swell**: acorde A mayor entero con envolvente
   compartida lenta. Sin ritmo. "Etéreo".
-- **Variant 3 — Bell 528**: misma campana pero en 528Hz
+- **Variant 3, Bell 528**: misma campana pero en 528Hz
   solfeggio. "Brillante / matinal".
-- **Variant 4 — Current**: el arpegio del iter 3 (lo que ya
+- **Variant 4, Current**: el arpegio del iter 3 (lo que ya
   teníamos en producción), incluido para A/B directo.
 
 **Decisión de Dioni**: el Variant 4 (current arpegio mayor en
@@ -4944,7 +4944,7 @@ Entry completa en `CHANGELOG.md` cubriendo:
   con Hito 35 (`exportal.dev/pair`) y datos frescos del flake CI.
 
 ROADMAP limpio: Hitos 30 y 31 removidos del cluster "Próximos
-hitos — Ergonomía/UX". Sigue con 32, 33, 34. El Hito 35
+hitos, Ergonomía/UX". Sigue con 32, 33, 34. El Hito 35
 (`exportal.dev/pair` landing) sigue en su lugar como follow-up
 con interés explícito de Dioni.
 
@@ -4975,13 +4975,13 @@ con interés explícito de Dioni.
 
 ---
 
-## 2026-04-30 — Hito 32 · Badge inteligente del icono Chrome
+## 2026-04-30, Hito 32 · Badge inteligente del icono Chrome
 
 ### Qué hicimos
 El badge del companion ya mostraba estados (`SET`/`OK`/`AUTH`/`OFF`/
 `OLD`/`ERR`), pero el click sobre el icono siempre abría options
 page genérica y, peor, **borraba el badge** en estados de error
-antes de que el user pudiera actuar — el AUTH/OFF/OLD/ERR rojo
+antes de que el user pudiera actuar, el AUTH/OFF/OLD/ERR rojo
 desaparecía con el primer click sin que el user supiera qué
 arreglar. Hito 32 cambia eso: el click ruta al fix específico,
 y el badge se queda hasta que el estado se resuelve solo.
@@ -5005,7 +5005,7 @@ const BADGE_STATES = {
 };
 ```
 
-`setBadgeState(kind)` reemplaza al viejo `setBadge(text, color)` —
+`setBadgeState(kind)` reemplaza al viejo `setBadge(text, color)`,
 una sola función que maneja text + color + tooltip + persiste
 storage en lockstep. Si después agregamos un estado, se cambia
 acá una sola vez y se actualiza todo.
@@ -5027,7 +5027,7 @@ Un solo banner al tope de `<main>`, hidden por default. Aparece
 cuando `?reason=` está en la URL. Color-coded por severidad
 (rojo error, verde success). Cada reason mappea a:
 - **`auth`**: headline "Token rejected by VS Code", body con
-  hint de verificar el token. **Sin CTA** — el fix está en el
+  hint de verificar el token. **Sin CTA**, el fix está en el
   input que ya está en la misma página.
 - **`off`**: headline "VS Code isn't responding". CTAs:
   **Retry** (ping al bridge) + **Open in VS Code** (dispara
@@ -5035,7 +5035,7 @@ cuando `?reason=` está en la URL. Color-coded por severidad
 - **`old`**: headline "VS Code Exportal is outdated". CTA:
   **Open Marketplace** (link a `marketplace.visualstudio.com/
   items?itemName=dioniipereyraa.exportal`).
-- **`err`**: headline "Last export failed". **Sin CTA** — el
+- **`err`**: headline "Last export failed". **Sin CTA**, el
   user tiene que ir a VS Code a ver la notification con el
   error específico, después reintentar desde el origen.
 
@@ -5050,7 +5050,7 @@ mensaje `exportal:clearBadge`. Si falla, sacudida sutil
 veces pide "retry the failed export" pero implementar eso
 requiere bufferear el payload, manejar TTL, evitar replay-
 attacks, etc. Demasiado scope para un fix de connectivity.
-El user re-dispara el export desde claude.ai/ChatGPT — el
+El user re-dispara el export desde claude.ai/ChatGPT, el
 companion ya tiene la conexión validada por el ping.
 
 ### Cambios concretos
@@ -5078,7 +5078,7 @@ companion ya tiene la conexión validada por el ping.
   fallido (240ms, ±3px, ease).
 
 **`chrome/options.js`**:
-- Bloque "Hito 32 — state banner" con 3 funciones:
+- Bloque "Hito 32, state banner" con 3 funciones:
   - `maybeShowBanner()`: lee `?reason=`, mappea al config del
     banner, renderiza headline + body + CTAs.
   - `handleBannerAction(action)`: ejecuta la acción del CTA
@@ -5093,7 +5093,7 @@ companion ya tiene la conexión validada por el ping.
 
 ### Decisiones técnicas
 - **Storage en session, no local**: el estado del badge es
-  ephemeral — un restart del browser limpia naturalmente, y
+  ephemeral, un restart del browser limpia naturalmente, y
   el siguiente intento de export repuebla. No queremos que un
   AUTH transient persista cross-session.
 - **`tabs.create` para reasoned URL**: alternativa habría sido
@@ -5103,16 +5103,16 @@ companion ya tiene la conexión validada por el ping.
   manualmente puede pegar el URL).
 - **`openOptionsPage` (sin tabs.create) para non-error**: tiene
   el behavior built-in de focusear tab existente vs abrir nuevo.
-  Para error states perdemos eso (siempre abre nuevo) — costo
+  Para error states perdemos eso (siempre abre nuevo), costo
   aceptable para no derivar el reason de otro canal.
 - **No cambio de version**: Hito 32 va a entrar en el próximo
   release (probablemente 0.11.5 o 0.12.0). Por ahora no bumpeamos
-  — la versión 0.11.4 ya está cuteada.
+ , la versión 0.11.4 ya está cuteada.
 
 ### Verificación
 - `npm run lint` ✓
 - `npm run package:chrome` → `exportal-companion-0.11.4.zip` 45.9 KB
-  (vs 41.3 KB antes — delta consistente con CSS + JS + l10n
+  (vs 41.3 KB antes, delta consistente con CSS + JS + l10n
   agregados).
 - **Smoke test pendiente para Dioni**: ver sección abajo.
 
@@ -5120,10 +5120,10 @@ companion ya tiene la conexión validada por el ping.
 Reload del companion en `chrome://extensions`. Después:
 
 1. **Tooltip dinámico** (sin reproducir error real): mirar el
-   icono — en estado `unpaired` (sin token) debería decir
-   *"Exportal Companion — click to pair with VS Code"*. En
+   icono, en estado `unpaired` (sin token) debería decir
+   *"Exportal Companion, click to pair with VS Code"*. En
    estado `paired` (con token) debería decir *"Exportal
-   Companion — paired"*. Estos ya funcionaban antes pero
+   Companion, paired"*. Estos ya funcionaban antes pero
    ahora pasan por `setBadgeState`.
 
 2. **Banner AUTH**: en options page, pegá un token de 64 hex
@@ -5152,7 +5152,7 @@ Reload del companion en `chrome://extensions`. Después:
 
 ### Pendiente / iter 2
 - **Tests del banner rendering**: requeriría mockear
-  `URLSearchParams` y `chrome.i18n` — bajo valor, alto costo.
+  `URLSearchParams` y `chrome.i18n`, bajo valor, alto costo.
   Diferido.
 - **Animación de entrada del banner**: hoy aparece instantáneo.
   Un slide-in suave (~200ms) sería un detalle nice. Diferido.
@@ -5160,7 +5160,7 @@ Reload del companion en `chrome://extensions`. Después:
   user clickea el icono después de OFF, abre el banner con
   Retry. Si entre tanto VS Code volvió, el Retry funciona pero
   ese ping es lo único que detecta el state. ¿Hacer un ping
-  en el load del banner? Iter 2 — agregaría latency al banner
+  en el load del banner? Iter 2, agregaría latency al banner
   initial render.
 
 ### Próximo paso
@@ -5168,7 +5168,7 @@ Reload del companion en `chrome://extensions`. Después:
 - Si OK: arrancar Hito 33 (FAB en Claude Design no debe tapar
   el submit) o juntar más hitos antes del próximo release.
 
-### Iteración 2 — fix del banner + edit-in-place del token
+### Iteración 2, fix del banner + edit-in-place del token
 
 Smoke test de Dioni levantó dos cosas:
 
@@ -5185,7 +5185,7 @@ Fix: dos rules más específicas en `chrome/options.html`:
 .banner-actions button[hidden] { display: none; }
 ```
 Y un `:has()` para colapsar la `.banner-actions` row entera cuando
-todos los botones están hidden — sin esto la row dejaría un margin
+todos los botones están hidden, sin esto la row dejaría un margin
 top vacío.
 
 **Pulido visual del banner**: Dioni pidió simplificar el texto y
@@ -5205,7 +5205,7 @@ sacar el icono ("la flecha" en su descripción). Cambios:
 
 **Bug separado: token bloqueado en estado paired**. Dioni notó
 que una vez pareado, editar el token en el input no permitía
-guardarlo de nuevo — había que tocar Unpair primero, vaciar el
+guardarlo de nuevo, había que tocar Unpair primero, vaciar el
 field, pegar el token nuevo, y recién ahí salía el botón Pair.
 La causa era un guard intencional (pre-Hito-32) en el listener
 `input` del `tokenInput`:
@@ -5249,12 +5249,12 @@ Fix:
    después tipear el token original de nuevo. **Verificar**: vuelve
    a "All connected" sin tener que hacer click en nada.
 
-### Iteración 3 — banner real-time
+### Iteración 3, banner real-time
 
 Smoke test de Dioni levantó: el banner AUTH no desaparecía cuando
 el user re-pareaba con un token correcto. La causa: el banner sólo
 se renderiza desde `?reason=` en la URL al cargar la página.
-Después no escucha cambios — queda colgado mostrando un estado
+Después no escucha cambios, queda colgado mostrando un estado
 que ya no aplica.
 
 Fix: extender el listener de `chrome.storage.onChanged` en
@@ -5265,7 +5265,7 @@ mantiene `background.js`):
   → `showBannerForReason()` actualiza el banner en vivo.
 - Si el state se borra (badge → `paired`) o es `unpaired`/`ok` →
   `hideBanner()` salvo que el banner esté en estado `success`
-  (post-Retry positivo) — ese state queda visible para que el
+  (post-Retry positivo), ese state queda visible para que el
   user lo lea antes de cerrar el tab.
 
 Refactor adyacente: `maybeShowBanner` quedó solamente como el
@@ -5292,7 +5292,7 @@ incorrecto, el banner se oculta (porque el badge va a `paired`
 optimistamente cuando el token se guarda). El próximo export
 fallaría AUTH y traería el banner de vuelta. Validación real
 (probe activo del bridge con el token nuevo después de pair)
-es un upgrade futuro — Dioni explícitamente dijo "o es mucho
+es un upgrade futuro, Dioni explícitamente dijo "o es mucho
 quilombo" sugiriendo OK con la versión simple.
 
 Verificación: lint ✓, zip 46.8 KB.
@@ -5309,20 +5309,20 @@ Verificación: lint ✓, zip 46.8 KB.
 
 ---
 
-## 2026-04-30 — Hito 33 · FAB en Claude Design no debe tapar el submit
+## 2026-04-30, Hito 33 · FAB en Claude Design no debe tapar el submit
 
 ### Qué hicimos
 El FAB del companion se posicionaba en `bottom: 20px, right: 20px`
 hardcoded para todas las rutas. En Claude Design (`/design/p/...`),
 el CTA de submit de la design-question está exactamente en
-bottom-right — el FAB tapaba ~85% del botón Send. El submit seguía
+bottom-right, el FAB tapaba ~85% del botón Send. El submit seguía
 clickeable pero la UX se rompía (parecía bloqueado).
 
 Fix mínimo en `chrome/content-script.js`, función `buildPanel`:
 detectar `route.kind === 'design'` y subir el bottom anchor a
 **100px** (en vez de 20px). El FAB sigue en su corner familiar
 bottom-right pero por encima del stack input + Send. Chat y ChatGPT
-siguen en `bottom: 20px` — nada en sus layouts choca con el FAB
+siguen en `bottom: 20px`, nada en sus layouts choca con el FAB
 ahí.
 
 ### Por qué bottom-right elevado y no top-right
@@ -5341,13 +5341,13 @@ pero todavía cerca del bottom-right donde el user lo busca.
 ### Por qué no detección dinámica del CTA
 El scope original mencionaba "detectar el flow de design questions
 y reposicionar/auto-ocultar". Pero detectar el CTA por DOM
-signature es frágil — Anthropic puede cambiar las clases en
+signature es frágil, Anthropic puede cambiar las clases en
 cualquier release y el detect rompe silenciosamente.
 
 El offset estático para CUALQUIER ruta de design es mas robusto:
 - 0% overlap con el bottom CTA garantizado, esté visible o no.
 - Si el CTA no está visible (user solo navegando el proyecto), el
-  FAB queda flotando 100px más arriba — diferencia visual menor,
+  FAB queda flotando 100px más arriba, diferencia visual menor,
   no se siente "raro".
 
 Fail-safe implícito: el detect es por route.kind, que viene del
@@ -5375,7 +5375,7 @@ no peor que el bug actual.
 ### Decidido fuera de scope
 - **FAB más chico por default + expandirse en hover** (mencionado
   en el scope del Hito 33 como adyacente): preferimos no tocar
-  chat normal — la posición bottom-right en chat funciona bien y
+  chat normal, la posición bottom-right en chat funciona bien y
   cambiar el tamaño es un cambio visual que afecta a todos los
   users por un beneficio incierto. Si más adelante el scope
   bottom-right en chat también molesta, se aborda en su propio
@@ -5386,7 +5386,7 @@ no peor que el bug actual.
 
 ---
 
-## 2026-04-30 — Cierre de sesión · Hito 34 planeado, no codeado
+## 2026-04-30, Cierre de sesión · Hito 34 planeado, no codeado
 
 ### Estado al cerrar sesión
 Sesión larga del 2026-04-30 que cerró cuatro hitos del cluster
@@ -5405,7 +5405,7 @@ ergonomía/UX:
 
 Quedan 2 commits adelante de `origin/main` esperando push.
 
-### Hito 34 — planeado, no codeado
+### Hito 34, planeado, no codeado
 La conversación se quedó sin tokens antes de poder codear el Hito
 34. Las decisiones de diseño quedaron documentadas en `ROADMAP.md`
 con suficiente detalle para retomar en una sesión nueva sin
@@ -5418,7 +5418,7 @@ re-planning desde cero. Resumen:
   cerrar.
 - Click en template → clipboard + abre Claude Code sidebar +
   toast. Sin auto-submit.
-- Sin persistencia entre reloads del panel — KISS para v1.
+- Sin persistencia entre reloads del panel, KISS para v1.
 - Trigger desde `extension.ts` después de cada
   `persistAndOpenMarkdown` exitoso.
 - Cambios estimados: `package.json`, `package.nls.{json,es.json}`,
@@ -5448,7 +5448,7 @@ tokens. Toda la información operativa para retomar está en
 
 ---
 
-## 2026-04-30 — Hito 34 · Templates post-import
+## 2026-04-30, Hito 34 · Templates post-import
 
 ### Qué hicimos
 Cerramos el Hito 34 siguiendo el plan dejado por la sesión anterior
@@ -5461,23 +5461,23 @@ con Ctrl+V (no hay API pública para auto-submit).
 
 ### Cambios concretos
 
-- **`package.json`** — nuevo setting `exportal.postImportTemplates`
+- **`package.json`**, nuevo setting `exportal.postImportTemplates`
   (`array<string>`, default 4 prompts en inglés). Power users
   editan en su `settings.json`. Defaults:
   - *"Continue this conversation."*
   - *"Summarize the key points and plan the next steps."*
   - *"Turn the discussion into GitHub issues."*
   - *"Generate tests based on what was discussed."*
-- **`package.nls.json` / `package.nls.es.json`** — descripción del
+- **`package.nls.json` / `package.nls.es.json`**, descripción del
   setting bilingüe.
-- **`l10n/bundle.l10n.es.json`** — 4 strings nuevas (label "After
+- **`l10n/bundle.l10n.es.json`**, 4 strings nuevas (label "After
   import", aria del X "Dismiss", hint, toast).
 - **`src/extension/control-panel.ts`**:
   - Método público `notifyPostImport(filename: string)`. Lee el
     setting, filtra strings vacías, postMessage al webview.
   - Handler nuevo `runTemplate` en `onDidReceiveMessage`: clipboard
     write + `claude-vscode.sidebar.open` si está disponible (try/
-    catch — fallo silencioso, el clipboard ya está) + toast.
+    catch, fallo silencioso, el clipboard ya está) + toast.
   - Sección HTML `.post-import` arriba de Settings, hidden por
     default. Header con dir-badge, label, botón X.
   - CSS dedicado: chips a ancho completo, hover con border-color
@@ -5503,7 +5503,7 @@ con Ctrl+V (no hay API pública para auto-submit).
 
 ### Decisiones de diseño (ratificadas, no cambiadas)
 - **Sin persistencia entre reloads**. Si el panel está cerrado en
-  el momento del import, los templates se pierden. KISS — el toast
+  el momento del import, los templates se pierden. KISS, el toast
   del flujo principal ya confirma el import; los templates son
   ergonomía pura.
 - **Sin auto-submit**. Claude Code no expone una API pública para
@@ -5521,7 +5521,7 @@ con Ctrl+V (no hay API pública para auto-submit).
   posición habitual.
 
 ### Verificación
-- `npm run ci` — 252/252 tests pasan, lint ✓, typecheck ✓, build ✓.
+- `npm run ci`, 252/252 tests pasan, lint ✓, typecheck ✓, build ✓.
 - Smoke manual pendiente (requiere VS Code con companion paired y
   un import real). El path crítico es: companion → bridge →
   `handleClaudeAiInline` → `attachToClaudeCodeIfAvailable` →
@@ -5535,7 +5535,7 @@ con Ctrl+V (no hay API pública para auto-submit).
 El método público `notifyPostImport` tiene 3 líneas de lógica:
 leer setting + filtrar empty + postMessage. Cubrir eso con un mock
 de `webview.postMessage` agregaría un archivo de test para una
-función que es fundamentalmente "envío de mensaje" — el bug si
+función que es fundamentalmente "envío de mensaje", el bug si
 existe está en la integración (DOM, l10n, comando de Claude Code),
 no en la rama trivial. Si en el futuro este método crece (por ej:
 debouncing entre imports rápidos, o estado persistente), entra
@@ -5546,14 +5546,14 @@ test.
    en un template → confirmar clipboard + apertura del sidebar.
 2. Smoke test del Hito 33 cuando reseteen los tokens de Claude
    Design.
-3. Decidir corte de release 0.11.5 (Hitos 32+33+34 cerrados — el
+3. Decidir corte de release 0.11.5 (Hitos 32+33+34 cerrados, el
    cluster ergonomía estaría listo para shippear).
 4. Después del corte: Hito 35 (`exportal.dev/pair` landing) o el
    trabajo de comunicación pre-lanzamiento (video, blog post).
 
 ---
 
-## 2026-04-30 — Release 0.11.5 · cierre del cluster ergonomía + cleanup de toasts
+## 2026-04-30, Release 0.11.5 · cierre del cluster ergonomía + cleanup de toasts
 
 ### Qué hicimos
 Lo que arrancó como un smoke test del Hito 34 sacó a la luz dos
@@ -5561,14 +5561,14 @@ issues que justificaron sus propias iteraciones antes de cortar
 release. Esta entry cubre las dos iteraciones (notification spam
 + persistencia de la sección After-import) más el bump a 0.11.5.
 
-### Iteración 1 — Notification spam (3 toasts por export → 1)
+### Iteración 1, Notification spam (3 toasts por export → 1)
 
 **Síntoma reportado por Dioni**: cada export tiraba 3 toasts
 seguidos en VS Code. Captura de pantalla mostró:
 
 1. *"Exportal: also wrote 9ba4743c.jsonl for /resume in Claude Code."*
-2. *"Exportal: 'Análisis del proyecto Exportal' — 6 messages imported"*
-3. *"Exportal: paired with Chrome. Try it now — open a chat..."*
+2. *"Exportal: 'Análisis del proyecto Exportal', 6 messages imported"*
+3. *"Exportal: paired with Chrome. Try it now, open a chat..."*
 
 El sumatorio efectivo era **2 inevitables + 1 bug**:
 
@@ -5605,12 +5605,12 @@ El sumatorio efectivo era **2 inevitables + 1 bug**:
   además de ser redundante con el feedback visual (`.copied`
   class por 1.4s), descubrí que la información message **robaba
   foco al input de Claude Code** justo después de que
-  `claude-vscode.focus` lo había puesto ahí — defeating el
+  `claude-vscode.focus` lo había puesto ahí, defeating el
   beneficio entero del comando. Sin toast, `focus` queda como
   última operación del handler y el cursor se mantiene en el
   input listo para Ctrl+V.
 
-### Iteración 2 — Persistencia de la sección After-import
+### Iteración 2, Persistencia de la sección After-import
 
 **Caso reportado por Dioni**: si exportaba desde claude.ai con
 el tab de Exportal cerrado (o en Explorer/cualquier otro view),
@@ -5650,11 +5650,11 @@ abrir el panel, ve los templates actualizados.
 ### Cambios concretos por archivo
 
 - **`src/extension/extension.ts`**:
-  - `maybeWriteClaudeCodeJsonl` — firma cambió a `Promise<boolean>`,
+  - `maybeWriteClaudeCodeJsonl`, firma cambió a `Promise<boolean>`,
     sin toast interno.
-  - `announceImport(conversation, alsoWroteJsonl: boolean)` —
+  - `announceImport(conversation, alsoWroteJsonl: boolean)`,
     arma toast con sufijo opcional `· also in /resume`.
-  - `handlePairConfirmed(context, currentToken)` — flag por
+  - `handlePairConfirmed(context, currentToken)`, flag por
     token en globalState, no más cooldown de 3s.
   - 2 call sites de `announceImport` actualizados con el orden
     invertido (jsonl primero, announce después con el bool).
@@ -5674,13 +5674,13 @@ abrir el panel, ve los templates actualizados.
 - **`l10n/bundle.l10n.es.json`**:
   - Removida string `Exportal: template ready. Press Ctrl+V...`
     (toast eliminado).
-  - Agregada string `Exportal: "{0}" — {1} messages imported · also in /resume`.
+  - Agregada string `Exportal: "{0}", {1} messages imported · also in /resume`.
 
 ### Bump de versión y release
 
 - `package.json` y `chrome/manifest.json` a **0.11.5**.
 - Companion bumpeado por simetría aunque no tuvo cambios
-  funcionales — mantenemos las versiones en sync como en releases
+  funcionales, mantenemos las versiones en sync como en releases
   anteriores.
 - CHANGELOG.md con entrada 0.11.5 cubriendo Hitos 32+33+34 +
   cleanup de toasts.
@@ -5690,7 +5690,7 @@ abrir el panel, ve los templates actualizados.
   Dedicated tab.
 
 ### Verificación
-- `npm run ci` — 252/252 tests pasan, lint ✓, typecheck ✓, build ✓.
+- `npm run ci`, 252/252 tests pasan, lint ✓, typecheck ✓, build ✓.
 - VSIX empaquetado a `exportal-0.11.5.vsix` (256.5 KB).
 - Smoke test manual confirmó: 1 toast por export, click en
   template lleva el cursor al input de Claude Code, sección
@@ -5708,7 +5708,7 @@ abrir el panel, ve los templates actualizados.
 
 ---
 
-## 2026-04-30 — Release 0.11.6 · security hardening (audit fixes)
+## 2026-04-30, Release 0.11.6 · security hardening (audit fixes)
 
 ### Qué hicimos
 
@@ -5721,7 +5721,7 @@ LOW. La release 0.11.6 cierra los MEDIUM relevantes y los LOW
 high-leverage en dos commits separados (Fase 1: críticos, Fase 2+3:
 hardening + bug fix).
 
-### Iteración 1 (commit b2c830c) — Fase 1: rate limiting + Slowloris + URL whitelist
+### Iteración 1 (commit b2c830c), Fase 1: rate limiting + Slowloris + URL whitelist
 
 **Rate limiting** (M2 del audit): sliding 60s window per endpoint en
 el bridge HTTP. `/ping` 30/min, `/import` 10/min, `/import-inline`
@@ -5762,7 +5762,7 @@ backticks consecutivos en el contenido y usar uno más (spec
 CommonMark). Antes: "use 4 backticks if content has 3". Ahora:
 verdadero max-run.
 
-### Iteración 2 (commit pendiente) — Fase 2+3: RTL filter + CSP + race fix
+### Iteración 2 (commit pendiente), Fase 2+3: RTL filter + CSP + race fix
 
 **Bidi override filter en `sanitizeAssetFilename`** (S2): el classic
 filename spoof `cool[U+202E]gnp.exe` (renderiza como `coolexe.png`)
@@ -5837,7 +5837,7 @@ observable.
 
 ---
 
-## 2026-04-30 — Release 0.11.7 · deep audit cleanup completo
+## 2026-04-30, Release 0.11.7 · deep audit cleanup completo
 
 ### Qué hicimos
 
