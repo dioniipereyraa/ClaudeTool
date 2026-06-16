@@ -6,6 +6,26 @@ Companion (Chrome extension) are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 and versions follow [Semantic Versioning](https://semver.org/).
 
+## [0.11.9], 2026-06-16
+
+Bugfix release.
+
+### Fixed
+
+- **`invalid_shape` error when importing Claude Design chats.**
+  claude.ai started returning content blocks of a type the
+  importer did not model (notably `thinking`, surfaced for Claude
+  Design projects via the `?rendering_mode=messages` path). The
+  conversation content array was validated with a strict
+  `discriminatedUnion`, so a single unrecognized block rejected the
+  ENTIRE conversation and the companion showed `invalid-shape`.
+  The content array now drops unknown/future block types before
+  validation instead of failing, so the rest of the conversation
+  imports cleanly. The formatters already skipped block types they
+  don't render, so the visible output is unchanged for known
+  blocks. Regression test added in
+  `tests/importers/claudeai/schema.test.ts`.
+
 ## [0.11.8], 2026-05-06
 
 Brand and identity release. No source changes to the importers,

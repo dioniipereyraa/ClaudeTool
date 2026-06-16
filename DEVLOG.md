@@ -5922,3 +5922,20 @@ implementados (5 INFORMATIVA pasaron a "fixed", 2 quedan como
 
 
 
+
+---
+
+## 2026-06-16 · Fix: `invalid_shape` al importar chats de Claude Design
+
+### Qué hicimos
+- Diagnosticamos el feedback de un usuario ("Worked well for ClaudeDesign but now it gives an invalid-shape error"). Raíz: `ContentBlockSchema` en `src/importers/claudeai/schema.ts` validaba el array de contenido con un `z.discriminatedUnion('type', [...])` exhaustivo (text / tool_use / tool_result). claude.ai empezó a devolver bloques de un tipo no modelado (con toda probabilidad `thinking`, que ahora aparece en proyectos Design vía el path `?rendering_mode=messages`), y un solo bloque desconocido hacía fallar el parseo de **toda** la conversación → `parseSingleConversation` retornaba `null` → `BridgeError('invalid_shape')` → el companion mostraba "invalid-shape".
+- Fix: el array de contenido ahora descarta los tipos de bloque desconocidos/futuros **antes** de validar (`ContentArraySchema` con `z.preprocess` + `KNOWN_BLOCK_TYPES`), manteniendo el `discriminatedUnion` estricto para los tipos conocidos (preserva el tipado preciso de los formateadores). Los formateadores ya descartaban los tipos que no renderizan, así que la salida visible no cambia para bloques conocidos.
+- Añadimos test de regresión en `tests/importers/claudeai/schema.test.ts` (un mensaje con `thinking` + `text` + `some_future_type` ahora importa y conserva solo el bloque `text`).
+- Suite completa verde (314 tests), typecheck y lint limpios. Bump 0.11.8 → 0.11.9 en `package.json` y `chrome/manifest.json`, entrada en `CHANGELOG.md`.
+
+### Por qué
+- Esto restaura el principio que ya teníamos escrito desde el Día 0: "Zod para validar cada evento... **fail-soft ante tipos desconocidos**". El `discriminatedUnion` era el único punto del schema que violaba ese principio (todo lo demás usa `.passthrough()`); ahora el schema vuelve a ser forward-compatible ante cambios de la API interna no documentada de claude.ai.
+
+### Próximo paso
+- Empaquetar y subir `exportal-0.11.9.vsix` al VS Code Marketplace y el `.zip` del companion al Chrome Web Store.
+- Smoke test del import de un proyecto Claude Design real para confirmar end-to-end con datos vivos.

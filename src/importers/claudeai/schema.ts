@@ -80,6 +80,29 @@ const ContentBlockSchema = z.discriminatedUnion('type', [
   ToolResultBlockSchema,
 ]);
 
+// The block types we model. Anything else (e.g. `thinking`, which
+// claude.ai started returning for Claude Design projects via the
+// `?rendering_mode=messages` path) is a block type its undocumented
+// internal API added after this schema was written.
+const KNOWN_BLOCK_TYPES = new Set(['text', 'tool_use', 'tool_result']);
+
+/**
+ * Content array that tolerates unknown/future block types by dropping
+ * them BEFORE validation. A strict `discriminatedUnion` rejects the
+ * whole array the moment a single unrecognized block appears, which
+ * bubbled up as a confusing `invalid_shape` error for the entire
+ * conversation. The formatters already skip block types they don't
+ * render, so dropping unknown blocks here produces identical output
+ * while keeping the rest of the conversation importable.
+ */
+const ContentArraySchema = z.preprocess((value: unknown) => {
+  if (!Array.isArray(value)) return value; // let z.array surface the type error
+  return (value as unknown[]).filter((block) => {
+    const type = (block as { type?: unknown } | null)?.type;
+    return typeof type === 'string' && KNOWN_BLOCK_TYPES.has(type);
+  });
+}, z.array(ContentBlockSchema));
+
 const AttachmentSchema = z
   .object({
     file_name: z.string(),
@@ -100,7 +123,7 @@ const MessageSchema = z
   .object({
     uuid: z.string(),
     text: z.string().optional(),
-    content: z.array(ContentBlockSchema),
+    content: ContentArraySchema,
     sender: z.enum(['human', 'assistant']),
     created_at: z.string(),
     updated_at: z.string().optional(),

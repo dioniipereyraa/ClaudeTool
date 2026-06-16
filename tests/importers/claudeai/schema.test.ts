@@ -95,6 +95,33 @@ describe('parseConversations', () => {
     expect(parsed?.[0]?.chat_messages[0]?.files?.[0]?.file_uuid).toBe('f1');
   });
 
+  it('drops unknown/future block types instead of failing the whole conversation', () => {
+    // Regression: claude.ai started returning `thinking` blocks for
+    // Claude Design projects, which a strict discriminatedUnion rejected
+    // as `invalid_shape`. Unknown blocks must be dropped, not fatal.
+    const conv = {
+      ...minimalConv,
+      chat_messages: [
+        {
+          uuid: 'm1',
+          sender: 'assistant',
+          created_at: '2026-01-10T12:00:01Z',
+          content: [
+            { type: 'thinking', thinking: 'razonando...', signature: 'abc' },
+            { type: 'text', text: 'respuesta visible' },
+            { type: 'some_future_type', payload: { whatever: true } },
+          ],
+        },
+      ],
+    };
+    const parsed = parseConversations([conv]);
+    expect(parsed).not.toBeNull();
+    const blocks = parsed?.[0]?.chat_messages[0]?.content;
+    // only the known `text` block survives; unknown types are dropped
+    expect(blocks?.length).toBe(1);
+    expect(blocks?.[0]?.type).toBe('text');
+  });
+
   it('rejects a conversation missing required fields', () => {
     expect(parseConversations([{ uuid: 'x', name: 'y' }])).toBeNull();
   });
