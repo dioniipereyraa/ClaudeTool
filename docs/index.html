@@ -3,585 +3,599 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' https://img.shields.io https://github.com data:; style-src 'self' 'unsafe-inline'; script-src 'self'; font-src 'self'; connect-src 'self'; form-action 'none'; base-uri 'self';">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; font-src 'self'; media-src 'self'; connect-src 'self'; form-action 'none'; base-uri 'self';">
 <!-- `frame-ancestors` cannot be enforced from a `<meta>` tag (the
      browser ignores it by spec). Real anti-clickjacking on GitHub
      Pages would need an `X-Frame-Options` HTTP header, which the
      platform does not let us set. The risk on a static landing
      with no state-changing actions is negligible. -->
-<title>Exportal — Bridge between Claude.ai/ChatGPT and Claude Code</title>
+<title>Exportal: bridge between Claude.ai/ChatGPT and Claude Code</title>
 <meta name="description" content="Bidirectional bridge between Claude.ai/ChatGPT and Claude Code (VS Code). Export AI conversations to your workspace with one click and continue them as @-mentions. Local-first, MIT, open source.">
-<meta name="theme-color" content="#0b1220">
+<meta name="theme-color" content="#1f1f1f">
 
 <link rel="icon" href="/favicon.svg?v=2026-05-06" type="image/svg+xml">
 <link rel="icon" href="/favicon.png?v=2026-05-06" type="image/png" sizes="128x128">
 <link rel="apple-touch-icon" href="/favicon.png?v=2026-05-06">
+<link rel="preload" href="/fonts/inter-tight-latin.woff2" as="font" type="font/woff2" crossorigin>
 
-<meta property="og:title" content="Exportal — Bridge between AI chat and your editor">
-<meta property="og:description" content="Bidirectional bridge between Claude.ai/ChatGPT and Claude Code. One click in any chat → Markdown in your VS Code workspace, auto-attached to Claude Code as @-mention.">
+<meta property="og:title" content="Exportal: bridge between AI chat and your editor">
+<meta property="og:description" content="Bidirectional bridge between Claude.ai/ChatGPT and Claude Code. One click in any chat, Markdown in your VS Code workspace, auto-attached to Claude Code as @-mention.">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://exportal.dev/">
 <meta property="og:image" content="https://exportal.dev/screenshots/exportal-s6-chatgpt-1280x800.png">
 <meta name="twitter:card" content="summary_large_image">
 
 <style>
-  :root {
-    --ink: #0b1220;
-    --ink-2: #1f2937;
-    --muted: #4b5563;
-    --line: #e5e7eb;
-    --bg: #ffffff;
-    --bg-2: #f8fafc;
-    --accent: #1d4ed8;
-    --accent-soft: #eff6ff;
-    --code-bg: #0f172a;
-    --code-ink: #e2e8f0;
+  /* ---------- Fonts (self-hosted: the CSP only allows font-src 'self') ---------- */
+  @font-face {
+    font-family: "Inter Tight";
+    font-style: normal;
+    font-weight: 100 900;
+    font-display: swap;
+    src: url("/fonts/inter-tight-latin.woff2") format("woff2");
+    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
   }
+  @font-face {
+    font-family: "Inter Tight";
+    font-style: normal;
+    font-weight: 100 900;
+    font-display: swap;
+    src: url("/fonts/inter-tight-latin-ext.woff2") format("woff2");
+    unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+  }
+  @font-face {
+    font-family: "JetBrains Mono";
+    font-style: normal;
+    font-weight: 400 800;
+    font-display: swap;
+    src: url("/fonts/jetbrains-mono-latin.woff2") format("woff2");
+    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+  }
+  @font-face {
+    font-family: "JetBrains Mono";
+    font-style: normal;
+    font-weight: 400 800;
+    font-display: swap;
+    src: url("/fonts/jetbrains-mono-latin-ext.woff2") format("woff2");
+    unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+  }
+
+  /* ---------- Tokens: strictly monochrome. One ink, one paper. ---------- */
+  :root {
+    --ink: #1f1f1f;
+    --paper: #ffffff;
+    --ink-2: rgba(31, 31, 31, 0.66);
+    --line: rgba(31, 31, 31, 0.14);
+    --hair: rgba(31, 31, 31, 0.08);
+    --thread: rgba(31, 31, 31, 0.16);
+    --packet: rgba(31, 31, 31, 0.55);
+    --paper-2: rgba(255, 255, 255, 0.62);
+    --sans: "Inter Tight", "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --mono: "JetBrains Mono", "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+    --ease: cubic-bezier(0.22, 0.61, 0.36, 1);
+    --gutter: 24px;
+    --col-title: 4;
+  }
+
   * { box-sizing: border-box; margin: 0; padding: 0; }
   html { scroll-behavior: smooth; }
   body {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, "Helvetica Neue", sans-serif;
+    font-family: var(--sans);
+    font-size: 17px;
+    line-height: 1.55;
     color: var(--ink);
-    line-height: 1.65;
-    background: var(--bg);
+    background: var(--paper);
     -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    font-feature-settings: "ss01", "cv11";
   }
+  a { color: inherit; }
+  a:focus-visible, button:focus-visible, summary:focus-visible {
+    outline: 2px solid var(--ink);
+    outline-offset: 3px;
+  }
+  code, kbd, pre {
+    font-family: var(--mono);
+    font-size: 0.86em;
+    font-variant-ligatures: none;
+  }
+  p code, li code, dd code, summary code {
+    padding: 0.05em 0.35em;
+    border: 1px solid var(--line);
+    border-radius: 3px;
+    white-space: nowrap;
+  }
+  kbd {
+    padding: 0.05em 0.4em;
+    border: 1px solid var(--ink);
+    border-bottom-width: 2px;
+    border-radius: 3px;
+    white-space: nowrap;
+  }
+  strong { font-weight: 600; }
+
   .wrap {
-    max-width: 880px;
+    max-width: 1120px;
     margin: 0 auto;
-    padding: 0 24px;
+    padding: 0 var(--gutter);
   }
+
+  /* ---------- Header ---------- */
   header.site {
-    border-bottom: 1px solid var(--line);
-    padding: 18px 0;
     position: sticky;
     top: 0;
-    background: rgba(255, 255, 255, 0.92);
-    backdrop-filter: blur(8px);
     z-index: 10;
+    background: var(--paper);
+    border-bottom: 1px solid transparent;
+    transition: border-color 0.2s ease;
   }
+  header.site.scrolled { border-bottom-color: var(--line); }
   header.site .row {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    gap: 16px;
+    height: 64px;
   }
-  header.site .brand {
+  .brand {
     display: inline-flex;
     align-items: center;
-    gap: 8px;
+    gap: 10px;
     font-weight: 700;
     font-size: 1.05rem;
-    letter-spacing: -0.01em;
-    color: var(--ink);
+    letter-spacing: -0.02em;
     text-decoration: none;
   }
-  header.site .brand-mark {
-    width: 22px;
-    height: 22px;
-    flex-shrink: 0;
-  }
+  .brand-mark { width: 22px; height: 22px; flex-shrink: 0; }
+  header.site nav { display: flex; gap: 26px; }
   header.site nav a {
-    color: var(--muted);
+    color: var(--ink-2);
     text-decoration: none;
-    margin-left: 18px;
-    font-size: 0.92rem;
+    font-size: 0.95rem;
+    font-weight: 500;
+    transition: color 0.15s ease;
   }
   header.site nav a:hover { color: var(--ink); }
 
-  .hero { padding: 72px 0 48px; }
+  /* ---------- Hero: the one memorable element lives here ---------- */
+  .hero {
+    position: relative;
+    padding: 96px 0 72px;
+    overflow: hidden;
+  }
+  .threads {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 0;
+    pointer-events: none;
+  }
+  .threads path {
+    fill: none;
+    stroke: var(--thread);
+    stroke-width: 1.5;
+    vector-effect: non-scaling-stroke;
+    stroke-dasharray: 1;
+    stroke-dashoffset: 0;
+  }
+  .threads .packet {
+    fill: var(--packet);
+    r: 3.5;
+    offset-rotate: 0deg;
+    animation: travel var(--dur, 12s) linear var(--delay, 0s) infinite;
+  }
+  @keyframes travel {
+    from { offset-distance: 0%; }
+    to { offset-distance: 100%; }
+  }
+  .hero .wrap { position: relative; z-index: 1; }
+  .hero-grid {
+    display: grid;
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    gap: 0 var(--gutter);
+  }
   .hero h1 {
-    font-size: clamp(2.2rem, 5vw, 3.4rem);
-    line-height: 1.08;
-    letter-spacing: -0.02em;
-    margin-bottom: 18px;
+    grid-column: 1 / 11;
+    font-size: clamp(2.6rem, 6.4vw, 5.2rem);
+    line-height: 0.98;
+    letter-spacing: -0.035em;
     font-weight: 700;
+    text-wrap: balance;
+    margin-bottom: 36px;
   }
   .hero .lede {
-    font-size: 1.18rem;
-    color: var(--muted);
-    margin-bottom: 28px;
-    max-width: 640px;
+    grid-column: 1 / 8;
+    font-size: 1.22rem;
+    line-height: 1.5;
+    color: var(--ink-2);
+    text-wrap: pretty;
   }
-  .hero .lede strong { color: var(--ink); font-weight: 600; }
-  .ctas {
+  .hero .lede strong { color: var(--ink); }
+  .hero .ctas {
+    grid-column: 8 / 13;
     display: flex;
+    flex-direction: column;
+    align-items: flex-start;
     gap: 10px;
-    flex-wrap: wrap;
-    margin-bottom: 18px;
+    padding-top: 4px;
   }
-  .ctas a {
+  .hero-demo {
+    grid-column: 1 / 13;
+    min-width: 0;
+    margin-top: 64px;
+    border: 1px solid var(--ink);
+    border-radius: 6px;
+    overflow: hidden;
+    background: var(--ink);
+    line-height: 0;
+  }
+  .hero-demo video { width: 100%; height: auto; display: block; }
+
+  .btn {
     display: inline-flex;
     align-items: center;
-    gap: 8px;
-    padding: 11px 18px;
+    gap: 10px;
+    padding: 12px 18px;
+    border: 1px solid var(--ink);
+    border-radius: 4px;
     background: var(--ink);
-    color: #fff;
+    color: var(--paper);
     text-decoration: none;
-    border-radius: 8px;
     font-weight: 600;
     font-size: 0.95rem;
-    border: 1px solid var(--ink);
-    transition: transform 0.05s ease;
+    line-height: 1.2;
+    transition: background-color 0.15s ease, color 0.15s ease;
   }
-  .ctas a:hover { transform: translateY(-1px); }
-  .ctas a.secondary {
-    background: var(--bg);
-    color: var(--ink);
-    border-color: var(--line);
-  }
-  .ctas a.secondary:hover { border-color: var(--ink); }
-  .badges {
-    display: flex;
-    gap: 8px;
-    flex-wrap: wrap;
+  .btn:hover { background: var(--paper); color: var(--ink); }
+  .btn.quiet { background: var(--paper); color: var(--ink); }
+  .btn.quiet:hover { background: var(--ink); color: var(--paper); }
+  .btn svg { width: 16px; height: 16px; flex-shrink: 0; }
+  .source-link {
     margin-top: 8px;
+    font-size: 0.92rem;
+    color: var(--ink-2);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    text-decoration-color: var(--line);
+    transition: color 0.15s ease, text-decoration-color 0.15s ease;
   }
-  .badges img { height: 20px; }
+  .source-link:hover { color: var(--ink); text-decoration-color: var(--ink); }
 
-  section { padding: 56px 0; border-top: 1px solid var(--line); }
-  section h2 {
-    font-size: 1.7rem;
-    letter-spacing: -0.015em;
-    margin-bottom: 8px;
+  /* ---------- Sections: title left, content right ---------- */
+  section.block {
+    border-top: 1px solid var(--line);
+    padding: 72px 0;
+  }
+  .section-grid {
+    display: grid;
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    gap: 0 var(--gutter);
+  }
+  .section-head {
+    grid-column: 1 / 5;
+    align-self: start;
+    position: sticky;
+    top: 88px;
+  }
+  .section-head h2 {
+    font-size: 1.85rem;
+    line-height: 1.1;
+    letter-spacing: -0.025em;
     font-weight: 700;
+    margin-bottom: 12px;
+    text-wrap: balance;
   }
-  section .sub {
-    color: var(--muted);
-    margin-bottom: 28px;
+  .section-head p {
+    color: var(--ink-2);
     font-size: 1rem;
+    max-width: 30ch;
+    text-wrap: pretty;
   }
+  .section-body { grid-column: 5 / 13; min-width: 0; }
+  .section-body h3 {
+    font-size: 1.1rem;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    margin: 0 0 14px;
+  }
+  .section-body h3 + p.note { margin-top: -4px; }
+  .section-body > * + h3 { margin-top: 44px; }
+  .note {
+    color: var(--ink-2);
+    font-size: 0.95rem;
+    margin-top: 14px;
+    max-width: 62ch;
+    text-wrap: pretty;
+  }
+  .section-body p { max-width: 62ch; }
 
-  .demo-figure {
-    margin: 0 0 12px;
+  /* Code sample: paper on ink. Emphasis by weight, not by hue. */
+  pre.code-block {
+    background: var(--ink);
+    color: var(--paper);
+    border-radius: 6px;
+    padding: 24px 26px;
+    overflow-x: auto;
+    font-size: 0.82rem;
+    line-height: 1.7;
+    white-space: pre;
+    tab-size: 2;
   }
-  .demo-figure img {
-    width: 100%;
-    border-radius: 10px;
-    box-shadow: 0 12px 32px rgba(11, 18, 32, 0.12);
+  pre.code-block .h { font-weight: 700; }
+  pre.code-block .m { color: rgba(255, 255, 255, 0.55); }
+  pre.code-block .sp { font-weight: 700; }
+  pre.code-block .tu { color: rgba(255, 255, 255, 0.55); font-style: italic; }
+
+  /* Architecture diagram: 1px boxes, mono labels. */
+  .arch-wrap {
     border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 28px 24px 20px;
+    overflow-x: auto;
+  }
+  .arch-svg {
+    width: 100%;
+    min-width: 560px;
+    height: auto;
     display: block;
+    font-family: var(--mono);
   }
-  .demo-figure figcaption {
-    font-size: 0.88rem;
-    color: var(--muted);
-    text-align: center;
-    margin-top: 8px;
-  }
+  .arch-svg .box { fill: var(--paper); stroke: var(--ink); stroke-width: 1.25; }
+  .arch-svg .box.solid { fill: var(--ink); }
+  .arch-svg .t { fill: var(--ink); font-family: var(--sans); font-weight: 600; font-size: 14px; }
+  .arch-svg .t.inv { fill: var(--paper); }
+  .arch-svg .s { fill: var(--ink-2); font-family: var(--mono); font-size: 11px; }
+  .arch-svg .s.inv { fill: rgba(255, 255, 255, 0.6); }
+  .arch-svg .wire { stroke: var(--ink); stroke-width: 1.25; fill: none; }
+  .arch-svg .lbl { fill: var(--ink); font-family: var(--mono); font-size: 11.5px; font-weight: 500; }
+  .arch-svg .sub { fill: var(--ink-2); font-family: var(--mono); font-size: 11px; }
+  .arch-svg .cap { fill: var(--ink-2); font-family: var(--sans); font-size: 12px; font-style: italic; }
 
+  /* Feature list: a two-column definition list with hairlines, no cards. */
   .features {
     display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 22px;
-    margin-top: 8px;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 0 40px;
+    border-top: 1px solid var(--line);
   }
-  .feature {
-    border: 1px solid var(--line);
-    border-radius: 10px;
-    padding: 20px;
-    background: var(--bg-2);
+  .features > div {
+    padding: 22px 0 24px;
+    border-bottom: 1px solid var(--line);
   }
-  .feature h3 {
-    font-size: 1.02rem;
-    margin-bottom: 6px;
+  .features dt {
     font-weight: 600;
+    font-size: 1.05rem;
+    letter-spacing: -0.01em;
+    margin-bottom: 6px;
   }
-  .feature p {
-    color: var(--muted);
+  .features dd {
+    color: var(--ink-2);
     font-size: 0.95rem;
+    line-height: 1.55;
+    text-wrap: pretty;
   }
 
+  /* Steps: these really are a sequence, so they get numbers. */
   ol.steps {
     list-style: none;
     counter-reset: stepc;
-    display: grid;
-    grid-template-columns: 1fr 1fr 1fr;
-    gap: 20px;
+    border-top: 1px solid var(--line);
   }
   ol.steps li {
     counter-increment: stepc;
-    border: 1px solid var(--line);
-    border-radius: 10px;
-    padding: 18px 18px 18px 18px;
-    background: var(--bg-2);
-    position: relative;
+    display: grid;
+    grid-template-columns: 56px 1fr;
+    gap: 0 20px;
+    padding: 24px 0;
+    border-bottom: 1px solid var(--line);
   }
   ol.steps li::before {
-    content: counter(stepc);
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 26px;
-    height: 26px;
-    border-radius: 50%;
-    background: var(--accent);
-    color: #fff;
-    font-weight: 700;
-    font-size: 0.85rem;
-    margin-bottom: 10px;
-  }
-  ol.steps li h3 {
-    font-size: 1rem;
-    margin-bottom: 4px;
-    font-weight: 600;
-  }
-  ol.steps li p {
-    color: var(--muted);
+    content: counter(stepc, decimal-leading-zero);
+    font-family: var(--mono);
     font-size: 0.9rem;
-  }
-  ol.steps li code {
-    font-family: "SF Mono", Monaco, Consolas, "Liberation Mono", monospace;
-    font-size: 0.85em;
-    background: rgba(29, 78, 216, 0.08);
-    padding: 1px 5px;
-    border-radius: 3px;
-    color: var(--accent);
-  }
-
-  .privacy {
-    background: var(--bg-2);
-    border: 1px solid var(--line);
-    border-radius: 12px;
-    padding: 28px;
-    margin-top: 8px;
-  }
-  .privacy h3 {
-    font-size: 1.05rem;
-    margin-bottom: 10px;
-    font-weight: 600;
-  }
-  .privacy p { color: var(--muted); margin-bottom: 12px; font-size: 0.97rem; }
-  .privacy p:last-child { margin-bottom: 0; }
-  .privacy ul { padding-left: 20px; margin: 12px 0; color: var(--muted); }
-  .privacy ul li { margin-bottom: 6px; font-size: 0.95rem; }
-  .privacy code {
-    font-family: "SF Mono", Monaco, Consolas, "Liberation Mono", monospace;
-    font-size: 0.88em;
-    background: var(--code-bg);
-    color: var(--code-ink);
-    padding: 2px 6px;
-    border-radius: 4px;
-  }
-  .privacy a { color: var(--accent); }
-
-  .author {
-    display: flex;
-    gap: 18px;
-    align-items: flex-start;
-    border: 1px solid var(--line);
-    border-radius: 10px;
-    padding: 22px;
-    background: var(--bg-2);
-  }
-  .author-avatar {
-    width: 64px;
-    height: 64px;
-    border-radius: 50%;
-    background: linear-gradient(135deg, #1d4ed8, #7c3aed);
-    flex-shrink: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: #fff;
-    font-weight: 700;
-    font-size: 1.4rem;
-    letter-spacing: -0.02em;
-  }
-  .author-body h3 {
-    font-size: 1.05rem;
-    margin-bottom: 6px;
-    font-weight: 600;
-  }
-  .author-body p {
-    color: var(--muted);
-    font-size: 0.95rem;
-    margin-bottom: 10px;
-  }
-  .author-body a {
-    color: var(--accent);
-    text-decoration: none;
     font-weight: 500;
-    margin-right: 14px;
-    font-size: 0.92rem;
+    color: var(--ink-2);
+    padding-top: 0.35em;
+    font-variant-numeric: tabular-nums;
   }
-  .author-body a:hover { text-decoration: underline; }
+  ol.steps li h3 { margin: 0 0 6px; }
+  ol.steps li p { color: var(--ink-2); font-size: 0.97rem; text-wrap: pretty; }
 
-  .faq details {
-    border-bottom: 1px solid var(--line);
-    padding: 14px 0;
+  /* Privacy: prose with a plain list. */
+  .privacy p { color: var(--ink-2); margin-bottom: 16px; text-wrap: pretty; }
+  .privacy p strong { color: var(--ink); }
+  .privacy ul {
+    list-style: none;
+    margin: 20px 0 24px;
+    border-top: 1px solid var(--line);
   }
+  .privacy ul li {
+    padding: 12px 0 12px 22px;
+    border-bottom: 1px solid var(--line);
+    position: relative;
+    color: var(--ink-2);
+    font-size: 0.97rem;
+  }
+  .privacy ul li::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 1.15em;
+    width: 8px;
+    height: 1px;
+    background: var(--ink);
+  }
+  .privacy ul li strong { color: var(--ink); }
+  .privacy a { color: var(--ink); text-underline-offset: 3px; }
+
+  /* Author: plain text, no avatar. */
+  .author p { color: var(--ink-2); margin-bottom: 18px; text-wrap: pretty; }
+  .links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 22px;
+  }
+  .links a {
+    color: var(--ink);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    text-decoration-color: var(--line);
+    font-size: 0.95rem;
+    font-weight: 500;
+    transition: text-decoration-color 0.15s ease;
+  }
+  .links a:hover { text-decoration-color: var(--ink); }
+
+  /* Open documents: four rows, the file name in mono because it IS a file name. */
+  .open-docs {
+    border-top: 1px solid var(--line);
+  }
+  .open-docs a {
+    display: grid;
+    grid-template-columns: 180px 1fr;
+    gap: 0 20px;
+    padding: 18px 0;
+    border-bottom: 1px solid var(--line);
+    text-decoration: none;
+    color: var(--ink);
+    transition: background-color 0.15s ease;
+  }
+  .open-docs a:hover .doc-name { text-decoration: underline; text-underline-offset: 3px; }
+  .doc-name {
+    font-family: var(--mono);
+    font-size: 0.86rem;
+    font-weight: 500;
+    padding-top: 0.2em;
+  }
+  .doc-desc { color: var(--ink-2); font-size: 0.95rem; text-wrap: pretty; }
+  .doc-desc strong { color: var(--ink); font-variant-numeric: tabular-nums; }
+
+  /* FAQ */
+  .faq details { border-bottom: 1px solid var(--line); }
   .faq details:first-of-type { border-top: 1px solid var(--line); }
   .faq summary {
     cursor: pointer;
-    font-weight: 600;
     list-style: none;
-    padding-right: 24px;
+    font-weight: 600;
+    font-size: 1.02rem;
+    padding: 18px 40px 18px 0;
     position: relative;
-    font-size: 0.98rem;
+    letter-spacing: -0.005em;
   }
+  .faq summary::-webkit-details-marker { display: none; }
+  .faq summary::before,
   .faq summary::after {
-    content: "+";
+    content: "";
     position: absolute;
-    right: 0;
+    right: 4px;
     top: 50%;
+    width: 14px;
+    height: 1.5px;
+    background: var(--ink);
     transform: translateY(-50%);
-    color: var(--muted);
-    font-weight: 400;
-    font-size: 1.3rem;
-    line-height: 1;
+    transition: transform 0.25s var(--ease);
   }
-  .faq details[open] summary::after { content: "−"; }
+  .faq summary::after { transform: translateY(-50%) rotate(90deg); }
+  .faq details[open] summary::after { transform: translateY(-50%) rotate(0deg); }
   .faq details p {
-    color: var(--muted);
-    font-size: 0.95rem;
-    margin-top: 10px;
+    color: var(--ink-2);
+    padding: 0 0 20px;
+    max-width: 62ch;
+    text-wrap: pretty;
   }
-  .faq details p code {
-    font-family: "SF Mono", Monaco, Consolas, monospace;
-    font-size: 0.88em;
-    background: rgba(0, 0, 0, 0.05);
-    padding: 1px 5px;
-    border-radius: 3px;
+  .faq details p a { color: var(--ink); text-underline-offset: 3px; }
+  .faq details > .faq-body {
+    display: block;
+    overflow: hidden;
+    transition: height 0.32s var(--ease), opacity 0.22s ease;
   }
-  .faq details p a { color: var(--accent); }
+  .faq details:not([open]) > .faq-body { height: 0; opacity: 0; }
 
+  /* ---------- Footer ---------- */
   footer.site {
-    padding: 36px 0 56px;
-    color: var(--muted);
-    font-size: 0.88rem;
-    border-top: 1px solid var(--line);
-    margin-top: 24px;
+    border-top: 1px solid var(--ink);
+    padding: 40px 0 64px;
+    font-size: 0.9rem;
+    color: var(--ink-2);
   }
   footer.site .row {
     display: flex;
     justify-content: space-between;
     flex-wrap: wrap;
-    gap: 16px;
+    gap: 16px 32px;
   }
-  footer.site a { color: var(--muted); text-decoration: none; margin-right: 18px; }
+  footer.site nav { display: flex; flex-wrap: wrap; gap: 6px 22px; }
+  footer.site a {
+    color: var(--ink-2);
+    text-decoration: none;
+    transition: color 0.15s ease;
+  }
   footer.site a:hover { color: var(--ink); }
   footer.site .disclaimer {
-    margin-top: 18px;
-    font-size: 0.82rem;
-    color: var(--muted);
-    line-height: 1.55;
-    max-width: 720px;
-  }
-
-  @media (max-width: 720px) {
-    .hero { padding: 48px 0 32px; }
-    .features { grid-template-columns: 1fr; }
-    ol.steps { grid-template-columns: 1fr; }
-    header.site nav a { margin-left: 12px; font-size: 0.85rem; }
-    .author { flex-direction: column; }
-  }
-
-  /* ---------- Animations ---------- */
-
-  /* Hero entrance — staggered fade-up on initial load. */
-  .hero h1, .hero .lede, .hero .ctas, .hero .badges, .hero .hero-demo {
-    opacity: 0;
-    transform: translateY(12px);
-    animation: fadeUp 0.55s cubic-bezier(0.22, 0.61, 0.36, 1) forwards;
-  }
-  .hero h1 { animation-delay: 0.05s; }
-  .hero .lede { animation-delay: 0.18s; }
-  .hero .ctas { animation-delay: 0.30s; }
-  .hero .badges { animation-delay: 0.42s; }
-  .hero .hero-demo { animation-delay: 0.54s; }
-
-  .hero-demo {
-    margin: 32px 0 4px;
-    border-radius: 10px;
-    overflow: hidden;
-    box-shadow: 0 14px 40px rgba(11, 18, 32, 0.18);
-    border: 1px solid rgba(11, 18, 32, 0.06);
-    line-height: 0;
-  }
-  .hero-demo img, .hero-demo video {
-    width: 100%;
-    height: auto;
-    display: block;
-  }
-
-  @keyframes fadeUp {
-    from { opacity: 0; transform: translateY(12px); }
-    to { opacity: 1; transform: translateY(0); }
-  }
-
-  /* Reveal on scroll — set by IntersectionObserver in JS. */
-  .reveal {
-    opacity: 0;
-    transform: translateY(18px);
-    transition:
-      opacity 0.6s cubic-bezier(0.22, 0.61, 0.36, 1),
-      transform 0.6s cubic-bezier(0.22, 0.61, 0.36, 1);
-  }
-  .reveal.in-view {
-    opacity: 1;
-    transform: translateY(0);
-  }
-
-  /* Feature & step cards: subtle lift on hover. */
-  .feature, ol.steps li {
-    transition:
-      transform 0.18s ease,
-      box-shadow 0.18s ease,
-      border-color 0.18s ease;
-  }
-  .feature:hover, ol.steps li:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 18px rgba(11, 18, 32, 0.07);
-    border-color: rgba(29, 78, 216, 0.28);
-  }
-
-  /* Screenshots: very subtle scale on hover. */
-  .demo-figure img {
-    transition: transform 0.3s ease, box-shadow 0.3s ease;
-  }
-  .demo-figure img:hover {
-    transform: scale(1.005);
-    box-shadow: 0 18px 38px rgba(11, 18, 32, 0.15);
-  }
-
-  /* CTAs: refine existing transform with a softer curve. */
-  .ctas a {
-    transition:
-      transform 0.12s cubic-bezier(0.22, 0.61, 0.36, 1),
-      background-color 0.2s ease,
-      border-color 0.2s ease,
-      color 0.2s ease;
-  }
-
-  /* Smooth FAQ expand. JS measures content height and animates `height`
-     explicitly so the transition fires reliably across browsers.
-     `display: block` overrides the UA stylesheet that hides non-summary
-     children of a closed <details>. */
-  .faq details > .faq-body {
-    display: block;
-    overflow: hidden;
-    transition:
-      height 0.32s cubic-bezier(0.22, 0.61, 0.36, 1),
-      opacity 0.22s ease;
-  }
-  .faq details:not([open]) > .faq-body {
-    height: 0;
-    opacity: 0;
-  }
-  .faq summary { transition: color 0.18s ease; }
-  .faq summary:hover { color: var(--accent); }
-  .faq details summary::after {
-    transition: transform 0.22s ease, color 0.18s ease;
-  }
-  .faq details[open] summary::after { color: var(--accent); }
-
-  /* Sticky header: soft shadow when content is scrolled under it. */
-  header.site {
-    transition: box-shadow 0.2s ease, border-color 0.2s ease;
-  }
-  header.site.scrolled {
-    box-shadow: 0 4px 14px rgba(11, 18, 32, 0.05);
-  }
-
-  /* "Under the hood" section: code block + architecture diagram. */
-  .sub-heading {
-    font-size: 1.05rem;
-    margin: 32px 0 14px;
-    font-weight: 600;
-    color: var(--ink);
-  }
-  .sub-heading:first-of-type { margin-top: 8px; }
-
-  pre.code-block {
-    background: var(--code-bg);
-    color: var(--code-ink);
-    border-radius: 10px;
-    padding: 22px 24px;
-    overflow-x: auto;
-    font-family: "SF Mono", Monaco, Consolas, "Liberation Mono", monospace;
+    margin-top: 28px;
     font-size: 0.84rem;
-    line-height: 1.7;
-    border: 1px solid rgba(255, 255, 255, 0.06);
-    margin: 0;
-    white-space: pre;
-  }
-  pre.code-block .h { color: #c5fb52; font-weight: 600; }
-  pre.code-block .m { color: #94a3b8; }
-  pre.code-block .v { color: #f1f5f9; }
-  pre.code-block .sp { color: #c5fb52; font-weight: 700; }
-  pre.code-block .tu { color: #f59e0b; }
-
-  .arch-wrap {
-    background: var(--bg-2);
-    border: 1px solid var(--line);
-    border-radius: 12px;
-    padding: 28px 20px 20px;
-  }
-  .arch-svg {
-    width: 100%;
-    height: auto;
-    display: block;
+    line-height: 1.55;
+    max-width: 68ch;
+    color: var(--ink-2);
+    text-wrap: pretty;
   }
 
-  .block-note {
-    color: var(--muted);
-    font-size: 0.92rem;
-    margin-top: 14px;
+  /* ---------- Motion ---------- */
+  /* One orchestrated moment on load: the threads draw in, then the
+     packets start to travel. Everything else is quiet. */
+  .threads path {
+    animation: draw 1.6s var(--ease) both;
+    animation-delay: calc(var(--i, 0) * 90ms);
+  }
+  @keyframes draw {
+    from { stroke-dashoffset: 1; }
+    to { stroke-dashoffset: 0; }
+  }
+  .hero h1, .hero .lede, .hero .ctas, .hero .hero-demo {
+    animation: rise 0.7s var(--ease) both;
+  }
+  .hero .lede { animation-delay: 0.08s; }
+  .hero .ctas { animation-delay: 0.14s; }
+  .hero .hero-demo { animation-delay: 0.26s; }
+  @keyframes rise {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: none; }
+  }
+  /* Sections fade as they enter. No slide: the page should not bounce. */
+  .reveal { opacity: 0; transition: opacity 0.6s ease; }
+  .reveal.in-view { opacity: 1; }
+
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    .threads path, .hero h1, .hero .lede, .hero .ctas, .hero .hero-demo { animation: none; }
+    .threads .packet { animation: none; display: none; }
+    .reveal { opacity: 1; transition: none; }
+    .faq details > .faq-body { transition: none; }
+    .faq summary::before, .faq summary::after { transition: none; }
   }
 
-  /* "Built in the open" section. */
-  .open-stats {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 16px;
-    margin-top: 8px;
-  }
-  .stat-card {
-    display: block;
-    padding: 22px;
-    border: 1px solid var(--line);
-    border-radius: 10px;
-    background: var(--bg-2);
-    text-decoration: none;
-    color: var(--ink);
-    transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
-  }
-  .stat-card:hover {
-    border-color: rgba(29, 78, 216, 0.3);
-    transform: translateY(-2px);
-    box-shadow: 0 6px 18px rgba(11, 18, 32, 0.07);
-  }
-  .stat-num {
-    font-size: 1.8rem;
-    font-weight: 700;
-    color: var(--accent);
-    line-height: 1;
-    margin-bottom: 8px;
-    letter-spacing: -0.02em;
-  }
-  .stat-name {
-    font-size: 0.98rem;
-    font-weight: 600;
-    margin-bottom: 6px;
-  }
-  .stat-desc {
-    font-size: 0.9rem;
-    color: var(--muted);
-    line-height: 1.5;
+  /* ---------- Responsive ---------- */
+  @media (max-width: 960px) {
+    .hero h1 { grid-column: 1 / 13; }
+    .hero .lede { grid-column: 1 / 13; }
+    .hero .ctas { grid-column: 1 / 13; flex-direction: row; flex-wrap: wrap; align-items: center; margin-top: 28px; }
+    .section-head { grid-column: 1 / 13; position: static; margin-bottom: 28px; }
+    .section-head p { max-width: 52ch; }
+    .section-body { grid-column: 1 / 13; }
   }
   @media (max-width: 720px) {
-    .open-stats { grid-template-columns: 1fr; }
-  }
-
-  /* Respect users who prefer no motion. */
-  @media (prefers-reduced-motion: reduce) {
-    *, *::before, *::after {
-      animation-duration: 0.01ms !important;
-      animation-iteration-count: 1 !important;
-      transition-duration: 0.01ms !important;
-      scroll-behavior: auto !important;
-    }
-    .reveal { opacity: 1; transform: none; }
+    body { font-size: 16px; }
+    .hero { padding: 56px 0 48px; }
+    .hero h1 { margin-bottom: 24px; }
+    .hero .lede { font-size: 1.1rem; }
+    .hero-demo { margin-top: 40px; }
+    section.block { padding: 52px 0; }
+    header.site nav { gap: 16px; }
+    header.site nav a { font-size: 0.88rem; }
+    header.site nav a.hide-sm { display: none; }
+    .features { grid-template-columns: 1fr; }
+    ol.steps li { grid-template-columns: 40px 1fr; gap: 0 14px; }
+    .open-docs a { grid-template-columns: 1fr; gap: 6px 0; }
   }
 </style>
 </head>
@@ -589,7 +603,7 @@
 
 <header class="site">
   <div class="wrap row">
-    <a href="/" class="brand">
+    <a href="/" class="brand" aria-label="Exportal home">
       <svg class="brand-mark" viewBox="0 0 100 100" aria-hidden="true">
         <rect x="22" y="20" width="56" height="14" rx="2" fill="#1F1F1F"/>
         <rect x="22" y="20" width="14" height="60" rx="2" fill="#1F1F1F"/>
@@ -599,54 +613,74 @@
       </svg>
       Exportal
     </a>
-    <nav>
+    <nav aria-label="Site">
       <a href="#how">How it works</a>
-      <a href="/privacy">Privacy</a>
       <a href="#faq">FAQ</a>
-      <a href="/support">Support</a>
+      <a href="/privacy" class="hide-sm">Privacy</a>
+      <a href="/support" class="hide-sm">Support</a>
       <a href="https://github.com/dioniipereyraa/ClaudeTool">GitHub</a>
     </nav>
   </div>
 </header>
 
-<div class="wrap">
+<main>
 
-<section class="hero" style="border-top: none;">
-  <h1>The bridge between your AI chat and your editor.</h1>
-  <p class="lede">
-    <strong>Exportal</strong> is a bidirectional bridge between
-    <strong>Claude.ai / ChatGPT</strong> and <strong>Claude Code</strong>
-    in VS Code. One click in any chat &rarr; clean Markdown in your
-    workspace, auto-attached to Claude Code as <code>@-mention</code>.
-    Continue your work without copy-paste.
-  </p>
-  <div class="ctas">
-    <a href="https://chromewebstore.google.com/detail/exportal-companion/lmnmekfphhpfaciehfdaonjfchbicdnm">Install Chrome companion</a>
-    <a href="https://marketplace.visualstudio.com/items?itemName=dioniipereyraa.exportal" class="secondary">Install VS Code extension</a>
-    <a href="https://github.com/dioniipereyraa/ClaudeTool" class="secondary">View source</a>
+<section class="hero" aria-labelledby="hero-title">
+  <!-- Background: threads from the chat side to the editor side. Packets
+       (the messages crossing the bridge) are added by script.js so a
+       browser without JS, or with reduced motion, keeps the still lines. -->
+  <svg class="threads" viewBox="0 0 1440 720" preserveAspectRatio="none" aria-hidden="true" focusable="false">
+    <path pathLength="1" style="--i:0" d="M -20 120 C 380 120, 520 380, 760 380 S 1140 620, 1460 620"/>
+    <path pathLength="1" style="--i:1" d="M -20 200 C 300 200, 560 96, 780 96 S 1180 560, 1460 560"/>
+    <path pathLength="1" style="--i:2" d="M -20 300 C 320 300, 500 520, 720 520 S 1160 160, 1460 160"/>
+    <path pathLength="1" style="--i:3" d="M -20 420 C 260 420, 520 260, 740 260 S 1180 700, 1460 700"/>
+    <path pathLength="1" style="--i:4" d="M -20 560 C 340 560, 560 660, 800 660 S 1160 300, 1460 300"/>
+    <path pathLength="1" style="--i:5" d="M -20 660 C 400 660, 480 200, 700 200 S 1200 60, 1460 60"/>
+    <path pathLength="1" style="--i:6" d="M -20 40 C 360 40, 600 600, 840 600 S 1220 440, 1460 440"/>
+  </svg>
+  <div class="wrap">
+    <div class="hero-grid">
+      <h1 id="hero-title">The bridge between your AI chat and your editor.</h1>
+      <p class="lede">
+        <strong>Exportal</strong> moves a conversation from
+        <strong>Claude.ai or ChatGPT</strong> into <strong>Claude Code</strong>
+        in VS Code, and back. One click in any chat, and the whole thread lands
+        in your workspace as clean Markdown, already attached to Claude Code as
+        an <code>@-mention</code>. No copy-paste, no re-explaining.
+      </p>
+      <div class="ctas">
+        <a class="btn" href="https://chromewebstore.google.com/detail/exportal-companion/lmnmekfphhpfaciehfdaonjfchbicdnm">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3.2"/><path d="M12 3v5.8M4.2 16.5l5-2.9M19.8 16.5l-5-2.9"/></svg>
+          Install the Chrome companion
+        </a>
+        <a class="btn quiet" href="https://marketplace.visualstudio.com/items?itemName=dioniipereyraa.exportal">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16.5 3.5 20 5.2v13.6l-3.5 1.7L8 13.8l-3.2 2.6L3 15.3V8.7l1.8-1.1L8 10.2z"/><path d="M16.5 3.5v17M8 10.2l8.5 3.6"/></svg>
+          Install the VS Code extension
+        </a>
+        <a class="source-link" href="https://github.com/dioniipereyraa/ClaudeTool">Read the source on GitHub</a>
+      </div>
+      <figure class="hero-demo">
+        <video src="screenshots/exportal-demo.mp4" autoplay loop muted playsinline preload="auto" aria-label="Exportal demo: one click on a Claude.ai chat, the conversation lands in VS Code, and Claude Code receives it as an @-mention."></video>
+      </figure>
+    </div>
   </div>
-  <div class="badges">
-    <img src="https://img.shields.io/github/stars/dioniipereyraa/ClaudeTool?style=flat&color=1d4ed8" alt="GitHub stars">
-    <img src="https://img.shields.io/badge/license-MIT-1d4ed8" alt="MIT license">
-    <img src="https://img.shields.io/badge/local--first-yes-1d4ed8" alt="Local-first">
-  </div>
-  <figure class="hero-demo">
-    <video src="screenshots/exportal-demo.mp4" autoplay loop muted playsinline preload="auto" aria-label="Exportal demo: one click on a Claude.ai chat, the conversation lands in VS Code, and Claude Code receives it as @-mention."></video>
-  </figure>
 </section>
 
-<section id="under-the-hood">
-  <h2>Under the hood</h2>
-  <p class="sub">No mock screenshots — the actual file structure you receive, and the real architecture of the bridge.</p>
+<section id="under-the-hood" class="block">
+  <div class="wrap section-grid">
+    <div class="section-head">
+      <h2>Under the hood</h2>
+      <p>The actual file you receive, and the actual path it travels. No mock screenshots.</p>
+    </div>
+    <div class="section-body">
+      <h3>The Markdown you receive</h3>
+      <pre class="code-block"><code><span class="h"># Exportal: claude.ai conversation</span>
 
-  <h3 class="sub-heading">The Markdown you receive</h3>
-  <pre class="code-block"><code><span class="h"># Exportal — claude.ai conversation</span>
-
-- <span class="m">**Title:**</span> <span class="v">Refactoring the auth middleware</span>
-- <span class="m">**UUID:**</span> <span class="v">`7f3a4b9c-2d8e-4c11-a8d3-...`</span>
-- <span class="m">**Created:**</span> <span class="v">2026-04-22T14:32:11Z</span>
-- <span class="m">**Messages:**</span> <span class="v">14</span>
-- <span class="m">**Redaction:**</span> <span class="v">enabled</span>
+- <span class="m">**Title:**</span> Refactoring the auth middleware
+- <span class="m">**UUID:**</span> `7f3a4b9c-2d8e-4c11-a8d3-...`
+- <span class="m">**Created:**</span> 2026-04-22T14:32:11Z
+- <span class="m">**Messages:**</span> 14
+- <span class="m">**Redaction:**</span> enabled
 
 <span class="sp">## User</span>
 
@@ -661,255 +695,283 @@ how the JWT verification works?
 The current implementation uses `jsonwebtoken` v9 with
 HS256. The `verifyToken` function on line 23 takes a
 request and...</code></pre>
-  <p class="block-note">A real export from a Claude.ai conversation. Tool-use blocks and inline code are preserved verbatim — ready to paste into Claude Code as context, or auto-attached for you.</p>
+      <p class="note">A real export from a Claude.ai conversation. Tool-use blocks and inline code are preserved verbatim, ready to paste into Claude Code as context, or auto-attached for you.</p>
 
-  <h3 class="sub-heading">How the bridge works</h3>
-  <div class="arch-wrap">
-    <svg viewBox="0 0 760 240" class="arch-svg" role="img" aria-labelledby="arch-title">
-      <title id="arch-title">Exportal bridges Chrome and VS Code through a local HTTP loopback at 127.0.0.1</title>
-      <defs>
-        <marker id="arrowhead" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto">
-          <path d="M 0 0 L 10 4 L 0 8 z" fill="#1d4ed8"/>
-        </marker>
-      </defs>
+      <h3>How the bridge works</h3>
+      <div class="arch-wrap">
+        <svg viewBox="0 0 760 250" class="arch-svg" role="img" aria-labelledby="arch-title">
+          <title id="arch-title">Exportal bridges Chrome and VS Code through a local HTTP loopback at 127.0.0.1</title>
+          <defs>
+            <marker id="arrowhead" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="userSpaceOnUse">
+              <path d="M 0 0 L 8 4 L 0 8" fill="none" stroke="#1F1F1F" stroke-width="1.25"/>
+            </marker>
+          </defs>
 
-      <g>
-        <rect x="180" y="0" width="400" height="32" rx="16" fill="#eff6ff" stroke="#1d4ed8"/>
-        <text x="380" y="21" text-anchor="middle" font-size="13" fill="#1d4ed8" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, system-ui, sans-serif">All on your machine — no remote server in the path</text>
-      </g>
+          <text x="380" y="18" text-anchor="middle" class="sub">everything below runs on your machine, no remote server in the path</text>
+          <line x1="20" y1="32" x2="740" y2="32" stroke="rgba(31,31,31,0.14)" stroke-dasharray="2 4"/>
 
-      <g transform="translate(20, 70)">
-        <rect width="200" height="100" rx="10" fill="#fff" stroke="#0b1220" stroke-width="2"/>
-        <text x="100" y="40" text-anchor="middle" font-size="14" font-weight="700" fill="#0b1220" font-family="-apple-system, BlinkMacSystemFont, system-ui, sans-serif">Chrome companion</text>
-        <text x="100" y="62" text-anchor="middle" font-size="11" fill="#4b5563" font-family="-apple-system, BlinkMacSystemFont, system-ui, sans-serif">FAB on claude.ai</text>
-        <text x="100" y="78" text-anchor="middle" font-size="11" fill="#4b5563" font-family="-apple-system, BlinkMacSystemFont, system-ui, sans-serif">FAB on chatgpt.com</text>
-      </g>
+          <g transform="translate(20, 70)">
+            <rect width="200" height="100" rx="4" class="box"/>
+            <text x="100" y="40" text-anchor="middle" class="t">Chrome companion</text>
+            <text x="100" y="64" text-anchor="middle" class="s">FAB on claude.ai</text>
+            <text x="100" y="80" text-anchor="middle" class="s">FAB on chatgpt.com</text>
+          </g>
 
-      <g transform="translate(220, 110)">
-        <line x1="0" y1="10" x2="100" y2="10" stroke="#1d4ed8" stroke-width="2" marker-end="url(#arrowhead)"/>
-        <text x="50" y="0" text-anchor="middle" font-size="12" fill="#1d4ed8" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, system-ui, sans-serif">HTTP POST</text>
-        <text x="50" y="28" text-anchor="middle" font-size="11" fill="#64748b" font-family="-apple-system, BlinkMacSystemFont, system-ui, sans-serif">127.0.0.1</text>
-      </g>
+          <g transform="translate(220, 110)">
+            <line x1="0" y1="10" x2="108" y2="10" class="wire" marker-end="url(#arrowhead)"/>
+            <text x="55" y="-2" text-anchor="middle" class="lbl">HTTP POST</text>
+            <text x="55" y="28" text-anchor="middle" class="sub">127.0.0.1</text>
+          </g>
 
-      <g transform="translate(330, 70)">
-        <rect width="200" height="100" rx="10" fill="#fff" stroke="#0b1220" stroke-width="2"/>
-        <text x="100" y="40" text-anchor="middle" font-size="14" font-weight="700" fill="#0b1220" font-family="-apple-system, BlinkMacSystemFont, system-ui, sans-serif">VS Code + Exportal</text>
-        <text x="100" y="62" text-anchor="middle" font-size="11" fill="#4b5563" font-family="-apple-system, BlinkMacSystemFont, system-ui, sans-serif">Local HTTP server</text>
-        <text x="100" y="78" text-anchor="middle" font-size="11" fill="#4b5563" font-family="-apple-system, BlinkMacSystemFont, system-ui, sans-serif">writes .md to workspace</text>
-      </g>
+          <g transform="translate(330, 70)">
+            <rect width="200" height="100" rx="4" class="box"/>
+            <text x="100" y="40" text-anchor="middle" class="t">VS Code + Exportal</text>
+            <text x="100" y="64" text-anchor="middle" class="s">local HTTP server</text>
+            <text x="100" y="80" text-anchor="middle" class="s">writes .md to workspace</text>
+          </g>
 
-      <g transform="translate(530, 110)">
-        <line x1="0" y1="10" x2="100" y2="10" stroke="#1d4ed8" stroke-width="2" marker-end="url(#arrowhead)"/>
-        <text x="50" y="0" text-anchor="middle" font-size="12" fill="#1d4ed8" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, system-ui, sans-serif">VS Code API</text>
-        <text x="50" y="28" text-anchor="middle" font-size="11" fill="#64748b" font-family="-apple-system, BlinkMacSystemFont, system-ui, sans-serif">@-mention</text>
-      </g>
+          <g transform="translate(530, 110)">
+            <line x1="0" y1="10" x2="108" y2="10" class="wire" marker-end="url(#arrowhead)"/>
+            <text x="55" y="-2" text-anchor="middle" class="lbl">VS Code API</text>
+            <text x="55" y="28" text-anchor="middle" class="sub">@-mention</text>
+          </g>
 
-      <g transform="translate(640, 70)">
-        <rect width="100" height="100" rx="10" fill="#0b1220" stroke="#0b1220" stroke-width="2"/>
-        <text x="50" y="42" text-anchor="middle" font-size="13" font-weight="700" fill="#fff" font-family="-apple-system, BlinkMacSystemFont, system-ui, sans-serif">Claude</text>
-        <text x="50" y="60" text-anchor="middle" font-size="13" font-weight="700" fill="#fff" font-family="-apple-system, BlinkMacSystemFont, system-ui, sans-serif">Code</text>
-        <text x="50" y="82" text-anchor="middle" font-size="10" fill="#94a3b8" font-family="-apple-system, BlinkMacSystemFont, system-ui, sans-serif">@-mention</text>
-      </g>
+          <g transform="translate(640, 70)">
+            <rect width="100" height="100" rx="4" class="box solid"/>
+            <text x="50" y="44" text-anchor="middle" class="t inv">Claude</text>
+            <text x="50" y="62" text-anchor="middle" class="t inv">Code</text>
+            <text x="50" y="84" text-anchor="middle" class="s inv">@-mention</text>
+          </g>
 
-      <g transform="translate(0, 200)">
-        <text x="120" y="14" text-anchor="middle" font-size="11" fill="#4b5563" font-style="italic" font-family="-apple-system, BlinkMacSystemFont, system-ui, sans-serif">your browser session</text>
-        <text x="430" y="14" text-anchor="middle" font-size="11" fill="#4b5563" font-style="italic" font-family="-apple-system, BlinkMacSystemFont, system-ui, sans-serif">token-paired</text>
-        <text x="690" y="14" text-anchor="middle" font-size="11" fill="#4b5563" font-style="italic" font-family="-apple-system, BlinkMacSystemFont, system-ui, sans-serif">native VS Code</text>
-      </g>
-    </svg>
-  </div>
-  <p class="block-note">All traffic flows through your loopback address. There is no Exportal cloud, no analytics, no telemetry. The Chrome companion talks only to <code>127.0.0.1</code> — your own machine.</p>
-</section>
-
-<section id="features">
-  <h2>What it does</h2>
-  <p class="sub">Six capabilities that, taken together, no other tool offers today.</p>
-  <div class="features">
-    <div class="feature">
-      <h3>One-click export</h3>
-      <p>From any chat at <code>claude.ai/chat</code>, <code>claude.ai/design/p</code>, or <code>chatgpt.com/c</code> &rarr; a clean Markdown file in your VS Code workspace, including tool use and results.</p>
-    </div>
-    <div class="feature">
-      <h3>Auto-attach to Claude Code</h3>
-      <p>Exported files land as <code>@-mention</code> in the Claude Code panel. Continue the conversation in your editor with full context — no copy-paste, no re-explaining.</p>
-    </div>
-    <div class="feature">
-      <h3>Bidirectional</h3>
-      <p>Send any Claude Code session back to claude.ai or ChatGPT. The chat is rendered, copied to your clipboard, and the provider opens — paste and continue in the cloud.</p>
-    </div>
-    <div class="feature">
-      <h3>Claude Design support</h3>
-      <p>For <code>claude.ai/design/p</code> projects, generated assets (HTML, JSX, JSON) are also downloaded into a sibling folder so Claude Code sees them too.</p>
-    </div>
-    <div class="feature">
-      <h3>Official ZIP imports</h3>
-      <p>Drop a Claude.ai or ChatGPT data export ZIP and Exportal renders it. Auto-detects new ZIPs in your Downloads folder while the panel is visible.</p>
-    </div>
-    <div class="feature">
-      <h3>Appear in <code>/resume</code></h3>
-      <p>Optional opt-in: imported conversations appear in Claude Code's <code>/resume</code> command as if they were native local sessions. Experimental.</p>
+          <g transform="translate(0, 210)">
+            <text x="120" y="14" text-anchor="middle" class="cap">your browser session</text>
+            <text x="430" y="14" text-anchor="middle" class="cap">token-paired</text>
+            <text x="690" y="14" text-anchor="middle" class="cap">native VS Code</text>
+          </g>
+        </svg>
+      </div>
+      <p class="note">All traffic flows through your loopback address. There is no Exportal cloud, no analytics, no telemetry. The Chrome companion talks only to <code>127.0.0.1</code>, your own machine.</p>
     </div>
   </div>
 </section>
 
-<section id="how">
-  <h2>How it works</h2>
-  <p class="sub">Three steps. After the first pairing, daily use is one click.</p>
-  <ol class="steps">
-    <li>
-      <h3>Install both</h3>
-      <p>The <strong>Exportal Companion</strong> from the Chrome Web Store, and the <strong>Exportal</strong> extension from the VS Code Marketplace.</p>
-    </li>
-    <li>
-      <h3>Pair once</h3>
-      <p><code>Ctrl+Shift+P</code> &rarr; <code>Exportal: Show pairing token</code> &rarr; click <strong>Copy and open Chrome</strong>. The companion auto-detects the token and pairs. No copy-paste.</p>
-    </li>
-    <li>
-      <h3>Click & continue</h3>
-      <p>On any chat, click the floating Exportal button. VS Code opens the conversation as Markdown, attached to Claude Code as <code>@-mention</code>. Or use <code>Alt+Shift+E</code>.</p>
-    </li>
-  </ol>
-</section>
-
-<section id="privacy">
-  <h2>Architecture &amp; Privacy</h2>
-  <p class="sub">For users who care how their tools actually work — and want to verify.</p>
-  <div class="privacy">
-    <h3>Local-first by design</h3>
-    <p>
-      The Chrome companion and the VS Code extension communicate through
-      a <strong>local HTTP loopback bridge</strong> on <code>127.0.0.1</code>,
-      authenticated by a token paired once. No remote servers exist in the
-      data path — the server lives inside your own VS Code, on your own
-      machine.
-    </p>
-    <ul>
-      <li>No remote servers. Nothing is sent off your machine.</li>
-      <li>No analytics. No telemetry. No accounts.</li>
-      <li>Network permissions are used <strong>only</strong> to talk to <code>127.0.0.1</code> — your own loopback address.</li>
-      <li>Reads conversations through your existing browser session, the same way your browser already reads them when you scroll. No automation, no scraping, no rate-limit abuse.</li>
-      <li>Open source under MIT — every line of the Chrome extension, the VS Code extension, and the bridge protocol is auditable on <a href="https://github.com/dioniipereyraa/ClaudeTool">GitHub</a>.</li>
-    </ul>
-    <p>
-      The full threat model is documented in
-      <a href="https://github.com/dioniipereyraa/ClaudeTool/blob/main/SECURITY.md"><code>SECURITY.md</code></a>:
-      what is treated as a sensitive asset, where redaction applies by
-      default, what is intentionally out of scope (e.g. encryption at
-      rest), and how the pairing token mitigates loopback access from
-      other processes.
-    </p>
+<section id="features" class="block">
+  <div class="wrap section-grid">
+    <div class="section-head">
+      <h2>What it does</h2>
+      <p>Six things, and the combination is what makes it a bridge rather than an exporter.</p>
+    </div>
+    <div class="section-body">
+      <dl class="features">
+        <div>
+          <dt>One-click export</dt>
+          <dd>From any chat at <code>claude.ai/chat</code>, <code>claude.ai/design/p</code>, or <code>chatgpt.com/c</code>, a clean Markdown file lands in your VS Code workspace, including tool use and results.</dd>
+        </div>
+        <div>
+          <dt>Auto-attach to Claude Code</dt>
+          <dd>Exported files land as an <code>@-mention</code> in the Claude Code panel. Continue the conversation in your editor with full context, no copy-paste, no re-explaining.</dd>
+        </div>
+        <div>
+          <dt>Bidirectional</dt>
+          <dd>Send any Claude Code session back to claude.ai or ChatGPT. The chat is rendered, copied to your clipboard, and the provider opens. Paste and continue in the cloud.</dd>
+        </div>
+        <div>
+          <dt>Claude Design support</dt>
+          <dd>For <code>claude.ai/design/p</code> projects, generated assets (HTML, JSX, JSON) are also downloaded into a sibling folder so Claude Code sees them too.</dd>
+        </div>
+        <div>
+          <dt>Official ZIP imports</dt>
+          <dd>Drop a Claude.ai or ChatGPT data export ZIP and Exportal renders it. New ZIPs in your Downloads folder are detected while the panel is visible.</dd>
+        </div>
+        <div>
+          <dt>Appear in <code>/resume</code></dt>
+          <dd>Opt-in: imported conversations appear in Claude Code's <code>/resume</code> command as if they were native local sessions. Experimental.</dd>
+        </div>
+      </dl>
+    </div>
   </div>
 </section>
 
-<section id="who">
-  <h2>Who built this</h2>
-  <div class="author">
-    <div class="author-avatar">DP</div>
-    <div class="author-body">
+<section id="how" class="block">
+  <div class="wrap section-grid">
+    <div class="section-head">
+      <h2>How it works</h2>
+      <p>Three steps. After the first pairing, daily use is one click.</p>
+    </div>
+    <div class="section-body">
+      <ol class="steps">
+        <li>
+          <div>
+            <h3>Install both halves</h3>
+            <p>The <strong>Exportal Companion</strong> from the Chrome Web Store, and the <strong>Exportal</strong> extension from the VS Code Marketplace.</p>
+          </div>
+        </li>
+        <li>
+          <div>
+            <h3>Pair once</h3>
+            <p><kbd>Ctrl</kbd> <kbd>Shift</kbd> <kbd>P</kbd>, then <code>Exportal: Show pairing token</code>, then <strong>Copy and open Chrome</strong>. The companion detects the token and pairs by itself.</p>
+          </div>
+        </li>
+        <li>
+          <div>
+            <h3>Click and continue</h3>
+            <p>On any chat, click the floating Exportal button. VS Code opens the conversation as Markdown, attached to Claude Code as an <code>@-mention</code>. Or press <kbd>Alt</kbd> <kbd>Shift</kbd> <kbd>E</kbd>.</p>
+          </div>
+        </li>
+      </ol>
+    </div>
+  </div>
+</section>
+
+<section id="privacy" class="block">
+  <div class="wrap section-grid">
+    <div class="section-head">
+      <h2>Architecture and privacy</h2>
+      <p>For people who want to know how their tools work, and to check.</p>
+    </div>
+    <div class="section-body privacy">
+      <h3>Local-first by design</h3>
+      <p>
+        The Chrome companion and the VS Code extension communicate through
+        a <strong>local HTTP loopback bridge</strong> on <code>127.0.0.1</code>,
+        authenticated by a token paired once. No remote servers exist in the
+        data path: the server lives inside your own VS Code, on your own
+        machine.
+      </p>
+      <ul>
+        <li>No remote servers. Nothing is sent off your machine.</li>
+        <li>No analytics. No telemetry. No accounts.</li>
+        <li>Network permissions are used <strong>only</strong> to talk to <code>127.0.0.1</code>, your own loopback address.</li>
+        <li>Reads conversations through your existing browser session, the same way your browser already reads them when you scroll. No automation, no scraping, no rate-limit abuse.</li>
+        <li>Open source under MIT. Every line of the Chrome extension, the VS Code extension, and the bridge protocol is on <a href="https://github.com/dioniipereyraa/ClaudeTool">GitHub</a>.</li>
+      </ul>
+      <p>
+        The full threat model is documented in
+        <a href="https://github.com/dioniipereyraa/ClaudeTool/blob/main/SECURITY.md"><code>SECURITY.md</code></a>:
+        what is treated as a sensitive asset, where redaction applies by
+        default, what is intentionally out of scope (for example encryption
+        at rest), and how the pairing token mitigates loopback access from
+        other processes.
+      </p>
+    </div>
+  </div>
+</section>
+
+<section id="who" class="block">
+  <div class="wrap section-grid">
+    <div class="section-head">
+      <h2>Who built this</h2>
+    </div>
+    <div class="section-body author">
       <h3>Dionisio Pereyra Bocchio</h3>
       <p>
         20-year-old Computer Science student at UBA (Universidad de Buenos Aires),
         Argentina. Built Exportal because the copy-paste between claude.ai
         planning sessions and Claude Code became unbearable. Released the
         first public version in April 2026 and has been iterating in the
-        open since — every commit, changelog entry, and roadmap item
-        is on GitHub.
+        open since: every commit, changelog entry, and roadmap item is on
+        GitHub.
       </p>
-      <a href="https://github.com/dioniipereyraa">GitHub</a>
-      <a href="https://github.com/dioniipereyraa/ClaudeTool/blob/main/DEVLOG.md">Project devlog</a>
-      <a href="https://github.com/dioniipereyraa/ClaudeTool/blob/main/CHANGELOG.md">Changelog</a>
-      <a href="https://github.com/dioniipereyraa/ClaudeTool/blob/main/ROADMAP.md">Roadmap</a>
+      <div class="links">
+        <a href="https://github.com/dioniipereyraa">GitHub profile</a>
+        <a href="https://github.com/dioniipereyraa/ClaudeTool/blob/main/DEVLOG.md">Project devlog</a>
+        <a href="https://github.com/dioniipereyraa/ClaudeTool/blob/main/CHANGELOG.md">Changelog</a>
+        <a href="https://github.com/dioniipereyraa/ClaudeTool/blob/main/ROADMAP.md">Roadmap</a>
+      </div>
     </div>
   </div>
 </section>
 
-<section id="open">
-  <h2>Built in the open</h2>
-  <p class="sub">Every commit, decision, and roadmap item is public. The repo is the source of truth — not a polished landing page.</p>
-  <div class="open-stats">
-    <a class="stat-card" href="https://github.com/dioniipereyraa/ClaudeTool/blob/main/CHANGELOG.md">
-      <div class="stat-num">30+</div>
-      <div class="stat-name">CHANGELOG</div>
-      <div class="stat-desc">Tagged releases since April 2026, with notes per version. Active iteration, not abandonware.</div>
-    </a>
-    <a class="stat-card" href="https://github.com/dioniipereyraa/ClaudeTool/blob/main/DEVLOG.md">
-      <div class="stat-num">47</div>
-      <div class="stat-name">DEVLOG entries</div>
-      <div class="stat-desc">Decisions per session — the why behind the code, not just the what. Incidents and reversals included.</div>
-    </a>
-    <a class="stat-card" href="https://github.com/dioniipereyraa/ClaudeTool/blob/main/ROADMAP.md">
-      <div class="stat-num">→</div>
-      <div class="stat-name">ROADMAP</div>
-      <div class="stat-desc">What's coming, what's parked, and what got an explicit "no". Priorities are public so users can plan.</div>
-    </a>
-    <a class="stat-card" href="https://github.com/dioniipereyraa/ClaudeTool/blob/main/SECURITY.md">
-      <div class="stat-num">!</div>
-      <div class="stat-name">SECURITY</div>
-      <div class="stat-desc">Threat model, redaction defaults, pairing-token rationale, and explicitly out-of-scope items.</div>
-    </a>
+<section id="open" class="block">
+  <div class="wrap section-grid">
+    <div class="section-head">
+      <h2>Built in the open</h2>
+      <p>The repo is the source of truth, not this page. Four documents carry the history.</p>
+    </div>
+    <div class="section-body">
+      <div class="open-docs">
+        <a href="https://github.com/dioniipereyraa/ClaudeTool/blob/main/CHANGELOG.md">
+          <span class="doc-name">CHANGELOG.md</span>
+          <span class="doc-desc"><strong>37 tagged releases</strong> since April 2026, with notes per version. Active iteration, not abandonware.</span>
+        </a>
+        <a href="https://github.com/dioniipereyraa/ClaudeTool/blob/main/DEVLOG.md">
+          <span class="doc-name">DEVLOG.md</span>
+          <span class="doc-desc"><strong>66 session entries</strong> with the why behind the code, not just the what. Incidents and reversals included.</span>
+        </a>
+        <a href="https://github.com/dioniipereyraa/ClaudeTool/blob/main/ROADMAP.md">
+          <span class="doc-name">ROADMAP.md</span>
+          <span class="doc-desc">What's coming, what's parked, and what got an explicit no. Priorities are public so users can plan.</span>
+        </a>
+        <a href="https://github.com/dioniipereyraa/ClaudeTool/blob/main/SECURITY.md">
+          <span class="doc-name">SECURITY.md</span>
+          <span class="doc-desc">Threat model, redaction defaults, pairing-token rationale, and the items explicitly out of scope.</span>
+        </a>
+      </div>
+    </div>
   </div>
 </section>
 
-<section id="faq" class="faq">
-  <h2>FAQ</h2>
-  <p class="sub">Short, honest answers.</p>
-
-  <details>
-    <summary>Does Exportal work without the VS Code extension?</summary>
-    <p>No. Exportal is a bridge — both halves are required. The Chrome companion talks to a local HTTP server that lives inside the VS Code extension. Both are free and MIT-licensed.</p>
-  </details>
-
-  <details>
-    <summary>Why does the Chrome extension ask for network permissions if it's local?</summary>
-    <p>The "network" permission is used <strong>only</strong> to talk to <code>127.0.0.1</code> — your own machine's loopback address. There is no remote server. You can verify this by reading the <a href="https://github.com/dioniipereyraa/ClaudeTool">source code</a>.</p>
-  </details>
-
-  <details>
-    <summary>Will Anthropic or OpenAI ban my account?</summary>
-    <p>No. Exportal only reads conversations you already have access to, using your existing browser session — the same way your browser does when you scroll through them. No automation, no scraping, no rate-limit abuse.</p>
-  </details>
-
-  <details>
-    <summary>Does it work with Pro / Max / Team / Enterprise plans?</summary>
-    <p>Yes, with all of them. Exportal uses your existing logged-in session — whatever you can see in your browser, Exportal can export.</p>
-  </details>
-
-  <details>
-    <summary>What if Anthropic or OpenAI change their internal API?</summary>
-    <p>Exportal parses responses defensively and falls back gracefully. If a structural change breaks something, file an issue on GitHub and it'll be fixed quickly. The official ZIP import path is also always available as a fallback that does not depend on the internal API.</p>
-  </details>
-
-  <details>
-    <summary>Is the <code>/resume</code> integration officially supported?</summary>
-    <p>No. The <code>.jsonl</code> session format used by Claude Code is reverse-engineered, not officially documented by Anthropic. The <code>/resume</code> integration is opt-in and labelled experimental — it may break across Claude Code versions. The Markdown export, which is the primary feature, is unaffected.</p>
-  </details>
-
-  <details>
-    <summary>How is this different from existing exporters in the Chrome Web Store?</summary>
-    <p>Existing exporters save chats to a file. Exportal is a <strong>bridge</strong>: the exported conversation is auto-attached to Claude Code in VS Code so you continue the conversation, not just archive it. It's also bidirectional, supports <code>claude.ai/design/p</code> with asset download, and is the only tool that integrates with Claude Code's <code>/resume</code> command.</p>
-  </details>
+<section id="faq" class="block">
+  <div class="wrap section-grid">
+    <div class="section-head">
+      <h2>Questions</h2>
+      <p>Short, honest answers.</p>
+    </div>
+    <div class="section-body faq">
+      <details>
+        <summary>Does Exportal work without the VS Code extension?</summary>
+        <p>No. Exportal is a bridge, so both halves are required. The Chrome companion talks to a local HTTP server that lives inside the VS Code extension. Both are free and MIT-licensed.</p>
+      </details>
+      <details>
+        <summary>Why does the Chrome extension ask for network permissions if it's local?</summary>
+        <p>The "network" permission is used <strong>only</strong> to talk to <code>127.0.0.1</code>, your own machine's loopback address. There is no remote server. You can verify this by reading the <a href="https://github.com/dioniipereyraa/ClaudeTool">source code</a>.</p>
+      </details>
+      <details>
+        <summary>Will Anthropic or OpenAI ban my account?</summary>
+        <p>No. Exportal only reads conversations you already have access to, using your existing browser session, the same way your browser does when you scroll through them. No automation, no scraping, no rate-limit abuse.</p>
+      </details>
+      <details>
+        <summary>Does it work with Pro, Max, Team and Enterprise plans?</summary>
+        <p>Yes, with all of them. Exportal uses your existing logged-in session: whatever you can see in your browser, Exportal can export.</p>
+      </details>
+      <details>
+        <summary>What if Anthropic or OpenAI change their internal API?</summary>
+        <p>Exportal parses responses defensively and falls back gracefully. If a structural change breaks something, file an issue on GitHub and it will be fixed quickly. The official ZIP import path is always available as a fallback that does not depend on the internal API.</p>
+      </details>
+      <details>
+        <summary>Is the <code>/resume</code> integration officially supported?</summary>
+        <p>No. The <code>.jsonl</code> session format used by Claude Code is reverse-engineered, not officially documented by Anthropic. The <code>/resume</code> integration is opt-in and labelled experimental; it may break across Claude Code versions. The Markdown export, which is the primary feature, is unaffected.</p>
+      </details>
+      <details>
+        <summary>How is this different from existing exporters in the Chrome Web Store?</summary>
+        <p>Existing exporters save chats to a file. Exportal is a <strong>bridge</strong>: the exported conversation is auto-attached to Claude Code in VS Code so you continue the conversation, not just archive it. It is also bidirectional, supports <code>claude.ai/design/p</code> with asset download, and is the only tool that integrates with Claude Code's <code>/resume</code> command.</p>
+      </details>
+    </div>
+  </div>
 </section>
 
-</div>
+</main>
 
 <footer class="site">
   <div class="wrap">
     <div class="row">
-      <div>
+      <nav aria-label="Footer">
         <a href="https://github.com/dioniipereyraa/ClaudeTool">GitHub</a>
         <a href="https://chromewebstore.google.com/detail/exportal-companion/lmnmekfphhpfaciehfdaonjfchbicdnm">Chrome Web Store</a>
         <a href="https://marketplace.visualstudio.com/items?itemName=dioniipereyraa.exportal">VS Code Marketplace</a>
+        <a href="/privacy">Privacy</a>
+        <a href="/support">Support</a>
         <a href="https://github.com/dioniipereyraa/ClaudeTool/blob/main/SECURITY.md">Security</a>
         <a href="https://github.com/dioniipereyraa/ClaudeTool/blob/main/LICENSE">License</a>
-      </div>
+      </nav>
       <div>
-        Built by <a href="https://github.com/dioniipereyraa">Dioni Pereyra</a> · MIT
+        Built by <a href="https://github.com/dioniipereyraa">Dioni Pereyra</a>. MIT licensed.
       </div>
     </div>
     <p class="disclaimer">
       Exportal is an independent open-source project. It is not
       affiliated with, endorsed by, or sponsored by Anthropic (makers of
-      Claude / Claude Code) or OpenAI (makers of ChatGPT). "Claude",
+      Claude and Claude Code) or OpenAI (makers of ChatGPT). "Claude",
       "Claude Code", and "Claude.ai" are trademarks of Anthropic.
       "ChatGPT" is a trademark of OpenAI.
     </p>

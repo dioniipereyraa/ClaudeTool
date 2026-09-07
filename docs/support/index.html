@@ -4,37 +4,48 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; font-src 'self'; connect-src 'self' https://api.web3forms.com; form-action https://api.web3forms.com; base-uri 'self';">
-<title>Support — Exportal</title>
-<meta name="description" content="Get help with Exportal — the bridge between Claude.ai/ChatGPT and Claude Code. Email support@exportal.dev. Solo developer, replies within 24–72h.">
-<meta name="theme-color" content="#0b1220">
+<title>Support: Exportal</title>
+<meta name="description" content="Get help with Exportal, the bridge between Claude.ai/ChatGPT and Claude Code. Email support@exportal.dev. Solo developer, replies within 24–72h.">
+<meta name="theme-color" content="#1f1f1f">
 
 <link rel="icon" href="/favicon.svg?v=2026-05-06" type="image/svg+xml">
 <link rel="icon" href="/favicon.png?v=2026-05-06" type="image/png" sizes="128x128">
 <link rel="apple-touch-icon" href="/favicon.png?v=2026-05-06">
 <link rel="canonical" href="https://exportal.dev/support">
 
-<meta property="og:title" content="Support — Exportal">
-<meta property="og:description" content="Need help with Exportal? Email support@exportal.dev — solo developer, replies within 24–72h. English & Español.">
+<meta property="og:title" content="Support: Exportal">
+<meta property="og:description" content="Need help with Exportal? Email support@exportal.dev. Solo developer, replies within 24–72h. English & Español.">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://exportal.dev/support">
 
 <style>
+  /* Fonts, self-hosted: the CSP only allows font-src 'self'. */
+  @font-face { font-family: "Inter Tight"; font-style: normal; font-weight: 100 900; font-display: swap; src: url("/fonts/inter-tight-latin.woff2") format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+  @font-face { font-family: "Inter Tight"; font-style: normal; font-weight: 100 900; font-display: swap; src: url("/fonts/inter-tight-latin-ext.woff2") format("woff2"); unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF; }
+  @font-face { font-family: "JetBrains Mono"; font-style: normal; font-weight: 400 800; font-display: swap; src: url("/fonts/jetbrains-mono-latin.woff2") format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+  @font-face { font-family: "JetBrains Mono"; font-style: normal; font-weight: 400 800; font-display: swap; src: url("/fonts/jetbrains-mono-latin-ext.woff2") format("woff2"); unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF; }
+
+  /* Tokens: strictly monochrome, same ink as the landing. */
   :root {
-    --ink: #0b1220;
-    --ink-2: #1f2937;
-    --muted: #4b5563;
-    --line: #e5e7eb;
+    --ink: #1f1f1f;
+    --ink-2: #1f1f1f;
+    --muted: rgba(31, 31, 31, 0.66);
+    --line: rgba(31, 31, 31, 0.14);
     --bg: #ffffff;
-    --bg-2: #f8fafc;
-    --accent: #1d4ed8;
-    --accent-soft: #eff6ff;
-    --code-bg: #0f172a;
-    --code-ink: #e2e8f0;
+    --bg-2: #ffffff;
+    --accent: #1f1f1f;
+    --accent-soft: rgba(31, 31, 31, 0.06);
+    --code-bg: #1f1f1f;
+    --code-ink: #ffffff;
+    --sans: "Inter Tight", "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --mono: "JetBrains Mono", "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
   }
+  code, kbd, pre { font-family: var(--mono); font-variant-ligatures: none; }
+  header.site .brand-mark { width: 22px; height: 22px; flex-shrink: 0; }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   html { scroll-behavior: smooth; }
   body {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, "Helvetica Neue", sans-serif;
+    font-family: var(--sans);
     color: var(--ink);
     line-height: 1.65;
     background: var(--bg);
@@ -79,20 +90,16 @@
     transition: color 0.18s ease;
   }
   header.site nav a:hover { color: var(--ink); }
+  header.site .brand { gap: 10px; }
   header.site nav a.current { color: var(--ink); font-weight: 600; }
 
   .hero { padding: 72px 0 40px; }
   .hero .eyebrow {
-    display: inline-block;
-    font-size: 0.78rem;
-    font-weight: 600;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: var(--accent);
-    background: var(--accent-soft);
-    padding: 4px 10px;
-    border-radius: 999px;
-    margin-bottom: 18px;
+    display: block;
+    font-size: 0.95rem;
+    font-weight: 500;
+    color: var(--muted);
+    margin-bottom: 14px;
   }
   .hero h1 {
     font-size: clamp(2.2rem, 5vw, 3.4rem);
@@ -209,7 +216,7 @@
     margin-left: 4px;
   }
 
-  /* FAQ-style "Before you write" — uses the same details/summary pattern
+  /* FAQ-style "Before you write": uses the same details/summary pattern
      as the homepage so the script.js animation works if reused. */
   .faq details {
     border-bottom: 1px solid var(--line);
@@ -433,7 +440,16 @@
 
 <header class="site">
   <div class="wrap row">
-    <a href="/" class="brand">Exportal</a>
+    <a href="/" class="brand" aria-label="Exportal home">
+      <svg class="brand-mark" viewBox="0 0 100 100" aria-hidden="true">
+        <rect x="22" y="20" width="56" height="14" rx="2" fill="#1F1F1F"/>
+        <rect x="22" y="20" width="14" height="60" rx="2" fill="#1F1F1F"/>
+        <rect x="22" y="66" width="56" height="14" rx="2" fill="#1F1F1F"/>
+        <rect x="36" y="43" width="36" height="14" rx="2" fill="#1F1F1F"/>
+        <path d="M 72 50 L 82 50" stroke="#1F1F1F" stroke-width="14" stroke-linecap="round"/>
+      </svg>
+      Exportal
+    </a>
     <nav>
       <a href="/#how">How it works</a>
       <a href="/privacy">Privacy</a>
@@ -444,14 +460,14 @@
   </div>
 </header>
 
-<div class="wrap">
+<main class="wrap">
 
 <section class="hero" style="border-top: none;">
   <span class="eyebrow">Support</span>
   <h1>Need a hand? Just email us.</h1>
   <p class="lede">
     <strong>Exportal</strong> is built and maintained by a solo
-    developer. Every message lands in a real inbox — no ticket portal,
+    developer. Every message lands in a real inbox: no ticket portal,
     no auto-responder, no chatbot. Bug reports, feature requests, and
     "how do I…" questions all go to the same place.
   </p>
@@ -472,12 +488,12 @@
 
 <section id="contact">
   <h2>Send a message</h2>
-  <p class="sub">No need to switch to your mail app. Fill this in, hit send — the reply lands in your inbox.</p>
+  <p class="sub">No need to switch to your mail app. Fill this in, hit send, and the reply lands in your inbox.</p>
 
   <form class="contact-form" action="https://api.web3forms.com/submit" method="POST">
     <input type="hidden" name="access_key" value="82c46e2b-f39a-47bb-8217-c68edd226720">
     <input type="hidden" name="from_name" value="Exportal Support Form">
-    <input type="hidden" name="subject" value="Exportal — new support message">
+    <input type="hidden" name="subject" value="Exportal: new support message">
     <input type="checkbox" name="botcheck" style="display: none;" tabindex="-1" autocomplete="off">
 
     <div class="form-row">
@@ -505,7 +521,7 @@
 
     <label class="field">
       <span class="field-label">Message <span class="req">*</span></span>
-      <textarea name="message" rows="6" required placeholder="What's going on? Steps to reproduce, version numbers, screenshots — anything that helps."></textarea>
+      <textarea name="message" rows="6" required placeholder="What's going on? Steps to reproduce, version numbers, screenshots, anything that helps."></textarea>
     </label>
 
     <div class="form-actions">
@@ -518,7 +534,7 @@
 </section>
 
 <section id="checks" class="faq">
-  <h2>Before you write — quick checks</h2>
+  <h2>Before you write: quick checks</h2>
   <p class="sub">Most reports land in one of these four buckets. A 30-second look here often saves a round-trip.</p>
 
   <details>
@@ -527,7 +543,7 @@
       In VS Code, run <code>Exportal: Show pairing token</code> from
       the command palette → click <code>Copy and open Chrome</code>.
       The Companion auto-detects the token from the URL fragment and
-      shows <em>"Done — All connected"</em> on its options page.
+      shows <em>"Done. All connected"</em> on its options page.
     </p>
   </details>
 
@@ -536,9 +552,9 @@
     <p>
       <code>OFF</code> means VS Code isn't running, or the Exportal
       extension isn't active. <code>AUTH</code> means the pairing
-      token is invalid — re-pair from the Bridge status panel in the
+      token is invalid: re-pair from the Bridge status panel in the
       Exportal sidebar. <code>OLD</code> means the VS Code extension
-      is outdated — update it from the Marketplace.
+      is outdated: update it from the Marketplace.
     </p>
   </details>
 
@@ -554,7 +570,7 @@
   </details>
 
   <details>
-    <summary>Reporting a bug — what should I include?</summary>
+    <summary>Reporting a bug: what should I include?</summary>
     <p>
       VS Code extension version, Companion version, the steps to
       reproduce, and (if relevant) the output of
@@ -596,7 +612,7 @@
   </div>
 </section>
 
-</div>
+</main>
 
 <footer class="site">
   <div class="wrap">
@@ -605,17 +621,19 @@
         <a href="https://github.com/dioniipereyraa/ClaudeTool">GitHub</a>
         <a href="https://chromewebstore.google.com/detail/exportal-companion/lmnmekfphhpfaciehfdaonjfchbicdnm">Chrome Web Store</a>
         <a href="https://marketplace.visualstudio.com/items?itemName=dioniipereyraa.exportal">VS Code Marketplace</a>
+        <a href="/privacy">Privacy</a>
+        <a href="/support">Support</a>
         <a href="https://github.com/dioniipereyraa/ClaudeTool/blob/main/SECURITY.md">Security</a>
         <a href="https://github.com/dioniipereyraa/ClaudeTool/blob/main/LICENSE">License</a>
       </div>
       <div>
-        Built by <a href="https://github.com/dioniipereyraa">Dioni Pereyra</a> · MIT
+        Built by <a href="https://github.com/dioniipereyraa">Dioni Pereyra</a>. MIT licensed.
       </div>
     </div>
     <p class="disclaimer">
       Exportal is an independent open-source project. It is not
       affiliated with, endorsed by, or sponsored by Anthropic (makers of
-      Claude / Claude Code) or OpenAI (makers of ChatGPT). "Claude",
+      Claude and Claude Code) or OpenAI (makers of ChatGPT). "Claude",
       "Claude Code", and "Claude.ai" are trademarks of Anthropic.
       "ChatGPT" is a trademark of OpenAI.
     </p>

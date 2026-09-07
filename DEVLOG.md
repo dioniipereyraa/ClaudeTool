@@ -5939,3 +5939,27 @@ implementados (5 INFORMATIVA pasaron a "fixed", 2 quedan como
 ### Próximo paso
 - Empaquetar y subir `exportal-0.11.9.vsix` al VS Code Marketplace y el `.zip` del companion al Chrome Web Store.
 - Smoke test del import de un proyecto Claude Design real para confirmar end-to-end con datos vivos.
+
+## 2026-09-07 · Rediseño de exportal.dev: monocromo estricto, tipografía propia, hilos en el hero
+
+### Qué hicimos
+- Verificamos primero que la landing estaba al día en contenido: el último release con features (0.11.8) la había tocado y 0.11.9 fue solo un bugfix. Dos cifras sí estaban viejas ("30+" releases contra 37 medidos en `CHANGELOG.md`, "47" entradas de devlog contra 66). Se corrigieron.
+- Diagnóstico de por qué se veía "vibecodeada": paleta azul `#1d4ed8` sobre slate (los defaults de Tailwind, y además ajena a la marca definida en 0.11.8), todo el contenido metido en cards idénticas con hover-lift, fuente del sistema en una sola columna de 880px, badges de shields.io, avatar con gradiente, stats con "→" y "!" como si fueran números.
+- Rediseño de `docs/index.html` sobre la identidad slate-on-white de 0.11.8, llevada a monocromo estricto: tinta `#1F1F1F`, papel blanco, y un solo gris secundario (`rgba(31,31,31,0.66)`, 5.33:1). Sin acento de color en ningún lado. Inter Tight (variable) para el texto y JetBrains Mono para código, rutas y atajos, vendoreadas en `docs/fonts/` como woff2 con subsets latin y latin-ext porque el CSP exige `font-src 'self'`.
+- Layout de 12 columnas a 1120px: cada sección lleva el título en las 4 de la izquierda (sticky en desktop) y el contenido en las 8 de la derecha. Cero cards: features como `<dl>` de dos columnas con reglas de 1px, pasos numerados en mono (son una secuencia real), documentos públicos como filas con el nombre de archivo en mono.
+- Un solo elemento memorable: siete hilos en SVG detrás del hero, de la izquierda (chat) a la derecha (editor), que se dibujan al cargar (`stroke-dashoffset` con `pathLength="1"`), y paquetes que viajan por ellos con `offset-path` leído del propio `d` de cada hilo desde `script.js`. Sin JS quedan los hilos quietos; con `prefers-reduced-motion` no hay paquetes ni draw-in.
+- Diagrama de arquitectura redibujado en mono con cajas de 1px y etiquetas en JetBrains Mono. El bloque de Markdown pasó de verde lima y ámbar a blanco sobre tinta con énfasis por peso.
+- `support/` y `privacy/` recibieron los mismos tokens (mapeados sobre sus variables existentes), las fuentes, el header con la marca, el footer nuevo y un `<main>` que les faltaba (el audit de accesibilidad lo marcaba). Cero em dashes en las tres páginas, reemplazados por comas, dos puntos o puntos.
+- Verificación: capturas headless a 1280 y 390 (ver abajo por qué 390 costó), ningún recurso fuera de `self` en las tres páginas, audit de accesibilidad limpio en las tres con `@accesslint/core`.
+
+### Por qué
+- El azul no era de la marca: 0.11.8 definió "naranja solo en claude.ai, slate-on-white en el resto", y la landing usaba el ícono nuevo con el color viejo. El monocromo estricto es la decisión de marca de este ciclo: los colores anteriores se parecían demasiado a los de los LLM.
+- El único gris terciario (42%) daba 2.58:1 y estaba en tres textos. Se eliminó en vez de "arreglarlo" porque un sistema de dos valores de tinta es más fácil de mantener honesto.
+
+### Lección de instrumento
+- `chrome --headless=new --window-size=390,...` **no da un viewport de 390**: Chrome en macOS impone un ancho mínimo de ventana y el viewport real fue de 500 px, con la captura recortada a 390. El síntoma era idéntico a un desborde horizontal de la página y casi lo "arreglamos" en CSS. Se detectó midiendo `innerWidth` en una página de prueba. La medición correcta en móvil es un `<iframe width="390">` dentro de una ventana más ancha, o CDP con emulación de dispositivo.
+- Un audit de accesibilidad automático corrido sobre una página con fade-in mide el contraste **con la opacidad del momento**: dio 99 fallas de contraste con ratios imposibles (1.14:1 en un botón negro sobre blanco). Se audita una copia con las animaciones apagadas.
+
+### Próximo paso
+- Mirar la landing en un navegador real (Safari incluido) para confirmar `offset-path` sobre elementos SVG y el `text-wrap: balance` del título.
+- Regenerar la imagen de Open Graph si se quiere que el preview social refleje el rediseño; hoy sigue apuntando a la captura de la Chrome Web Store.

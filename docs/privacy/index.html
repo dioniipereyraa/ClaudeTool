@@ -4,35 +4,48 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; font-src 'self'; connect-src 'self'; form-action 'none'; base-uri 'self';">
-<title>Privacy Policy — Exportal</title>
-<meta name="description" content="Privacy policy for Exportal — local-first bridge between Claude.ai/ChatGPT and Claude Code. No analytics, no telemetry, no remote servers.">
-<meta name="theme-color" content="#0b1220">
+<title>Privacy Policy: Exportal</title>
+<meta name="description" content="Privacy policy for Exportal, the local-first bridge between Claude.ai/ChatGPT and Claude Code. No analytics, no telemetry, no remote servers.">
+<meta name="theme-color" content="#1f1f1f">
 
 <link rel="icon" href="/favicon.svg?v=2026-05-06" type="image/svg+xml">
 <link rel="icon" href="/favicon.png?v=2026-05-06" type="image/png" sizes="128x128">
 <link rel="apple-touch-icon" href="/favicon.png?v=2026-05-06">
 <link rel="canonical" href="https://exportal.dev/privacy">
 
-<meta property="og:title" content="Privacy Policy — Exportal">
+<meta property="og:title" content="Privacy Policy: Exportal">
 <meta property="og:description" content="Local-first bridge. No analytics, no telemetry, no remote servers.">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://exportal.dev/privacy">
 
 <style>
+  /* Fonts, self-hosted: the CSP only allows font-src 'self'. */
+  @font-face { font-family: "Inter Tight"; font-style: normal; font-weight: 100 900; font-display: swap; src: url("/fonts/inter-tight-latin.woff2") format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+  @font-face { font-family: "Inter Tight"; font-style: normal; font-weight: 100 900; font-display: swap; src: url("/fonts/inter-tight-latin-ext.woff2") format("woff2"); unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF; }
+  @font-face { font-family: "JetBrains Mono"; font-style: normal; font-weight: 400 800; font-display: swap; src: url("/fonts/jetbrains-mono-latin.woff2") format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+  @font-face { font-family: "JetBrains Mono"; font-style: normal; font-weight: 400 800; font-display: swap; src: url("/fonts/jetbrains-mono-latin-ext.woff2") format("woff2"); unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF; }
+
+  /* Tokens: strictly monochrome, same ink as the landing. */
   :root {
-    --ink: #0b1220;
-    --ink-2: #1f2937;
-    --muted: #4b5563;
-    --line: #e5e7eb;
+    --ink: #1f1f1f;
+    --ink-2: #1f1f1f;
+    --muted: rgba(31, 31, 31, 0.66);
+    --line: rgba(31, 31, 31, 0.14);
     --bg: #ffffff;
-    --bg-2: #f8fafc;
-    --accent: #1d4ed8;
-    --accent-soft: #eff6ff;
+    --bg-2: #ffffff;
+    --accent: #1f1f1f;
+    --accent-soft: rgba(31, 31, 31, 0.06);
+    --code-bg: #1f1f1f;
+    --code-ink: #ffffff;
+    --sans: "Inter Tight", "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --mono: "JetBrains Mono", "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
   }
+  code, kbd, pre { font-family: var(--mono); font-variant-ligatures: none; }
+  header.site .brand-mark { width: 22px; height: 22px; flex-shrink: 0; }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   html { scroll-behavior: smooth; }
   body {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, "Helvetica Neue", sans-serif;
+    font-family: var(--sans);
     color: var(--ink);
     line-height: 1.65;
     background: var(--bg);
@@ -72,20 +85,16 @@
     transition: color 0.18s ease;
   }
   header.site nav a:hover { color: var(--ink); }
+  header.site .brand { gap: 10px; }
   header.site nav a.current { color: var(--ink); font-weight: 600; }
 
   .hero { padding: 72px 0 40px; }
   .hero .eyebrow {
-    display: inline-block;
-    font-size: 0.78rem;
-    font-weight: 600;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: var(--accent);
-    background: var(--accent-soft);
-    padding: 4px 10px;
-    border-radius: 999px;
-    margin-bottom: 18px;
+    display: block;
+    font-size: 0.95rem;
+    font-weight: 500;
+    color: var(--muted);
+    margin-bottom: 14px;
   }
   .hero h1 {
     font-size: clamp(2.2rem, 5vw, 3.4rem);
@@ -217,7 +226,16 @@
 
 <header class="site">
   <div class="wrap row">
-    <a href="/" class="brand">Exportal</a>
+    <a href="/" class="brand" aria-label="Exportal home">
+      <svg class="brand-mark" viewBox="0 0 100 100" aria-hidden="true">
+        <rect x="22" y="20" width="56" height="14" rx="2" fill="#1F1F1F"/>
+        <rect x="22" y="20" width="14" height="60" rx="2" fill="#1F1F1F"/>
+        <rect x="22" y="66" width="56" height="14" rx="2" fill="#1F1F1F"/>
+        <rect x="36" y="43" width="36" height="14" rx="2" fill="#1F1F1F"/>
+        <path d="M 72 50 L 82 50" stroke="#1F1F1F" stroke-width="14" stroke-linecap="round"/>
+      </svg>
+      Exportal
+    </a>
     <nav>
       <a href="/#how">How it works</a>
       <a href="/privacy" class="current">Privacy</a>
@@ -228,7 +246,7 @@
   </div>
 </header>
 
-<div class="wrap">
+<main class="wrap">
 
 <section class="hero" style="border-top: none;">
   <span class="eyebrow">Privacy Policy</span>
@@ -259,9 +277,9 @@
 <section id="export-flow">
   <h2>What happens when you click "Export this chat"</h2>
   <ol>
-    <li>You click the floating Exportal button on a chat at <code>claude.ai</code>, <code>claude.ai/design/p</code>, or <code>chatgpt.com</code> — or you use the keyboard shortcut <code>Alt+Shift+E</code>.</li>
+    <li>You click the floating Exportal button on a chat at <code>claude.ai</code>, <code>claude.ai/design/p</code>, or <code>chatgpt.com</code>, or you use the keyboard shortcut <code>Alt+Shift+E</code>.</li>
     <li>The Companion reads the active conversation using <strong>your existing browser session cookies</strong>, the same way the website renders the conversation for you. No automation, no scraping, no rate-limit abuse.</li>
-    <li>The conversation JSON is sent to <code>http://127.0.0.1:&lt;port&gt;/...</code> — the local bridge running inside your VS Code installation. <strong>It never reaches a remote server.</strong></li>
+    <li>The conversation JSON is sent to <code>http://127.0.0.1:&lt;port&gt;/...</code>, the local bridge running inside your VS Code installation. <strong>It never reaches a remote server.</strong></li>
     <li>VS Code receives it and writes a Markdown file to <code>&lt;workspace&gt;/.exportal/&lt;timestamp&gt;-&lt;slug&gt;.md</code>.</li>
   </ol>
 </section>
@@ -271,7 +289,7 @@
   <p>The extensions handle the following data, <strong>only on your device</strong>:</p>
   <ul>
     <li><strong>Conversation content from claude.ai and chatgpt.com</strong>: messages, titles, and metadata of conversations you explicitly choose to export. Used only to generate the local Markdown file. Not stored, logged, or transmitted anywhere except your local VS Code bridge.</li>
-    <li><strong>Pairing token</strong>: a random 64-character hexadecimal token you copy from VS Code into the Companion (or via the auto-pair URL fragment). Used to authenticate requests to your local bridge. Stored in <code>chrome.storage.local</code> on your device only — never transmitted off-device.</li>
+    <li><strong>Pairing token</strong>: a random 64-character hexadecimal token you copy from VS Code into the Companion (or via the auto-pair URL fragment). Used to authenticate requests to your local bridge. Stored in <code>chrome.storage.local</code> on your device only, never transmitted off-device.</li>
     <li><strong>Pending conversation UUID</strong> (temporary): when you trigger the "official export" flow, the UUID of the chat you were on is stored briefly in <code>chrome.storage.local</code> so the Companion can open the correct conversation when the export ZIP finishes downloading. Overwritten on each use.</li>
     <li><strong>Per-provider preferences</strong> (e.g. last-used pairing host): stored in <code>chrome.storage.local</code> for UX continuity. Trivial state, no personal data.</li>
   </ul>
@@ -283,7 +301,7 @@
     <li>No analytics, telemetry, or crash reporting.</li>
     <li>No advertising identifiers.</li>
     <li>No user accounts, profiles, or tracking of any kind.</li>
-    <li>Your <strong>claude.ai or ChatGPT credentials</strong> are never read, stored, or transmitted. The extensions rely on the browser's existing session cookies — they never see the credentials themselves.</li>
+    <li>Your <strong>claude.ai or ChatGPT credentials</strong> are never read, stored, or transmitted. The extensions rely on the browser's existing session cookies, and never see the credentials themselves.</li>
     <li>No data is sent to the extension author or to any third party.</li>
   </ul>
 </section>
@@ -306,7 +324,7 @@
       </tr>
       <tr>
         <td><code>http://127.0.0.1/*</code></td>
-        <td>Communicate with the local VS Code bridge running on your machine. <code>127.0.0.1</code> is the loopback address — traffic never leaves your device.</td>
+        <td>Communicate with the local VS Code bridge running on your machine. <code>127.0.0.1</code> is the loopback address, so traffic never leaves your device.</td>
       </tr>
       <tr>
         <td><code>https://claude.ai/*</code><br><code>https://chatgpt.com/*</code></td>
@@ -318,7 +336,7 @@
 
 <section id="retention">
   <h2>Data retention</h2>
-  <p>All extension data is stored locally on your device — in <code>chrome.storage.local</code> for the Companion, and in your workspace's <code>.exportal/</code> folder for VS Code. Uninstalling either extension deletes all data managed by that extension. There is no remote storage to clear.</p>
+  <p>All extension data is stored locally on your device: in <code>chrome.storage.local</code> for the Companion, and in your workspace's <code>.exportal/</code> folder for VS Code. Uninstalling either extension deletes all data managed by that extension. There is no remote storage to clear.</p>
 </section>
 
 <section id="third-parties">
@@ -338,7 +356,7 @@
   <p>For broader support questions, see the <a href="/support">Support page</a>.</p>
 </section>
 
-</div>
+</main>
 
 <footer class="site">
   <div class="wrap">
@@ -347,17 +365,19 @@
         <a href="https://github.com/dioniipereyraa/ClaudeTool">GitHub</a>
         <a href="https://chromewebstore.google.com/detail/exportal-companion/lmnmekfphhpfaciehfdaonjfchbicdnm">Chrome Web Store</a>
         <a href="https://marketplace.visualstudio.com/items?itemName=dioniipereyraa.exportal">VS Code Marketplace</a>
+        <a href="/privacy">Privacy</a>
+        <a href="/support">Support</a>
         <a href="https://github.com/dioniipereyraa/ClaudeTool/blob/main/SECURITY.md">Security</a>
         <a href="https://github.com/dioniipereyraa/ClaudeTool/blob/main/LICENSE">License</a>
       </div>
       <div>
-        Built by <a href="https://github.com/dioniipereyraa">Dioni Pereyra</a> · MIT
+        Built by <a href="https://github.com/dioniipereyraa">Dioni Pereyra</a>. MIT licensed.
       </div>
     </div>
     <p class="disclaimer">
       Exportal is an independent open-source project. It is not
       affiliated with, endorsed by, or sponsored by Anthropic (makers of
-      Claude / Claude Code) or OpenAI (makers of ChatGPT). "Claude",
+      Claude and Claude Code) or OpenAI (makers of ChatGPT). "Claude",
       "Claude Code", and "Claude.ai" are trademarks of Anthropic.
       "ChatGPT" is a trademark of OpenAI.
     </p>
