@@ -2,30 +2,72 @@
   const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   // ---------------------------------------------------------------------
-  // Hero threads: add the packets that travel along each thread.
+  // Hero threads.
   //
-  // The paths themselves live in the HTML so a browser without JS still
-  // gets the still lines. The packets are the only thing that needs
-  // `offset-path`, which has to be written in CSS with the same path
-  // data, so we read it from the SVG instead of duplicating it.
-  // Reduced motion: no packets at all (the CSS also hides them).
+  // The paths live in the HTML so a browser without JS still gets the
+  // still lines. Two things are added here:
+  //
+  //   1. A draw-in on load, done with the real path length (getTotalLength)
+  //      instead of pathLength + non-scaling-stroke, which Safari measures
+  //      in screen pixels and leaves half-drawn.
+  //   2. The packets that travel along each thread, as native SVG
+  //      <animateMotion> + <mpath>. It is supported everywhere, unlike
+  //      CSS offset-path on SVG elements.
+  //
+  // Reduced motion: no draw-in and no packets.
   // ---------------------------------------------------------------------
   const threads = document.querySelector('.threads');
-  if (threads && !reduce && CSS.supports('offset-path', 'path("M0 0L1 1")')) {
-    const paths = Array.from(threads.querySelectorAll('path'));
+  if (threads && !reduce) {
     const ns = 'http://www.w3.org/2000/svg';
+    const xlink = 'http://www.w3.org/1999/xlink';
+    const paths = Array.from(threads.querySelectorAll('path'));
+
     paths.forEach((p, i) => {
-      const d = p.getAttribute('d');
-      // Two packets per thread, spaced half a lap apart, each thread at
-      // its own pace so the pattern never visibly repeats.
-      const dur = 14 + ((i * 2.7) % 9);
+      const len = p.getTotalLength();
+      p.style.strokeDasharray = String(len);
+      p.style.strokeDashoffset = String(len);
+      p.style.transitionDelay = i * 90 + 'ms';
+      // Reflow so the start state is committed before the transition.
+      void p.getBoundingClientRect();
+      p.classList.add('drawing');
+      p.style.strokeDashoffset = '0';
+      p.addEventListener(
+        'transitionend',
+        () => {
+          p.classList.remove('drawing');
+          p.style.strokeDasharray = '';
+          p.style.strokeDashoffset = '';
+          p.style.transitionDelay = '';
+        },
+        { once: true },
+      );
+    });
+
+    paths.forEach((p, i) => {
+      // Each thread at its own pace, two packets half a lap apart, and a
+      // short tail behind each so the direction reads at a glance.
+      const dur = 16 + ((i * 2.7) % 9);
       for (let k = 0; k < 2; k++) {
-        const c = document.createElementNS(ns, 'circle');
-        c.setAttribute('class', 'packet');
-        c.style.offsetPath = `path("${d}")`;
-        c.style.setProperty('--dur', dur + 's');
-        c.style.setProperty('--delay', -((k * dur) / 2 + i * 1.3) + 's');
-        threads.appendChild(c);
+        const begin = -((k * dur) / 2 + i * 1.3);
+        [
+          [0, 3.5, ''],
+          [-0.35, 2.5, 'tail'],
+          [-0.7, 1.75, 'tail'],
+        ].forEach(([lag, r, cls]) => {
+          const c = document.createElementNS(ns, 'circle');
+          c.setAttribute('class', 'packet' + (cls ? ' ' + cls : ''));
+          c.setAttribute('r', String(r));
+          const m = document.createElementNS(ns, 'animateMotion');
+          m.setAttribute('dur', dur + 's');
+          m.setAttribute('repeatCount', 'indefinite');
+          m.setAttribute('begin', begin + lag + 's');
+          const mp = document.createElementNS(ns, 'mpath');
+          mp.setAttribute('href', '#' + p.id);
+          mp.setAttributeNS(xlink, 'xlink:href', '#' + p.id);
+          m.appendChild(mp);
+          c.appendChild(m);
+          threads.appendChild(c);
+        });
       }
     });
   }

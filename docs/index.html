@@ -173,21 +173,16 @@
   .threads path {
     fill: none;
     stroke: var(--thread);
-    stroke-width: 1.5;
-    vector-effect: non-scaling-stroke;
-    stroke-dasharray: 1;
-    stroke-dashoffset: 0;
+    stroke-width: 1.25;
+    stroke-linecap: round;
   }
-  .threads .packet {
-    fill: var(--packet);
-    r: 3.5;
-    offset-rotate: 0deg;
-    animation: travel var(--dur, 12s) linear var(--delay, 0s) infinite;
+  /* The draw-in is driven by script.js (dasharray from the real path
+     length), so it works the same in every browser. */
+  .threads path.drawing {
+    transition: stroke-dashoffset 1.6s var(--ease);
   }
-  @keyframes travel {
-    from { offset-distance: 0%; }
-    to { offset-distance: 100%; }
-  }
+  .threads .packet { fill: var(--packet); }
+  .threads .packet.tail { opacity: 0.35; }
   .hero .wrap { position: relative; z-index: 1; }
   .hero-grid {
     display: grid;
@@ -543,14 +538,6 @@
   /* ---------- Motion ---------- */
   /* One orchestrated moment on load: the threads draw in, then the
      packets start to travel. Everything else is quiet. */
-  .threads path {
-    animation: draw 1.6s var(--ease) both;
-    animation-delay: calc(var(--i, 0) * 90ms);
-  }
-  @keyframes draw {
-    from { stroke-dashoffset: 1; }
-    to { stroke-dashoffset: 0; }
-  }
   .hero h1, .hero .lede, .hero .ctas, .hero .hero-demo {
     animation: rise 0.7s var(--ease) both;
   }
@@ -567,8 +554,9 @@
 
   @media (prefers-reduced-motion: reduce) {
     html { scroll-behavior: auto; }
-    .threads path, .hero h1, .hero .lede, .hero .ctas, .hero .hero-demo { animation: none; }
-    .threads .packet { animation: none; display: none; }
+    .hero h1, .hero .lede, .hero .ctas, .hero .hero-demo { animation: none; }
+    .threads path.drawing { transition: none; }
+    .threads .packet { display: none; }
     .reveal { opacity: 1; transition: none; }
     .faq details > .faq-body { transition: none; }
     .faq summary::before, .faq summary::after { transition: none; }
@@ -629,14 +617,14 @@
   <!-- Background: threads from the chat side to the editor side. Packets
        (the messages crossing the bridge) are added by script.js so a
        browser without JS, or with reduced motion, keeps the still lines. -->
-  <svg class="threads" viewBox="0 0 1440 720" preserveAspectRatio="none" aria-hidden="true" focusable="false">
-    <path pathLength="1" style="--i:0" d="M -20 120 C 380 120, 520 380, 760 380 S 1140 620, 1460 620"/>
-    <path pathLength="1" style="--i:1" d="M -20 200 C 300 200, 560 96, 780 96 S 1180 560, 1460 560"/>
-    <path pathLength="1" style="--i:2" d="M -20 300 C 320 300, 500 520, 720 520 S 1160 160, 1460 160"/>
-    <path pathLength="1" style="--i:3" d="M -20 420 C 260 420, 520 260, 740 260 S 1180 700, 1460 700"/>
-    <path pathLength="1" style="--i:4" d="M -20 560 C 340 560, 560 660, 800 660 S 1160 300, 1460 300"/>
-    <path pathLength="1" style="--i:5" d="M -20 660 C 400 660, 480 200, 700 200 S 1200 60, 1460 60"/>
-    <path pathLength="1" style="--i:6" d="M -20 40 C 360 40, 600 600, 840 600 S 1220 440, 1460 440"/>
+  <svg class="threads" viewBox="0 0 1440 720" preserveAspectRatio="xMidYMid slice" aria-hidden="true" focusable="false">
+    <path id="thread-0" d="M -40 120 C 380 120, 520 380, 760 380 S 1140 620, 1480 620"/>
+    <path id="thread-1" d="M -40 200 C 300 200, 560 96, 780 96 S 1180 560, 1480 560"/>
+    <path id="thread-2" d="M -40 300 C 320 300, 500 520, 720 520 S 1160 160, 1480 160"/>
+    <path id="thread-3" d="M -40 420 C 260 420, 520 260, 740 260 S 1180 700, 1480 700"/>
+    <path id="thread-4" d="M -40 560 C 340 560, 560 660, 800 660 S 1160 300, 1480 300"/>
+    <path id="thread-5" d="M -40 660 C 400 660, 480 200, 700 200 S 1200 60, 1480 60"/>
+    <path id="thread-6" d="M -40 40 C 360 40, 600 600, 840 600 S 1220 440, 1480 440"/>
   </svg>
   <div class="wrap">
     <div class="hero-grid">
