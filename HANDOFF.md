@@ -7,21 +7,24 @@
 
 ## 1. Estado al 2026-09-08
 
-- **Versión publicada: 0.11.10**, en el VS Code Marketplace y en la Chrome Web Store (subida a
-  mano por Dionisio el 2026-09-08; la de Chrome pasa por review, puede tardar horas o días).
-  Contenido: email de la cuenta opt-in en el Markdown (issue #2) y documentación + test de un
-  VS Code con varios navegadores (issue #1). Detalle en `CHANGELOG.md`.
-- **PR #4 abierto, en revisión de Dionisio** (`feat/account-email-multi-browser`, 5 commits +
-  esta reorganización de docs). Al mergear, el issue #2 se cierra solo (`Closes #2`); el **#1 se
-  cierra a mano**, ya tiene el comentario que explica que funciona.
+- **Versión publicada: 0.11.10**, en el VS Code Marketplace, en la Chrome Web Store (en review,
+  puede tardar horas o días) y como GitHub Release `v0.11.10` con VSIX y ZIP adjuntos (el tag
+  lo creó Claude tras el merge; `release.yml` corrió verde). Contenido: email de la cuenta
+  opt-in en el Markdown (issue #2) y documentación + test de un VS Code con varios navegadores
+  (issue #1). Detalle en `CHANGELOG.md`.
+- **`main` limpio:** PR #4 (feature) y PR #5 (reorganización de docs) mergeados, cero issues y
+  cero PRs abiertos, ramas de trabajo borradas. Solo existe `main`.
+- **Tags:** entre `v0.11.2` y `v0.11.10` no hay tags ni GitHub Releases (esas versiones se
+  subieron a las tiendas a mano sin taggear). No hace falta rehacerlas; queda anotado para no
+  extrañarse.
 - **Smoke test hecho** en claude.ai con sesión real, toggle prendido y apagado. Pendiente de
   probar en vivo: chatgpt.com (la fila `> Account:`) y el toggle tocado desde el panel (se probó
   vía `settings.json`; usa el mismo `update` que los otros dos toggles).
-- **Máquina de Dionisio:** sigue cargado el Companion *unpacked* de la rama y el de la Web Store
+- **Máquina de Dionisio:** sigue cargado el Companion *unpacked* y el de la Web Store
   desactivado. Hay que sacar el unpacked y reactivar el de la tienda cuando salga la review.
 - **Landing** (exportal.dev) publicada con el rediseño monocromo desde el PR #3.
 
-## 2. Próximo paso: publicar a las dos tiendas desde CI
+## 2. Próximo paso (acordado el 2026-09-08): publicar a las dos tiendas desde CI
 
 Hoy `release.yml` (tag `v*`) corre `npm run ci`, empaqueta VSIX y ZIP y los cuelga de un GitHub
 Release. Falta el paso que los sube a las tiendas. Plan acordado el 2026-09-08, sin empezar:
