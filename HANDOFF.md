@@ -19,6 +19,15 @@
   enmascarada por `--redact-pii`. Fuentes: `users.json` (ZIP claude.ai), `user.json` (ZIP
   ChatGPT) y, en un click, el Companion consulta `/api/account` o `/api/auth/session` **solo si**
   `/ping` devolvió `wantsAccountEmail: true`.
+- **Smoke test end-to-end HECHO el 2026-09-08** con el VSIX de la rama instalado y el Companion
+  cargado unpacked, contra claude.ai con la sesión de Dionisio:
+  - `/api/account` responde 200 y el campo es `email_address` (lo que lee el código).
+  - Toggle prendido: `/ping` → `wantsAccountEmail: true`, el Companion llamó a `/api/account`, y
+    el `.md` salió con `- **Account:** dionipereyrab@gmail.com` debajo de Title.
+  - Toggle apagado (sin recargar nada): `/ping` → `false`, cero llamadas a `/api/account`, sin
+    fila Account. El CLI dio lo esperado en las tres variantes (sin flag, con flag, con
+    `--redact-pii` → `<REDACTED:email>`).
+  - Falta solo el lado ChatGPT en vivo y el toggle desde el panel (se probó vía settings.json).
 - **Landing:** mergeada y publicada en exportal.dev (PR #3). Sin cambios en esta sesión salvo la
   FAQ nueva de support.
 
@@ -36,12 +45,11 @@
 
 ## 3. Por dónde seguir, en orden
 
-1. **Verificar `/api/account` de claude.ai en una sesión real**: el código lee
-   `email_address ?? email`. Si el campo se llama distinto, tocar `fetchAccountEmail` en
-   `chrome/content-script.js`. Es lo único de la feature que no se pudo medir sin sesión.
-2. **Smoke test del toggle** con el VSIX y el Companion cargados: prender, exportar, ver la fila;
-   apagar, exportar, no verla; `--redact-pii` en el CLI enmascara.
-3. Mergear el PR y decidir el release (0.11.10: VSIX + ZIP del Companion).
+1. Smoke test pendiente solo en chatgpt.com (la fila `> Account:`) y del toggle desde el panel
+   (el setting se probó editando `settings.json`; el toggle usa el mismo `update` que los otros dos).
+2. Mergear el PR #4 y decidir el release (0.11.10: VSIX + ZIP del Companion). Después del release,
+   Dionisio tiene que sacar el Companion cargado unpacked y reactivar el de la Web Store: el
+   unpacked tiene OTRO id de extensión, así que su storage y su pairing son aparte.
 4. Opcional: regenerar la imagen de Open Graph a 1200x630 con el hero nuevo.
 5. Lo de `ROADMAP.md` §Near-term sigue vigente y no se tocó.
 

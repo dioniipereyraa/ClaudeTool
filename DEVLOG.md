@@ -5979,7 +5979,10 @@ implementados (5 INFORMATIVA pasaron a "fixed", 2 quedan como
 ### Lección de instrumento
 - El primer test de "tres navegadores" falló con `ECONNRESET` y no era el bridge: `fetch` global mantiene un pool keep-alive por origen, y un socket al servidor del test anterior (mismo puerto, ya cerrado) revienta en el primer uso del siguiente. Se mide con sockets crudos (`agent: false`), que es lo que quedó en el test.
 
+### Smoke test (misma tarde)
+- Con el VSIX de la rama instalado, VS Code recargado y el Companion cargado unpacked, contra claude.ai con la sesión real: `/api/account` responde 200 con `email_address`. Toggle prendido: `/ping` da `wantsAccountEmail: true`, el Companion llama a `/api/account` y el `.md` sale con la fila Account. Toggle apagado, sin recargar: `/ping` da `false`, no hay llamada a `/api/account` y no hay fila. El CLI dio lo esperado en sus tres variantes.
+- Dos tropiezos que no eran de la feature. (1) Tras la recarga el extension host estuvo ~5 minutos al 100% de CPU y el bridge no contestaba ni un 404; un perfil de CPU por el inspector del extension host (puerto que ya expone VS Code) mostró solo a Copilot haciendo `lstat` sobre el workspace, Exportal no aparecía, y al terminar el bridge contestó en 0,4 ms. (2) El Companion unpacked tiene otro id de extensión, o sea storage vacío: hubo que emparejarlo con la URL del trampolín (`claude.ai/#exportal-pair=<token>`), que es exactamente el camino del issue #1.
+
 ### Próximo paso
-- Verificar contra una sesión real de claude.ai que `/api/account` devuelve `email_address` (el código acepta también `email`); si el campo se llama distinto, ajustar `fetchAccountEmail` en `chrome/content-script.js`.
-- Smoke test del toggle end-to-end: prender, exportar un chat, ver la fila; apagar, exportar, no verla.
+- Smoke test en chatgpt.com y del toggle desde el panel.
 - Release 0.11.10 con VSIX y ZIP del Companion cuando Dionisio lo decida.
