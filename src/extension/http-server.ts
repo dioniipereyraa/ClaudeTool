@@ -149,6 +149,12 @@ const ImportInlinePayload = z.object({
   // with older Companion installs that pre-date the multi-provider
   // bridge protocol.
   provider: z.enum(['claude', 'chatgpt']).optional(),
+  // Account that owns the conversation (issue #2). The Companion only
+  // attaches it when /ping said the bridge wants it (the user flipped
+  // the "Include account email" toggle), and the bridge only renders
+  // it under that same toggle. Bounded to RFC 5321's 254 chars; the
+  // formatter treats the value as text, so no format validation here.
+  account: z.object({ email: z.string().trim().min(1).max(254) }).optional(),
 });
 export type ImportInlinePayload = z.infer<typeof ImportInlinePayload>;
 
@@ -189,6 +195,13 @@ export interface BridgeHandlers {
   readonly onImport: ImportHandler;
   readonly onImportInline: ImportInlineHandler;
   readonly onPing?: PingHandler;
+  /**
+   * Whether the host wants the Companion to attach the account email
+   * to inline exports (issue #2). Read on every /ping so the Companion
+   * sees a toggle flip without re-pairing. Absent → the flag is not
+   * advertised and the Companion never fetches the email.
+   */
+  readonly wantsAccountEmail?: () => boolean;
 }
 
 export interface ServerHandle {
@@ -322,7 +335,8 @@ async function handleRequest(
       // claude.ai). Log once and move on.
       console.warn('Exportal: onPing handler threw');
     }
-    sendJson(res, 200, { ok: true });
+    const wants = handlers.wantsAccountEmail?.();
+    sendJson(res, 200, wants === undefined ? { ok: true } : { ok: true, wantsAccountEmail: wants });
     return;
   }
 

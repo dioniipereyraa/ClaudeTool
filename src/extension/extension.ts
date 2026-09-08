@@ -14,7 +14,7 @@ import {
   type ChatGptConversation,
 } from '../importers/chatgpt/schema.js';
 import { stripUnsupportedBlockPlaceholders } from '../importers/claudeai/cleanup.js';
-import { readClaudeAiExport } from '../importers/claudeai/reader.js';
+import { accountEmailOf, readClaudeAiExport } from '../importers/claudeai/reader.js';
 import {
   parseSingleConversation,
   type ClaudeAiConversation,
@@ -233,6 +233,22 @@ export function deactivate(): void {
   // lifetime and VS Code disposes them via `context.subscriptions`.
 }
 
+// Issue #2: the "Include account email" toggle. Read at use time (not
+// cached) so a flip in the panel applies to the very next export, and
+// so the Companion learns it on its next /ping without re-pairing.
+function includeAccountEmail(): boolean {
+  return vscode.workspace.getConfiguration('exportal').get<boolean>('includeAccountEmail', false);
+}
+
+// The email only reaches the formatter when BOTH the user opted in and
+// the source actually carried one. Returns a spread-ready fragment so
+// call sites stay one-liners.
+function accountEmailOption(email: string | undefined): { accountEmail?: string } {
+  if (!includeAccountEmail()) return {};
+  const trimmed = email?.trim() ?? '';
+  return trimmed.length > 0 ? { accountEmail: trimmed } : {};
+}
+
 async function startBridgeServer(
   context: vscode.ExtensionContext,
 ): Promise<ServerHandle | undefined> {
@@ -242,6 +258,7 @@ async function startBridgeServer(
       onImport: (payload) => handleBridgeImport(payload),
       onImportInline: (payload) => handleBridgeImportInline(payload),
       onPing: () => handlePairConfirmed(context, token),
+      wantsAccountEmail: includeAccountEmail,
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
@@ -338,7 +355,10 @@ async function handleBridgeImportInline(payload: ImportInlinePayload): Promise<v
   const conversation = stripUnsupportedBlockPlaceholders(parsed);
   const baseName = `${buildExportTimestamp()}-${slugify(conversation.name)}`;
   const assets = payload.assets ?? [];
-  const { markdown: convMarkdown } = formatConversation(conversation, { redact: true });
+  const { markdown: convMarkdown } = formatConversation(conversation, {
+    redact: true,
+    ...accountEmailOption(payload.account?.email),
+  });
   const markdown = assets.length > 0
     ? buildAssetsHeader(assets, baseName) + convMarkdown
     : convMarkdown;
@@ -367,7 +387,10 @@ async function handleChatGptInline(payload: ImportInlinePayload): Promise<void> 
   }
   const title = parsed.title ?? `chatgpt-${(parsed.conversation_id ?? parsed.id ?? 'untitled').slice(0, 8)}`;
   const baseName = `${buildExportTimestamp()}-${slugify(title)}`;
-  const { markdown } = formatChatGptConversation(parsed, { redact: true });
+  const { markdown } = formatChatGptConversation(parsed, {
+    redact: true,
+    ...accountEmailOption(payload.account?.email),
+  });
   const savedUri = await persistAndOpenMarkdown(title, markdown, baseName);
   void vscode.window.showInformationMessage(
     vscode.l10n.t('Exportal: "{0}" imported from ChatGPT.', title),
@@ -845,7 +868,10 @@ async function openChatGptConversationFromZip(zipPath: string): Promise<void> {
   const picked = await pickChatGptConversation(exported.conversations);
   if (picked === undefined) return;
 
-  const { markdown } = formatChatGptConversation(picked, { redact: true });
+  const { markdown } = formatChatGptConversation(picked, {
+    redact: true,
+    ...accountEmailOption(exported.accountEmail),
+  });
 
   const title = picked.title ?? vscode.l10n.t('(untitled)');
   const savedUri = await persistAndOpenMarkdown(title, markdown);
@@ -949,7 +975,10 @@ async function openConversationFromZip(
   // Same scrub as the inline path — keeps both flows consistent.
   const conversation = stripUnsupportedBlockPlaceholders(picked);
 
-  const { markdown } = formatConversation(conversation, { redact: true });
+  const { markdown } = formatConversation(conversation, {
+    redact: true,
+    ...accountEmailOption(accountEmailOf(exported)),
+  });
 
   const savedUri = await persistAndOpenMarkdown(conversation.name, markdown);
   const wroteJsonl = await maybeWriteClaudeCodeJsonl(conversation);

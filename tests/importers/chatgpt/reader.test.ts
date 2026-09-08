@@ -173,3 +173,27 @@ describe('readChatGptExport', () => {
     expect(out.warnings.some((w) => w.includes('Skipped 1'))).toBe(true);
   });
 });
+
+describe('account email from user.json (issue #2)', () => {
+  it('exposes the account email when user.json carries one', async () => {
+    const zipPath = await writeZip('with-user.zip', {
+      'conversations.json': JSON.stringify([sampleConversation]),
+      'user.json': JSON.stringify({ id: 'user-1', email: 'dio@example.com', chatgpt_plus_user: true }),
+    });
+    const exp = await readChatGptExport(zipPath);
+    expect(exp.accountEmail).toBe('dio@example.com');
+  });
+
+  it('leaves accountEmail undefined when user.json is missing, malformed, or has no email', async () => {
+    const missing = await readChatGptExport(await writeZip('no-user.zip', { 'conversations.json': JSON.stringify([sampleConversation]) }));
+    expect(missing.accountEmail).toBeUndefined();
+    const malformed = await readChatGptExport(
+      await writeZip('bad-user.zip', { 'conversations.json': JSON.stringify([sampleConversation]), 'user.json': '{not json' }),
+    );
+    expect(malformed.accountEmail).toBeUndefined();
+    const noEmail = await readChatGptExport(
+      await writeZip('user-no-email.zip', { 'conversations.json': JSON.stringify([sampleConversation]), 'user.json': JSON.stringify({ id: 'u' }) }),
+    );
+    expect(noEmail.accountEmail).toBeUndefined();
+  });
+});

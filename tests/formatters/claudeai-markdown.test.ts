@@ -275,3 +275,43 @@ describe('formatConversation', () => {
     expect(markdown).not.toContain('## Assistant');
   });
 });
+
+describe('account email in the header (issue #2)', () => {
+  const conv = {
+    uuid: 'conv-acc',
+    name: 'Account test',
+    created_at: '2026-09-08T10:00:00Z',
+    chat_messages: [
+      { uuid: 'm1', sender: 'human', text: 'hi', content: [{ type: 'text', text: 'hi' }] },
+    ],
+  } as unknown as Parameters<typeof formatConversation>[0];
+
+  it('is absent unless the caller opts in', () => {
+    const { markdown } = formatConversation(conv, { redact: true });
+    expect(markdown).not.toContain('**Account:**');
+    expect(markdown).not.toContain('dio@example.com');
+  });
+
+  it('renders an Account row right after the title when provided', () => {
+    const { markdown } = formatConversation(conv, { redact: true, accountEmail: 'dio@example.com' });
+    const lines = markdown.split('\n');
+    const title = lines.findIndex((l) => l.startsWith('- **Title:**'));
+    expect(lines[title + 1]).toBe('- **Account:** dio@example.com');
+  });
+
+  it('the PII redactor wins over the opt-in when both are on', () => {
+    const { markdown, report } = formatConversation(conv, {
+      redact: true,
+      redactPii: true,
+      accountEmail: 'dio@example.com',
+    });
+    expect(markdown).toContain('- **Account:** <REDACTED:email>');
+    expect(markdown).not.toContain('dio@example.com');
+    expect(report.piiByType.email).toBe(1);
+  });
+
+  it('ignores an empty or whitespace-only email', () => {
+    const { markdown } = formatConversation(conv, { redact: true, accountEmail: '   ' });
+    expect(markdown).not.toContain('**Account:**');
+  });
+});

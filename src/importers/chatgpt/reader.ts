@@ -41,7 +41,15 @@ import {
 export interface ChatGptExport {
   readonly conversations: readonly ChatGptConversation[];
   readonly warnings: readonly string[];
+  /**
+   * Email of the account that owns the export, from `user.json`
+   * (issue #2). Undefined when the file is missing, malformed, or has
+   * no `email` — never fatal: the file is auxiliary.
+   */
+  readonly accountEmail?: string;
 }
+
+const USER_FILE = 'user.json';
 
 const SINGLE_FILE = 'conversations.json';
 const CHUNK_PATTERN = /^conversations-\d+\.json$/i;
@@ -124,7 +132,27 @@ export async function readChatGptExport(zipPath: string): Promise<ChatGptExport>
     );
   }
 
-  return { conversations, warnings };
+  const accountEmail = await readAccountEmail(zip);
+  return { conversations, warnings, ...(accountEmail !== undefined && { accountEmail }) };
+}
+
+/**
+ * `user.json` is `{ id, email, chatgpt_plus_user, ... }`. Anything that
+ * is not an object with a non-blank string `email` yields undefined.
+ */
+async function readAccountEmail(zip: JSZip): Promise<string | undefined> {
+  const entry = findEntry(zip, USER_FILE);
+  if (entry === undefined) return undefined;
+  try {
+    const raw: unknown = JSON.parse(await entry.async('string'));
+    if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) return undefined;
+    const email = (raw as { email?: unknown }).email;
+    if (typeof email !== 'string') return undefined;
+    const trimmed = email.trim();
+    return trimmed.length > 0 ? trimmed : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 /**

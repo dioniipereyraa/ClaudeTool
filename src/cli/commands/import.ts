@@ -1,7 +1,7 @@
 import { type Command } from 'commander';
 
 import { formatConversation } from '../../formatters/claudeai-markdown.js';
-import { readClaudeAiExport } from '../../importers/claudeai/reader.js';
+import { accountEmailOf, readClaudeAiExport } from '../../importers/claudeai/reader.js';
 import { type ClaudeAiConversation } from '../../importers/claudeai/schema.js';
 import { stripTerminalControl, writeSummary, writeWithPreview } from '../io.js';
 
@@ -16,6 +16,7 @@ interface ImportShowOptions {
   readonly redactPii?: boolean;
   readonly includeTools?: boolean;
   readonly includeAttachments?: boolean;
+  readonly includeAccountEmail?: boolean;
   readonly yes?: boolean;
   readonly force?: boolean;
 }
@@ -77,6 +78,11 @@ export function registerImport(program: Command): void {
       '--include-attachments',
       'Render attachments (extracted_content) as collapsible blocks',
     )
+    .option(
+      '--include-account-email',
+      'Add the account email from users.json to the header (opt-in; --redact-pii still masks it)',
+      false,
+    )
     .option('-y, --yes', 'Skip the interactive preview prompt (for CI / scripting)')
     .option('-f, --force', 'Overwrite the output file if it already exists')
     .action(async (zipPath: string, conversationId: string, opts: ImportShowOptions) => {
@@ -96,11 +102,16 @@ export function registerImport(program: Command): void {
         );
       }
 
+      const accountEmail = opts.includeAccountEmail === true ? accountEmailOf(exp) : undefined;
+      if (opts.includeAccountEmail === true && accountEmail === undefined) {
+        process.stderr.write('WARN: --include-account-email set but users.json carries no email; header row skipped.\n');
+      }
       const { markdown, report } = formatConversation(conversation, {
         redact: opts.redact,
         ...(opts.redactPii === true && { redactPii: true }),
         ...(opts.includeTools === true && { includeTools: true }),
         ...(opts.includeAttachments === true && { includeAttachments: true }),
+        ...(accountEmail !== undefined && { accountEmail }),
       });
 
       if (opts.out === undefined) {

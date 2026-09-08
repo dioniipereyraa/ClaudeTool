@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import JSZip from 'jszip';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { readClaudeAiExport } from '../../../src/importers/claudeai/reader.js';
+import { accountEmailOf, readClaudeAiExport } from '../../../src/importers/claudeai/reader.js';
 
 interface ZipEntry {
   readonly name: string;
@@ -178,5 +178,51 @@ describe('readClaudeAiExport', () => {
     expect((exp.conversations[0] as unknown as { future_field: string }).future_field).toBe(
       'preserved',
     );
+  });
+});
+
+describe('accountEmailOf (issue #2)', () => {
+  let workDir: string;
+
+  beforeEach(async () => {
+    workDir = await mkdtemp(join(tmpdir(), 'exportal-reader-account-'));
+  });
+
+  afterEach(async () => {
+    await rm(workDir, { recursive: true, force: true });
+  });
+
+  it('returns the email of the account that owns the export', async () => {
+    const zipPath = await buildZip(
+      [
+        { name: 'conversations.json', content: '[]' },
+        {
+          name: 'users.json',
+          content: JSON.stringify([{ uuid: 'u1', full_name: 'Dio', email_address: 'dio@example.com' }]),
+        },
+      ],
+      workDir,
+      'account.zip',
+    );
+    const exp = await readClaudeAiExport(zipPath);
+    expect(accountEmailOf(exp)).toBe('dio@example.com');
+  });
+
+  it('returns undefined when users.json is missing or carries no email', async () => {
+    const noUsers = await readClaudeAiExport(
+      await buildZip([{ name: 'conversations.json', content: '[]' }], workDir, 'no-users.zip'),
+    );
+    expect(accountEmailOf(noUsers)).toBeUndefined();
+    const noEmail = await readClaudeAiExport(
+      await buildZip(
+        [
+          { name: 'conversations.json', content: '[]' },
+          { name: 'users.json', content: JSON.stringify([{ uuid: 'u1', email_address: '  ' }]) },
+        ],
+        workDir,
+        'no-email.zip',
+      ),
+    );
+    expect(accountEmailOf(noEmail)).toBeUndefined();
   });
 });

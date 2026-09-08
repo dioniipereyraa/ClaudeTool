@@ -58,7 +58,7 @@ If you enable the `exportal.alsoWriteJsonl` setting, alongside the `.md` a `.jso
 There's an Exportal icon in the activity bar (the left vertical bar). The panel brings everything important together in a clear hierarchy:
 
 - **After import**: appears only after a successful import (and survives switching to other tabs in the meantime). Quick prompt templates that copy + drop the cursor into Claude Code's input. X to dismiss; reappears on the next import.
-- **Settings**: toggles for `autoAttachToClaudeCode` and `alsoWriteJsonl`.
+- **Settings**: toggles for `autoAttachToClaudeCode`, `alsoWriteJsonl` and `includeAccountEmail` (adds the email of the account that owns the chat to the header of every exported `.md`; off by default because it's personal data and the file is meant to be pasted into Claude Code. The CLI's `--redact-pii` still masks it).
 - **↓ Import to workspace**: one row per provider (claude.ai, ChatGPT, Gemini coming soon). Click → file picker, or direct import if it detected a fresh ZIP in Downloads.
 - **↑ Export current session**: mirror of Import. Click `claude.ai` or `ChatGPT` → sends the most recent Claude Code session to the provider's web chat.
 - **Bridge status** at the bottom, clickable. Expand to see the endpoint, the pairing token (with copy + **"Copy and open Chrome"** that triggers auto-pair without opening the big panel) and a shortcut to Logs.
@@ -87,6 +87,8 @@ When you open VS Code for the first time, a two-step pairing wizard appears: **S
 
 1. Install **Exportal Companion** from the Chrome Web Store, or download `exportal-companion-<version>.zip` from [Releases](https://github.com/dioniipereyraa/ClaudeTool/releases) and load it unpacked in `chrome://extensions` (Developer mode enabled).
 2. In VS Code, run **Exportal: Show pairing token** → click **Copy token and open Chrome**. This opens claude.ai with the token in the URL fragment; the companion's content script captures it automatically, opens its options page showing *"Done! All connected"*, and VS Code shows a pairing-complete notification. No copy, no paste.
+
+**Pairing a second browser** (Edge, Brave, another Chrome profile): install the Companion there too, open its options page and paste the same token. One VS Code can be paired with as many browsers as you like; the token is per VS Code profile, not per browser, and every companion holding it talks to the same bridge. The "paired" notification in VS Code only shows once per token, so the second browser confirms on its own options page.
 
 The icon badge reflects the state: `OK` green (imported), `SET` yellow (token missing), `OFF` red (VS Code not responding), `AUTH` red (invalid token), `OLD` red (VS Code outdated), `ERR` red (others). Click the icon while in any error state and the options page opens with a banner explaining the fix.
 

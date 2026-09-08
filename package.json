@@ -87,6 +87,11 @@
           "default": false,
           "description": "%configuration.alsoWriteJsonl.description%"
         },
+        "exportal.includeAccountEmail": {
+          "type": "boolean",
+          "default": false,
+          "description": "%configuration.includeAccountEmail.description%"
+        },
         "exportal.postImportTemplates": {
           "type": "array",
           "items": {

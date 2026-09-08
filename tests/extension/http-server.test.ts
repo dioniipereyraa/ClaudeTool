@@ -1,3 +1,5 @@
+import http from 'node:http';
+
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
@@ -530,5 +532,160 @@ describe('rate limiting (integration)', () => {
     expect(blocked.headers.get('retry-after')).toMatch(/^\d+$/);
     const body = (await blocked.json()) as { error: string };
     expect(body.error).toBe('rate_limited');
+  });
+});
+
+// Raw node:http with `agent: false` opens a fresh socket per request.
+// The global `fetch` keeps a keep-alive pool keyed by origin, and a
+// pooled socket to a server that already closed on the same port
+// surfaces as ECONNRESET on the *next* test — a harness artifact, not
+// bridge behaviour.
+function rawPost(
+  port: number,
+  path: string,
+  headers: Record<string, string>,
+  body?: string,
+): Promise<{ status: number; json: unknown }> {
+  return new Promise((resolve, reject) => {
+    const req = http.request(
+      {
+        host: '127.0.0.1',
+        port,
+        path,
+        method: 'POST',
+        agent: false,
+        headers: {
+          ...headers,
+          ...(body !== undefined && {
+            'content-type': 'application/json',
+            'content-length': String(Buffer.byteLength(body)),
+          }),
+        },
+      },
+      (res) => {
+        const chunks: Buffer[] = [];
+        res.on('data', (c: Buffer) => chunks.push(c));
+        res.on('end', () => {
+          const text = Buffer.concat(chunks).toString('utf8');
+          resolve({ status: res.statusCode ?? 0, json: text.length > 0 ? JSON.parse(text) : null });
+        });
+      },
+    );
+    req.on('error', reject);
+    req.end(body);
+  });
+}
+
+describe('startServer — one VS Code, several browsers (issue #1)', () => {
+  let h: Harness;
+
+  afterEach(async () => {
+    await h.handle.close();
+  });
+
+  it('serves three companions holding the same token, interleaved, each with its own origin', async () => {
+    let pings = 0;
+    const onImportInline = vi.fn<ImportInlineHandler>(() => Promise.resolve());
+    const token = generateToken();
+    const handle = await startServer(token, {
+      onImport: noopHandler,
+      onImportInline,
+      onPing: () => {
+        pings += 1;
+      },
+    });
+    h = { handle, onImport: vi.fn<ImportHandler>(noopHandler), onImportInline, baseUrl: '' };
+    const origins = ['chrome-extension://aaa', 'chrome-extension://bbb', 'chrome-extension://ccc'];
+    const auth = { authorization: `Bearer ${token}` };
+    const results = await Promise.all(
+      origins.flatMap((origin) => [
+        rawPost(handle.port, '/ping', { ...auth, origin }),
+        rawPost(
+          handle.port,
+          '/import-inline',
+          { ...auth, origin },
+          JSON.stringify({ conversation: { from: origin }, provider: 'claude' }),
+        ),
+      ]),
+    );
+    expect(results.map((r) => r.status)).toEqual([200, 200, 200, 200, 200, 200]);
+    expect(pings).toBe(3);
+    const seen = onImportInline.mock.calls
+      .map((c) => (c[0].conversation as { from: string }).from)
+      .sort();
+    expect(seen).toEqual(origins);
+  });
+
+  it('rejects a token from a previous rotation for every browser', async () => {
+    h = await setup();
+    const stale = generateToken();
+    const r = await rawPost(h.handle.port, '/ping', {
+      authorization: `Bearer ${stale}`,
+      origin: 'chrome-extension://aaa',
+    });
+    expect(r.status).toBe(401);
+  });
+});
+
+describe('startServer — account email (issue #2)', () => {
+  let h: Harness;
+
+  afterEach(async () => {
+    await h.handle.close();
+  });
+
+  it('forwards an optional account.email to the inline handler', async () => {
+    h = await setup();
+    const conversation = { uuid: 'c-1', name: 'x', chat_messages: [] };
+    const res = await fetch(`${h.baseUrl}/import-inline`, {
+      method: 'POST',
+      headers: {
+        authorization: `Bearer ${h.handle.token}`,
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({ conversation, account: { email: 'dio@example.com' } }),
+    });
+    expect(res.status).toBe(200);
+    expect(h.onImportInline).toHaveBeenCalledExactlyOnceWith({
+      conversation,
+      account: { email: 'dio@example.com' },
+    });
+  });
+
+  it('rejects a malformed account field with 400', async () => {
+    h = await setup();
+    for (const account of [{ email: 42 }, { email: '' }, 'dio@example.com', { email: 'x'.repeat(300) }]) {
+      const res = await fetch(`${h.baseUrl}/import-inline`, {
+        method: 'POST',
+        headers: {
+          authorization: `Bearer ${h.handle.token}`,
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify({ conversation: { uuid: 'c-1' }, account }),
+      });
+      expect(res.status).toBe(400);
+    }
+    expect(h.onImportInline).not.toHaveBeenCalled();
+  });
+
+  it('/ping tells the companion whether the bridge wants the account email', async () => {
+    const token = generateToken();
+    let wants = false;
+    const handle = await startServer(token, {
+      onImport: noopHandler,
+      onImportInline: noopInlineHandler,
+      wantsAccountEmail: () => wants,
+    });
+    h = { handle, onImport: vi.fn<ImportHandler>(noopHandler), onImportInline: vi.fn<ImportInlineHandler>(noopInlineHandler), baseUrl: '' };
+    const auth = { authorization: `Bearer ${token}` };
+    expect((await rawPost(handle.port, '/ping', auth)).json).toEqual({ ok: true, wantsAccountEmail: false });
+    wants = true;
+    expect((await rawPost(handle.port, '/ping', auth)).json).toEqual({ ok: true, wantsAccountEmail: true });
+  });
+
+  it('/ping omits the flag when the host does not expose the setting (older embedders)', async () => {
+    h = await setup();
+    const r = await rawPost(h.handle.port, '/ping', { authorization: `Bearer ${h.handle.token}` });
+    expect(r.json).toEqual({ ok: true });
   });
 });

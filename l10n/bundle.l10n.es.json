@@ -55,6 +55,8 @@
   "After importing a chat, attach the .md as an @-mention in the Claude Code panel.": "Tras importar un chat, adjunto el .md como @-mención en el panel de Claude Code.",
   "Also write .jsonl for /resume": "También escribir .jsonl para /resume",
   "Write a Claude Code-compatible .jsonl alongside the .md so the chat appears in /resume. Experimental.": "Escribe un .jsonl compatible con Claude Code junto al .md para que el chat aparezca en /resume. Experimental.",
+  "Include account email": "Incluir el email de la cuenta",
+  "Add the email of the account that owns the chat to the header of each exported .md. Off by default: it is personal data.": "Agrega el email de la cuenta dueña del chat a la cabecera de cada .md exportado. Apagado por defecto: es un dato personal.",
   "Actions": "Acciones",
   "Show pairing token": "Mostrar token de emparejamiento",
   "Import claude.ai .zip": "Importar .zip de claude.ai",

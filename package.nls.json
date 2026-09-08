@@ -8,6 +8,7 @@
   "command.sendSessionToChatGpt.title": "Exportal: Send Claude Code session to ChatGPT",
   "configuration.title": "Exportal",
   "configuration.autoAttachToClaudeCode.description": "After importing a conversation, open the Claude Code panel and attach the exported Markdown as an @-mention. Requires the official Claude Code extension.",
+  "configuration.includeAccountEmail.description": "Add the email of the account that owns the conversation to the header of every exported Markdown (claude.ai and ChatGPT, one-click and ZIP imports). Off by default: the email is personal data and the .md is meant to be pasted into Claude Code. The --redact-pii CLI flag still masks it.",
   "configuration.alsoWriteJsonl.description": "Also write a Claude Code-compatible .jsonl alongside the .md so the imported conversation appears in /resume of Claude Code as if it were a local session. Experimental: the .jsonl format is reverse-engineered and may break across Claude Code updates.",
   "configuration.postImportTemplates.description": "Quick prompts shown in the Exportal panel right after a chat is imported. Click one to copy it to the clipboard and open the Claude Code sidebar — paste with Ctrl+V to send it. Edit this list to fit your workflow."
 }
