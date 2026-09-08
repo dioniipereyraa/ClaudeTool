@@ -6,7 +6,7 @@ Companion (Chrome extension) are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 and versions follow [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [0.11.10], 2026-09-08
 
 ### Added
 

@@ -5,7 +5,7 @@
 
 ## 1. Estado al 2026-09-08
 
-- **Versión publicada:** 0.11.9 (VS Code Marketplace y Chrome Web Store).
+- **Versión publicada:** 0.11.9 (VS Code Marketplace y Chrome Web Store). **0.11.10 empaquetada en la rama, sin publicar:** `exportal-0.11.10.vsix` y `exportal-companion-0.11.10.zip` en la raíz del repo (ignorados por git), listos para subir tras el merge del PR #4.
 - **Rama `feat/account-email-multi-browser`, PR abierto, sin mergear.** Cierra los dos issues
   abiertos. Medido en la rama: 27 archivos de test, **331 tests** verdes (eran 314), lint y
   typecheck en 0, `npm run build` ok. Sin bump de versión.
