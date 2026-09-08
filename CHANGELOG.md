@@ -6,6 +6,24 @@ Companion (Chrome extension) are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 and versions follow [Semantic Versioning](https://semver.org/).
 
+## [0.11.10], 2026-09-08
+
+### Added
+
+- **Account email in the exported Markdown, opt-in** (issue #2).
+  A new **Include account email** toggle in the Exportal panel
+  (`exportal.includeAccountEmail`, off by default) adds an
+  `Account:` row with the email of the account that owns the chat
+  to the header of every exported `.md`: claude.ai and ChatGPT,
+  one-click and ZIP imports. The CLI gets `--include-account-email`
+  on `import show`. The Companion only looks the email up on the
+  site's own account endpoint when the bridge asks for it on
+  `/ping`, and `--redact-pii` still masks it.
+- **One VS Code, several browsers, documented and guarded**
+  (issue #1). The bridge already accepted any Companion holding the
+  pairing token; a regression test now pins that, and README and
+  the support page explain how to pair a second browser.
+
 ## [0.11.9], 2026-06-16
 
 Bugfix release.

@@ -179,7 +179,14 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         && typeof a.contentType === 'string',
       )
       .map((a) => ({ filename: a.filename, content: a.content, contentType: a.contentType }));
-    forwardInlineConversation(conversation, assets, provider)
+    // Optional account email (issue #2). Only present when the bridge
+    // asked for it on /ping. Same bounds as the bridge schema.
+    const rawEmail = message.account?.email;
+    const account =
+      typeof rawEmail === 'string' && rawEmail.trim().length > 0 && rawEmail.trim().length <= 254
+        ? { email: rawEmail.trim() }
+        : undefined;
+    forwardInlineConversation(conversation, assets, provider, account)
       .then((result) => sendResponse(result))
       .catch((err) => sendResponse({ ok: false, error: String(err) }));
     return true;
@@ -192,9 +199,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     // script polls this on a timer it controls — that timer lives
     // in the page context, where MV3 SW eviction can't kill it
     // mid-loop.
-    isBridgeReachable()
-      .then((ok) => sendResponse({ ok }))
-      .catch(() => sendResponse({ ok: false }));
+    // The bridge piggybacks its "Include account email" toggle on the
+    // /ping body (issue #2); we relay it so the content script knows
+    // whether to fetch the account before sending.
+    probeBridge()
+      .then(({ reachable, wantsAccountEmail }) =>
+        sendResponse({ ok: reachable, wantsAccountEmail }))
+      .catch(() => sendResponse({ ok: false, wantsAccountEmail: false }));
     return true;
   }
 
@@ -312,7 +323,7 @@ async function tryPort(port, token, zipPath, conversationId) {
   }
 }
 
-async function forwardInlineConversation(conversation, assets, provider) {
+async function forwardInlineConversation(conversation, assets, provider, account) {
   const token = await getToken();
   if (token === undefined) {
     await setBadgeState('unpaired');
@@ -334,6 +345,7 @@ async function forwardInlineConversation(conversation, assets, provider) {
   const payload = { conversation };
   if (Array.isArray(assets) && assets.length > 0) payload.assets = assets;
   if (provider !== undefined) payload.provider = provider;
+  if (account !== undefined) payload.account = account;
   const body = JSON.stringify(payload);
   // Cold-start (wake VS Code + retry) is handled in the content
   // script, not here. MV3 service workers get evicted during the
@@ -486,12 +498,24 @@ function sleep(ms) {
 const PROBE_TIMEOUT_MS = 500;
 
 async function isBridgeReachable() {
+  return (await probeBridge()).reachable;
+}
+
+// Same probe, plus the bridge's answer to "do you want the account
+// email?" (issue #2). Only a port that accepted OUR token (200) can
+// speak for the user's toggle; a 401 port belongs to another VS Code
+// profile. Several 200 ports share one profile, hence one setting.
+async function probeBridge() {
   const token = await getToken();
-  if (token === undefined) return false;
+  if (token === undefined) return { reachable: false, wantsAccountEmail: false };
   const ports = await buildPortOrder();
   const probes = ports.map((port) => probeOnePort(port, token));
   const results = await Promise.allSettled(probes);
-  return results.some((r) => r.status === 'fulfilled' && r.value === true);
+  const hits = results.filter((r) => r.status === 'fulfilled' && r.value !== false).map((r) => r.value);
+  return {
+    reachable: hits.length > 0,
+    wantsAccountEmail: hits.some((h) => h.wantsAccountEmail === true),
+  };
 }
 
 async function probeOnePort(port, token) {
@@ -505,8 +529,20 @@ async function probeOnePort(port, token) {
     });
     // 200 = our bridge with our token; 401 = a bridge is listening
     // with a different token (still proves VS Code is up). Either
-    // counts as "the bridge is reachable".
-    return res.status === 200 || res.status === 401;
+    // counts as "the bridge is reachable". On 200 we also read the
+    // body: the bridge advertises its account-email toggle there.
+    if (res.status === 200) {
+      let wantsAccountEmail = false;
+      try {
+        const body = await res.json();
+        wantsAccountEmail = body?.wantsAccountEmail === true;
+      } catch {
+        // Older bridge (or a non-JSON body): no flag, no email.
+      }
+      return { wantsAccountEmail };
+    }
+    if (res.status === 401) return { wantsAccountEmail: false };
+    return false;
   } catch {
     // ECONNREFUSED, timeout, or any other transport error — treat
     // as "this port not listening".

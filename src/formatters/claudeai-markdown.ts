@@ -20,6 +20,13 @@ export interface ClaudeAiFormatOptions {
   readonly redactPii?: boolean;
   readonly includeTools?: boolean;
   readonly includeAttachments?: boolean;
+  /**
+   * Email of the account that owns the conversation (issue #2). Opt-in
+   * at every layer: the caller passes it only when the user asked for
+   * it. Rendered as an `Account` row in the header; goes through the
+   * same redactor as the body, so `--redact-pii` still wins.
+   */
+  readonly accountEmail?: string;
 }
 
 export interface ClaudeAiFormatResult {
@@ -65,7 +72,7 @@ export function formatConversation(
   };
 
   const lines: string[] = [];
-  lines.push(renderHeader(conversation, options));
+  lines.push(renderHeader(conversation, options, report));
 
   let lastRole: 'user' | 'assistant' | null = null;
   for (const message of conversation.chat_messages) {
@@ -96,9 +103,17 @@ export function formatConversation(
 function renderHeader(
   conversation: ClaudeAiConversation,
   options: ClaudeAiFormatOptions,
+  report: RedactionReport,
 ): string {
   const rows: string[] = ['# Exportal — claude.ai conversation', ''];
   rows.push(`- **Title:** ${conversation.name.length > 0 ? conversation.name : '(untitled)'}`);
+  const accountEmail = options.accountEmail?.trim() ?? '';
+  if (accountEmail.length > 0) {
+    const shown = options.redact
+      ? redact(accountEmail, report, { pii: options.redactPii === true })
+      : accountEmail;
+    rows.push(`- **Account:** ${shown}`);
+  }
   rows.push(`- **UUID:** \`${conversation.uuid}\``);
   rows.push(`- **Created:** ${conversation.created_at}`);
   if (conversation.updated_at !== undefined) {

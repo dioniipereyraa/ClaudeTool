@@ -97,6 +97,20 @@ export async function readClaudeAiExport(zipPath: string): Promise<ClaudeAiExpor
   };
 }
 
+/**
+ * Email of the account that owns the export (issue #2). `users.json`
+ * lists the exporting account (one entry in every export seen so far);
+ * the first entry with a non-blank `email_address` wins. Undefined when
+ * the file is missing, failed validation, or carries no email.
+ */
+export function accountEmailOf(exp: Pick<ClaudeAiExport, 'users'>): string | undefined {
+  for (const user of exp.users ?? []) {
+    const email = user.email_address?.trim();
+    if (email !== undefined && email.length > 0) return email;
+  }
+  return undefined;
+}
+
 async function readJsonEntry(zip: JSZip, name: string): Promise<unknown> {
   const file = zip.file(name);
   if (file === null) return null;

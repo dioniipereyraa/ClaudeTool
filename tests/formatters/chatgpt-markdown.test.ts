@@ -371,3 +371,48 @@ describe('formatChatGptConversation', () => {
     expect(markdown.endsWith('\n\n')).toBe(false);
   });
 });
+
+describe('account email in the header (issue #2)', () => {
+  const conv = {
+    conversation_id: 'c-acc',
+    title: 'Account test',
+    create_time: 1_757_325_600,
+    current_node: 'a',
+    mapping: {
+      a: {
+        id: 'a',
+        parent: null,
+        children: [],
+        message: {
+          id: 'a',
+          author: { role: 'user' },
+          content: { content_type: 'text', parts: ['hi'] },
+          create_time: 1_757_325_600,
+        },
+      },
+    },
+  } as unknown as Parameters<typeof formatChatGptConversation>[0];
+
+  it('is absent unless the caller opts in', () => {
+    const { markdown } = formatChatGptConversation(conv, { redact: true });
+    expect(markdown).not.toContain('Account:');
+  });
+
+  it('renders an Account quote line right after the Source line when provided', () => {
+    const { markdown } = formatChatGptConversation(conv, { redact: true, accountEmail: 'dio@example.com' });
+    const lines = markdown.split('\n');
+    const source = lines.findIndex((l) => l.startsWith('> Source: chatgpt.com'));
+    expect(lines[source + 1]).toBe('> Account: dio@example.com');
+  });
+
+  it('the PII redactor wins over the opt-in when both are on', () => {
+    const { markdown, report } = formatChatGptConversation(conv, {
+      redact: true,
+      redactPii: true,
+      accountEmail: 'dio@example.com',
+    });
+    expect(markdown).toContain('> Account: <REDACTED:email>');
+    expect(markdown).not.toContain('dio@example.com');
+    expect(report.piiByType.email).toBe(1);
+  });
+});

@@ -5,52 +5,53 @@
 
 ## 1. Estado al 2026-09-08
 
-- **Versión publicada:** 0.11.9 (VS Code Marketplace y Chrome Web Store). Sin cambios de código
-  de producto desde entonces.
-- **Landing rediseñada y MERGEADA a `main`** (PR #3, merge `5e1c39f`, 2026-09-08). GitHub Pages
-  publica `docs/` desde `main`, así que exportal.dev ya tiene el diseño nuevo. Dionisio lo aprobó
-  viéndolo en su navegador.
-- **Marca:** monocromo estricto. Tinta `#1F1F1F`, papel blanco, un solo gris secundario
-  (`rgba(31,31,31,0.66)`, 5.33:1). Sin acento de color en la landing. El naranja `#D97757` queda
-  solo en el FAB de claude.ai y en el ícono del Marketplace. `design-cds/` es anterior al rebrand y
-  no sirve como referencia de color.
-- **Tipografía:** Inter Tight y JetBrains Mono, variables, vendoreadas en `docs/fonts/` (el CSP
-  exige `font-src 'self'`).
-- **Verificado:** capturas a 1280 y a 390 reales, ningún recurso fuera de `self`, audit de
-  accesibilidad limpio en `index`, `support` y `privacy`. Dionisio lo vio en su navegador y los
-  hilos con paquetes se ven cruzar.
+- **Versión publicada:** 0.11.9 (VS Code Marketplace y Chrome Web Store). **0.11.10 empaquetada en la rama, sin publicar:** `exportal-0.11.10.vsix` y `exportal-companion-0.11.10.zip` en la raíz del repo (ignorados por git), listos para subir tras el merge del PR #4.
+- **Rama `feat/account-email-multi-browser`, PR abierto, sin mergear.** Cierra los dos issues
+  abiertos. Medido en la rama: 27 archivos de test, **331 tests** verdes (eran 314), lint y
+  typecheck en 0, `npm run build` ok. Sin bump de versión.
+- **Issue #1 (varios navegadores por VS Code): ya funcionaba.** El token es por perfil de VS Code
+  y el bridge solo compara el Bearer. Probado con sockets crudos: tres orígenes distintos, mismo
+  token, seis requests concurrentes, todas 200. Quedó test de regresión, párrafo en README y FAQ en
+  `docs/support/`. Se respondió en GitHub.
+- **Issue #2 (email de la cuenta): implementado, opt-in con toggle.** Setting
+  `exportal.includeAccountEmail` (default false), tercer toggle del panel, flag
+  `--include-account-email` en el CLI. Fila `Account:` en la cabecera de los dos formateadores,
+  enmascarada por `--redact-pii`. Fuentes: `users.json` (ZIP claude.ai), `user.json` (ZIP
+  ChatGPT) y, en un click, el Companion consulta `/api/account` o `/api/auth/session` **solo si**
+  `/ping` devolvió `wantsAccountEmail: true`.
+- **Smoke test end-to-end HECHO el 2026-09-08** con el VSIX de la rama instalado y el Companion
+  cargado unpacked, contra claude.ai con la sesión de Dionisio:
+  - `/api/account` responde 200 y el campo es `email_address` (lo que lee el código).
+  - Toggle prendido: `/ping` → `wantsAccountEmail: true`, el Companion llamó a `/api/account`, y
+    el `.md` salió con `- **Account:** dionipereyrab@gmail.com` debajo de Title.
+  - Toggle apagado (sin recargar nada): `/ping` → `false`, cero llamadas a `/api/account`, sin
+    fila Account. El CLI dio lo esperado en las tres variantes (sin flag, con flag, con
+    `--redact-pii` → `<REDACTED:email>`).
+  - Falta solo el lado ChatGPT en vivo y el toggle desde el panel (se probó vía settings.json).
+- **Landing:** mergeada y publicada en exportal.dev (PR #3). Sin cambios en esta sesión salvo la
+  FAQ nueva de support.
 
-## 2. Decisiones tomadas en el rediseño, con su porqué
+## 2. Decisiones tomadas, con su porqué
 
-- **Cero cards, cero sombras, cero acento.** La firma más reconocible del HTML generado eran las
-  cards idénticas con hover-lift y un azul de Tailwind que no era de la marca. La jerarquía la hacen
-  la escala tipográfica, las reglas de 1px y el espacio.
-- **Un solo elemento con movimiento:** los hilos detrás del hero. Se dibujan al cargar con la
-  longitud real medida en JS, y los paquetes viajan con `<animateMotion>` + `<mpath>`. Se eligió
-  SVG nativo porque la primera versión (`pathLength` + `non-scaling-stroke`, y `offset-path` sobre
-  `<circle>`) salía a medio dibujar y sin paquetes en el navegador de Dionisio.
-- **Los commits de este repo van en inglés** (el historial, el README, el CHANGELOG y los PR lo
-  están; el DEVLOG y el ROADMAP en castellano). Los tres commits del PR #3 salieron en castellano
-  por error y ya están mergeados; no se reescribe historia publicada.
-- **Los HTML de `docs/` no se formatean con prettier.** `main` tampoco lo hacía; solo `script.js`
-  pasa por prettier. No hay workflow que lo exija.
+- **El email es opt-in en TODAS las capas.** `SECURITY.md` lo trata como PII y el `.md` se pega
+  en Claude Code. Con el toggle apagado el Companion ni consulta el endpoint de cuenta.
+- **El flag viaja en `/ping`, no en un setting del Companion.** Una sola fuente de verdad (el
+  setting de VS Code); un flip en el panel aplica al siguiente export sin re-emparejar. Un bridge
+  viejo no manda el flag y el Companion nuevo no manda el email; un Companion viejo ignora el flag.
+- **Issue #1 se cierra con doc + test, sin cambios de producto.** Dionisio eligió esa opción entre
+  tres (doc+test, doc+test+ajuste UX del panel, solo responder).
+- **Marca y commits:** monocromo estricto en la landing; commits y PR en inglés, DEVLOG y HANDOFF
+  en castellano; sin firma de Claude.
 
 ## 3. Por dónde seguir, en orden
 
-1. Opcional: regenerar la imagen de Open Graph a 1200x630 con el hero nuevo; hoy `og:image`
-   apunta a la captura vieja de la Chrome Web Store.
-2. **Issue #2, "Include Account Email in Exported Claude Conversations"** (geekyouth,
-   2026-09-06). Pide el email de la cuenta en el Markdown exportado. **No es agregar un campo:**
-   `SECURITY.md` trata el email como PII con redacción opt-in (`--redact-pii`) y la redacción
-   general es fail-closed por defecto. Hay que decidir si va opt-in, dónde se lee (sesión de
-   claude.ai vs ChatGPT), y cómo convive con el redactor. Consultar con Dionisio antes de codear:
-   es una decisión de diseño con dos ramas defendibles.
-3. **Issue #1, "one vscode Pair multiple browsers"** (kellke2026, 2026-08-29, sin cuerpo; un
-   comentario de geekyouth dice "yes, test pass" sin contexto). Hoy el bridge tiene un token de
-   pairing por instancia de VS Code. Primero medir qué pasa al emparejar un segundo navegador
-   (¿el segundo pisa al primero, o el token es el mismo y ya funciona?), y recién después
-   responder en el issue o diseñar.
-4. Lo de `ROADMAP.md` §Near-term sigue vigente y no se tocó en esta sesión.
+1. Smoke test pendiente solo en chatgpt.com (la fila `> Account:`) y del toggle desde el panel
+   (el setting se probó editando `settings.json`; el toggle usa el mismo `update` que los otros dos).
+2. Mergear el PR #4 y decidir el release (0.11.10: VSIX + ZIP del Companion). Después del release,
+   Dionisio tiene que sacar el Companion cargado unpacked y reactivar el de la Web Store: el
+   unpacked tiene OTRO id de extensión, así que su storage y su pairing son aparte.
+4. Opcional: regenerar la imagen de Open Graph a 1200x630 con el hero nuevo.
+5. Lo de `ROADMAP.md` §Near-term sigue vigente y no se tocó.
 
 ## 4. Cómo relanzar
 

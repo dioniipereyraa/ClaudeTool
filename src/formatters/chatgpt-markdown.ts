@@ -24,6 +24,8 @@ export interface ChatGptFormatOptions {
   readonly redact: boolean;
   readonly redactPii?: boolean;
   readonly includeTools?: boolean;
+  /** See ClaudeAiFormatOptions.accountEmail — same opt-in, same redaction. */
+  readonly accountEmail?: string;
 }
 
 export interface ChatGptFormatResult {
@@ -53,6 +55,13 @@ export function formatChatGptConversation(
   lines.push(`# ${title}`);
   lines.push('');
   lines.push(`> Source: chatgpt.com — exported ${createdIso}`);
+  const accountEmail = options.accountEmail?.trim() ?? '';
+  if (accountEmail.length > 0) {
+    const shown = options.redact
+      ? redact(accountEmail, report, { pii: options.redactPii === true })
+      : accountEmail;
+    lines.push(`> Account: ${shown}`);
+  }
   lines.push('');
 
   for (const message of activeBranchMessages(conversation)) {

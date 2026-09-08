@@ -1,7 +1,7 @@
 {
   "name": "exportal",
   "displayName": "%extension.displayName%",
-  "version": "0.11.9",
+  "version": "0.11.10",
   "description": "%extension.description%",
   "l10n": "./l10n",
   "private": true,
@@ -86,6 +86,11 @@
           "type": "boolean",
           "default": false,
           "description": "%configuration.alsoWriteJsonl.description%"
+        },
+        "exportal.includeAccountEmail": {
+          "type": "boolean",
+          "default": false,
+          "description": "%configuration.includeAccountEmail.description%"
         },
         "exportal.postImportTemplates": {
           "type": "array",

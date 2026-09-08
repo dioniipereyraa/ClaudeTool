@@ -16,7 +16,7 @@ import {
  * Side-panel control surface for Exportal (`view: exportal.controlPanel`).
  *
  * Layout (Hito 29, Variante B — directional rows):
- *   1. Settings — two toggles (autoAttach, alsoJsonl).
+ *   1. Settings — three toggles (autoAttach, alsoJsonl, includeAccountEmail).
  *   2. Importar al workspace — section with one provider row per
  *      supported AI (claude.ai, ChatGPT, Gemini placeholder).
  *   3. Exportar la sesión actual — same shape, opposite direction.
@@ -489,6 +489,7 @@ export class ExportalControlPanelProvider implements vscode.WebviewViewProvider 
     const cfg = vscode.workspace.getConfiguration('exportal');
     const autoAttach = cfg.get<boolean>('autoAttachToClaudeCode', true);
     const alsoJsonl = cfg.get<boolean>('alsoWriteJsonl', false);
+    const includeAccountEmail = cfg.get<boolean>('includeAccountEmail', false);
     const cspSource = webview.cspSource;
     const nonce = randomNonce();
     const t = (key: string): string => escapeHtml(vscode.l10n.t(key));
@@ -981,6 +982,14 @@ export class ExportalControlPanelProvider implements vscode.WebviewViewProvider 
       <div class="body">
         <div class="label">${t('Also write .jsonl for /resume')}</div>
         <div class="desc">${t('Write a Claude Code-compatible .jsonl alongside the .md so the chat appears in /resume. Experimental.')}</div>
+      </div>
+      <div class="switch"></div>
+    </div>
+
+    <div class="toggle" data-on="${includeAccountEmail ? 'true' : 'false'}" data-key="includeAccountEmail" tabindex="0">
+      <div class="body">
+        <div class="label">${t('Include account email')}</div>
+        <div class="desc">${t('Add the email of the account that owns the chat to the header of each exported .md. Off by default: it is personal data.')}</div>
       </div>
       <div class="switch"></div>
     </div>

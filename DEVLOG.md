@@ -5964,3 +5964,25 @@ implementados (5 INFORMATIVA pasaron a "fixed", 2 quedan como
 ### Próximo paso
 - Confirmar en Safari el `text-wrap: balance` del título (los hilos y paquetes ya usan solo SVG nativo).
 - Regenerar la imagen de Open Graph si se quiere que el preview social refleje el rediseño; hoy sigue apuntando a la captura de la Chrome Web Store.
+
+## 2026-09-08 · Issues #1 y #2: varios navegadores por VS Code, email de la cuenta opt-in
+
+### Qué hicimos
+- **Issue #1 ("one vscode Pair multiple browsers")**: antes de diseñar nada, medimos. El token vive en el `globalState` de VS Code (uno por perfil, no por ventana) y el bridge solo compara el Bearer: no hay registro de clientes. Un test con sockets crudos (`node:http`, `agent: false`) manda seis requests concurrentes desde tres orígenes `chrome-extension://` distintos con el mismo token y las seis dan 200; un token de una rotación anterior da 401. **Ya funcionaba.** Lo que faltaba era UX y documentación: el botón "Copy and open Chrome" abre solo el navegador por defecto, así que en el segundo hay que pegar el token en Options del Companion, y el toast de "paired" sale una sola vez por token. Quedó escrito en README y en la FAQ de `docs/support/`, y el test quedó como guardián de regresión.
+- **Issue #2 ("Include Account Email in Exported Claude Conversations")**: Dionisio decidió opt-in con un toggle en el panel, no solo un setting. Setting `exportal.includeAccountEmail` (default `false`) con su fila en el panel (tercer toggle, misma mecánica que los otros dos) y `--include-account-email` en `exportal import show`. Los dos formateadores aceptan `accountEmail` y lo escriben en la cabecera (`- **Account:** …` en claude.ai, `> Account: …` en ChatGPT); el valor pasa por el mismo redactor que el cuerpo, así que `--redact-pii` lo enmascara. Fuentes: `users.json` en el ZIP de claude.ai (`accountEmailOf`), `user.json` en el ZIP de ChatGPT (nuevo campo `accountEmail` del reader), y en el camino de un click el Companion consulta `/api/account` (claude.ai) o `/api/auth/session` (ChatGPT) **solo cuando** el bridge lo pide: `/ping` ahora devuelve `wantsAccountEmail` cuando el host expone el setting, y el Companion lo lee justo antes de mandar. El payload `/import-inline` acepta `account: { email }` opcional (1 a 254 caracteres); cualquier otra forma da 400.
+- 17 tests nuevos (331 en total), lint, typecheck y build limpios. Sin bump de versión: eso lo decide el release.
+
+### Por qué
+- El email es PII en `SECURITY.md` y el `.md` está pensado para pegarse en Claude Code, así que "siempre incluido" contradecía el modelo de amenazas. Opt-in **en todas las capas** (el Companion ni siquiera consulta el endpoint de cuenta si el toggle está apagado) es lo que hace que el default siga siendo fail-closed.
+- El flag viaja en `/ping` y no en un setting del Companion para que haya **una sola fuente de verdad** (el setting de VS Code) y una flip en el panel aplique al siguiente export sin re-emparejar.
+
+### Lección de instrumento
+- El primer test de "tres navegadores" falló con `ECONNRESET` y no era el bridge: `fetch` global mantiene un pool keep-alive por origen, y un socket al servidor del test anterior (mismo puerto, ya cerrado) revienta en el primer uso del siguiente. Se mide con sockets crudos (`agent: false`), que es lo que quedó en el test.
+
+### Smoke test (misma tarde)
+- Con el VSIX de la rama instalado, VS Code recargado y el Companion cargado unpacked, contra claude.ai con la sesión real: `/api/account` responde 200 con `email_address`. Toggle prendido: `/ping` da `wantsAccountEmail: true`, el Companion llama a `/api/account` y el `.md` sale con la fila Account. Toggle apagado, sin recargar: `/ping` da `false`, no hay llamada a `/api/account` y no hay fila. El CLI dio lo esperado en sus tres variantes.
+- Dos tropiezos que no eran de la feature. (1) Tras la recarga el extension host estuvo ~5 minutos al 100% de CPU y el bridge no contestaba ni un 404; un perfil de CPU por el inspector del extension host (puerto que ya expone VS Code) mostró solo a Copilot haciendo `lstat` sobre el workspace, Exportal no aparecía, y al terminar el bridge contestó en 0,4 ms. (2) El Companion unpacked tiene otro id de extensión, o sea storage vacío: hubo que emparejarlo con la URL del trampolín (`claude.ai/#exportal-pair=<token>`), que es exactamente el camino del issue #1.
+
+### Próximo paso
+- Smoke test en chatgpt.com y del toggle desde el panel.
+- Release 0.11.10 con VSIX y ZIP del Companion cuando Dionisio lo decida.

@@ -646,7 +646,8 @@ async function handlePrimaryClick(btn) {
       ensureBridgeReady(labelEl),
     ]);
     if (labelEl !== null) labelEl.textContent = chrome.i18n.getMessage('feedbackSending');
-    await sendInline(conversation, assets, provider);
+    const account = await maybeFetchAccount(route);
+    await sendInline(conversation, assets, provider, account);
     const ms = Math.round(performance.now() - t0);
     const messages = countMessages(conversation);
     if (labelEl !== null) labelEl.textContent = originalLabel;
@@ -701,7 +702,8 @@ async function runPrimaryFromShortcut() {
       fetchByRoute(route),
       ensureBridgeReady(undefined),
     ]);
-    await sendInline(conversation, assets, provider);
+    const account = await maybeFetchAccount(route);
+    await sendInline(conversation, assets, provider, account);
     const ms = Math.round(performance.now() - t0);
     const messages = countMessages(conversation);
     showToast(`${chrome.i18n.getMessage('feedbackOpenedInVsCode')} · ${ms}ms · ${messages}`, 'ok');
@@ -742,9 +744,10 @@ async function runSecondaryAction(id) {
   if (response?.ok !== true) throw new Error(response?.error ?? 'unknown');
 }
 
-async function sendInline(conversation, assets, provider) {
+async function sendInline(conversation, assets, provider, account) {
   const message = { type: 'exportal:sendInline', conversation, provider };
   if (Array.isArray(assets) && assets.length > 0) message.assets = assets;
+  if (account !== undefined) message.account = account;
   const t0 = performance.now();
   const response = await chrome.runtime.sendMessage(message);
   console.info('[Exportal] sendInline:', Math.round(performance.now() - t0), 'ms, response:', response);
@@ -774,6 +777,54 @@ async function ensureBridgeReady(labelEl) {
   const ready = await waitForBridge();
   console.info('[Exportal] waitForBridge:', Math.round(performance.now() - tWake), 'ms, ready:', ready);
   if (!ready) throw new Error('bridge_offline');
+}
+
+// Issue #2. Asks the bridge (via the background) whether the user
+// flipped "Include account email", and only then reads the account
+// from the site's own session endpoint. Everything here is best-effort:
+// a missing or failing account lookup never blocks the export, it just
+// leaves the header without the row.
+async function maybeFetchAccount(route) {
+  try {
+    const res = await chrome.runtime.sendMessage({ type: 'exportal:pingBridge' });
+    if (res?.wantsAccountEmail !== true) return undefined;
+    const email = await fetchAccountEmail(route);
+    return typeof email === 'string' && email.trim().length > 0 ? { email: email.trim() } : undefined;
+  } catch (err) {
+    console.info('[Exportal] account email skipped:', err?.message ?? err);
+    return undefined;
+  }
+}
+
+const ACCOUNT_TIMEOUT_MS = 3000;
+
+async function fetchAccountEmail(route) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), ACCOUNT_TIMEOUT_MS);
+  try {
+    if (route.kind === 'chatgpt') {
+      // NextAuth session: { user: { email, ... }, accessToken, ... }
+      const res = await fetch('/api/auth/session', {
+        credentials: 'same-origin',
+        headers: { accept: 'application/json' },
+        signal: controller.signal,
+      });
+      if (!res.ok) return undefined;
+      const data = await parseJsonOrThrow(res);
+      return data?.user?.email;
+    }
+    // claude.ai: the account endpoint the web app itself calls on load.
+    const res = await fetch('/api/account', {
+      credentials: 'same-origin',
+      headers: { accept: 'application/json' },
+      signal: controller.signal,
+    });
+    if (!res.ok) return undefined;
+    const data = await parseJsonOrThrow(res);
+    return data?.email_address ?? data?.email;
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 async function pingBridge() {
