@@ -1,66 +1,57 @@
 # HANDOFF.md: Exportal
 
-> Estado **vigente** para retomar en la sesión siguiente. Solo presente. El relato de cada sesión
-> está en `DEVLOG.md` (en pasado), los releases en `CHANGELOG.md`, la cola larga en `ROADMAP.md`.
+> **Solo lo que hace falta para SEGUIR desarrollando.** Estado vigente, decisiones abiertas y el
+> próximo paso, en presente. Los bugs que ya nos costaron caro y las reglas del proyecto están en
+> `CLAUDE.md`; el relato de cada sesión, en pasado, en `DEVLOG.md`; la cola larga de ideas en
+> `ROADMAP.md`; los releases en `CHANGELOG.md`.
 
 ## 1. Estado al 2026-09-08
 
-- **Versión publicada:** 0.11.9 (VS Code Marketplace y Chrome Web Store). **0.11.10 empaquetada en la rama, sin publicar:** `exportal-0.11.10.vsix` y `exportal-companion-0.11.10.zip` en la raíz del repo (ignorados por git), listos para subir tras el merge del PR #4.
-- **Rama `feat/account-email-multi-browser`, PR abierto, sin mergear.** Cierra los dos issues
-  abiertos. Medido en la rama: 27 archivos de test, **331 tests** verdes (eran 314), lint y
-  typecheck en 0, `npm run build` ok. Sin bump de versión.
-- **Issue #1 (varios navegadores por VS Code): ya funcionaba.** El token es por perfil de VS Code
-  y el bridge solo compara el Bearer. Probado con sockets crudos: tres orígenes distintos, mismo
-  token, seis requests concurrentes, todas 200. Quedó test de regresión, párrafo en README y FAQ en
-  `docs/support/`. Se respondió en GitHub.
-- **Issue #2 (email de la cuenta): implementado, opt-in con toggle.** Setting
-  `exportal.includeAccountEmail` (default false), tercer toggle del panel, flag
-  `--include-account-email` en el CLI. Fila `Account:` en la cabecera de los dos formateadores,
-  enmascarada por `--redact-pii`. Fuentes: `users.json` (ZIP claude.ai), `user.json` (ZIP
-  ChatGPT) y, en un click, el Companion consulta `/api/account` o `/api/auth/session` **solo si**
-  `/ping` devolvió `wantsAccountEmail: true`.
-- **Smoke test end-to-end HECHO el 2026-09-08** con el VSIX de la rama instalado y el Companion
-  cargado unpacked, contra claude.ai con la sesión de Dionisio:
-  - `/api/account` responde 200 y el campo es `email_address` (lo que lee el código).
-  - Toggle prendido: `/ping` → `wantsAccountEmail: true`, el Companion llamó a `/api/account`, y
-    el `.md` salió con `- **Account:** dionipereyrab@gmail.com` debajo de Title.
-  - Toggle apagado (sin recargar nada): `/ping` → `false`, cero llamadas a `/api/account`, sin
-    fila Account. El CLI dio lo esperado en las tres variantes (sin flag, con flag, con
-    `--redact-pii` → `<REDACTED:email>`).
-  - Falta solo el lado ChatGPT en vivo y el toggle desde el panel (se probó vía settings.json).
-- **Landing:** mergeada y publicada en exportal.dev (PR #3). Sin cambios en esta sesión salvo la
-  FAQ nueva de support.
+- **Versión publicada: 0.11.10**, en el VS Code Marketplace y en la Chrome Web Store (subida a
+  mano por Dionisio el 2026-09-08; la de Chrome pasa por review, puede tardar horas o días).
+  Contenido: email de la cuenta opt-in en el Markdown (issue #2) y documentación + test de un
+  VS Code con varios navegadores (issue #1). Detalle en `CHANGELOG.md`.
+- **PR #4 abierto, en revisión de Dionisio** (`feat/account-email-multi-browser`, 5 commits +
+  esta reorganización de docs). Al mergear, el issue #2 se cierra solo (`Closes #2`); el **#1 se
+  cierra a mano**, ya tiene el comentario que explica que funciona.
+- **Smoke test hecho** en claude.ai con sesión real, toggle prendido y apagado. Pendiente de
+  probar en vivo: chatgpt.com (la fila `> Account:`) y el toggle tocado desde el panel (se probó
+  vía `settings.json`; usa el mismo `update` que los otros dos toggles).
+- **Máquina de Dionisio:** sigue cargado el Companion *unpacked* de la rama y el de la Web Store
+  desactivado. Hay que sacar el unpacked y reactivar el de la tienda cuando salga la review.
+- **Landing** (exportal.dev) publicada con el rediseño monocromo desde el PR #3.
 
-## 2. Decisiones tomadas, con su porqué
+## 2. Próximo paso: publicar a las dos tiendas desde CI
 
-- **El email es opt-in en TODAS las capas.** `SECURITY.md` lo trata como PII y el `.md` se pega
-  en Claude Code. Con el toggle apagado el Companion ni consulta el endpoint de cuenta.
-- **El flag viaja en `/ping`, no en un setting del Companion.** Una sola fuente de verdad (el
-  setting de VS Code); un flip en el panel aplica al siguiente export sin re-emparejar. Un bridge
-  viejo no manda el flag y el Companion nuevo no manda el email; un Companion viejo ignora el flag.
-- **Issue #1 se cierra con doc + test, sin cambios de producto.** Dionisio eligió esa opción entre
-  tres (doc+test, doc+test+ajuste UX del panel, solo responder).
-- **Marca y commits:** monocromo estricto en la landing; commits y PR en inglés, DEVLOG y HANDOFF
-  en castellano; sin firma de Claude.
+Hoy `release.yml` (tag `v*`) corre `npm run ci`, empaqueta VSIX y ZIP y los cuelga de un GitHub
+Release. Falta el paso que los sube a las tiendas. Plan acordado el 2026-09-08, sin empezar:
 
-## 3. Por dónde seguir, en orden
+1. **VS Code Marketplace primero** (se prueba en diez minutos). Job nuevo en `release.yml`:
+   `npx @vscode/vsce publish --packagePath <vsix> --pat $VSCE_PAT`. Secret: PAT de Azure DevOps
+   con scope *Marketplace → Manage* (vence, anotar la fecha). Opcional y gratis en el mismo paso:
+   `ovsx publish` a Open VSX (Cursor, VSCodium, Windsurf).
+2. **Chrome Web Store después.** API oficial: `PUT` del ZIP al item + `POST .../publish`
+   (envuelto por `chrome-webstore-upload-cli` o la action `PlasmoHQ/bpp`). Credencial OAuth2:
+   proyecto en Google Cloud, habilitar *Chrome Web Store API*, OAuth client, consentimiento a mano
+   una vez, y secrets `client_id`, `client_secret`, `refresh_token`. **Dos gotchas:** la app OAuth
+   tiene que estar *In production*, en *Testing* el refresh token expira a los 7 días; y `publish`
+   no publica, encola la review.
+3. **Cuidados:** un job por tienda con `continue-on-error` en el de Chrome; los secrets solo en el
+   workflow de tags, nunca en `ci.yml` (corre en PRs); un `environment` con *required reviewers*
+   para tener un botón de aprobar antes de salir; y un chequeo de que el tag coincide con
+   `package.json` y `chrome/manifest.json`, que hoy nadie hace.
 
-1. Smoke test pendiente solo en chatgpt.com (la fila `> Account:`) y del toggle desde el panel
-   (el setting se probó editando `settings.json`; el toggle usa el mismo `update` que los otros dos).
-2. Mergear el PR #4 y decidir el release (0.11.10: VSIX + ZIP del Companion). Después del release,
-   Dionisio tiene que sacar el Companion cargado unpacked y reactivar el de la Web Store: el
-   unpacked tiene OTRO id de extensión, así que su storage y su pairing son aparte.
-4. Opcional: regenerar la imagen de Open Graph a 1200x630 con el hero nuevo.
-5. Lo de `ROADMAP.md` §Near-term sigue vigente y no se tocó.
+Después de esto, sigue `ROADMAP.md` §Near-term (instalación en máquina limpia, Search Console,
+capturas reales, video, blog) y el Hito 35 (pairing en `exportal.dev/pair`).
 
-## 4. Cómo relanzar
+## 3. Cómo relanzar
 
-```bash
-cd docs && python3 -m http.server 8765 --bind 127.0.0.1   # http://127.0.0.1:8765/
-pkill -f "http.server 8765"                                 # para apagarlo
-```
-
-Capturas headless: `chrome --headless=new --window-size=390,...` **no da 390 en macOS** (clampa a
-500 y recorta). Para móvil, envolver la página en un `<iframe width="390">` dentro de una ventana
-más ancha. Para auditar contraste, usar una copia con las animaciones apagadas: el fade-in falsea
-los ratios.
+- Setup, build, tests y cómo correr la extensión con F5: `CONTRIBUTING.md`.
+- Bridge local: escucha en `127.0.0.1:9317-9326`; el token de pairing vive en el `globalState`
+  de VS Code (uno por perfil). Para probar `/ping` a mano:
+  `curl -X POST http://127.0.0.1:9317/ping -H "Authorization: Bearer <token>"`.
+- Un Companion cargado *unpacked* tiene OTRO id de extensión que el de la tienda: storage y
+  pairing aparte. Se empareja abriendo `https://claude.ai/#exportal-pair=<token>`.
+- Release a mano mientras no exista el CI: bump en `package.json`, `package-lock.json`
+  (dos campos) y `chrome/manifest.json`, `CHANGELOG.md`, `npm run package:vsix` y
+  `npm run package:chrome`, subir los dos archivos, tag `vX.Y.Z`.

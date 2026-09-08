@@ -5986,3 +5986,21 @@ implementados (5 INFORMATIVA pasaron a "fixed", 2 quedan como
 ### Próximo paso
 - Smoke test en chatgpt.com y del toggle desde el panel.
 - Release 0.11.10 con VSIX y ZIP del Companion cuando Dionisio lo decida.
+
+## 2026-09-08 (cierre) · 0.11.10 publicada y reorganización de la documentación
+
+### Qué hicimos
+- Dionisio subió `exportal-0.11.10.vsix` al VS Code Marketplace y `exportal-companion-0.11.10.zip`
+  a la Chrome Web Store (queda en review). El PR #4 sigue abierto para que lo revise y lo mergee él.
+- Reorganizamos la documentación en tres roles, copiando el esquema que ya funciona en Pointer:
+  `CLAUDE.md` nuevo con las reglas específicas del proyecto y los bugs por familia (destilados de
+  las 68 entradas de este archivo, cada uno con su fecha); `HANDOFF.md` reescrito con solo el estado
+  vigente y el próximo paso; `DEVLOG.md` sigue siendo la historia (es público y lo linkean la
+  landing y `CONTRIBUTING.md`, por eso no se renombra). `ROADMAP.md` perdió los tres ítems
+  near-term que ya estaban hechos (aprobación de la 0.11.2, VSIX y ZIP de la 0.11.7).
+- Próximo paso acordado y planificado en el HANDOFF, sin empezar: publicar a las dos tiendas desde
+  `release.yml` (vsce con PAT primero, Chrome Web Store API con OAuth después).
+
+### Por qué
+- Tres archivos con roles claros evitan que una sesión nueva lea 6000 líneas de historia para
+  encontrar una regla, o que una regla quede enterrada en una entrada de abril.
