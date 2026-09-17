@@ -31,8 +31,9 @@ trademark of OpenAI.
 - Optionally writes a `.jsonl` session file so an imported chat appears in Claude Code's
   `/resume` list. This format is reverse-engineered, not documented by Anthropic, and is labelled
   experimental.
-- Redacts secrets and filesystem paths by default and shows a preview before anything is written
-  to disk. Email and IP redaction is available with an explicit opt-in.
+- Redacts secrets and filesystem paths by default, and turning that off takes an explicit
+  opt-out. Email and IP redaction is available with an explicit opt-in. The CLI additionally
+  prints a preview of what will be written before it touches the disk.
 
 ## Install
 
