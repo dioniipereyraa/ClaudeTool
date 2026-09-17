@@ -5,15 +5,18 @@
 > `CLAUDE.md`; el relato de cada sesión, en pasado, en `DEVLOG.md`; la cola larga de ideas en
 > `ROADMAP.md`; los releases en `CHANGELOG.md`.
 
-## 1. Estado al 2026-09-08
+## 1. Estado al 2026-09-17
 
 - **Versión publicada: 0.11.10**, en el VS Code Marketplace, en la Chrome Web Store (en review,
   puede tardar horas o días) y como GitHub Release `v0.11.10` con VSIX y ZIP adjuntos (el tag
   lo creó Claude tras el merge; `release.yml` corrió verde). Contenido: email de la cuenta
   opt-in en el Markdown (issue #2) y documentación + test de un VS Code con varios navegadores
   (issue #1). Detalle en `CHANGELOG.md`.
-- **`main` limpio:** PR #4 (feature) y PR #5 (reorganización de docs) mergeados, cero issues y
-  cero PRs abiertos, ramas de trabajo borradas. Solo existe `main`.
+- **PR #6 abierto:** metadata legible por máquina en la landing (JSON-LD, canonical, `llms.txt`,
+  sitemap con fechas reales) más los tests que la anclan. CI verde, a la espera de review y merge.
+  Es la capa 1 de tres para que los motores generativos puedan citar Exportal.
+- **Fuera de eso `main` está limpio:** PR #4 (feature) y PR #5 (reorganización de docs) mergeados,
+  cero issues, ramas de trabajo borradas.
 - **Tags:** entre `v0.11.2` y `v0.11.10` no hay tags ni GitHub Releases (esas versiones se
   subieron a las tiendas a mano sin taggear). No hace falta rehacerlas; queda anotado para no
   extrañarse.
@@ -22,7 +25,9 @@
   vía `settings.json`; usa el mismo `update` que los otros dos toggles).
 - **Máquina de Dionisio:** sigue cargado el Companion *unpacked* y el de la Web Store
   desactivado. Hay que sacar el unpacked y reactivar el de la tienda cuando salga la review.
-- **Landing** (exportal.dev) publicada con el rediseño monocromo desde el PR #3.
+- **Landing** (exportal.dev) publicada con el rediseño monocromo desde el PR #3. Con el PR #6
+  suma JSON-LD, canonical y `llms.txt`. Atención: desde ahora el bump de versión también toca el
+  `softwareVersion` de `docs/index.html` (lo vigila `tests/docs/landing-metadata.test.ts`).
 
 ## 2. Próximo paso (acordado el 2026-09-08): publicar a las dos tiendas desde CI
 
@@ -46,6 +51,12 @@ Release. Falta el paso que los sube a las tiendas. Plan acordado el 2026-09-08, 
 
 Después de esto, sigue `ROADMAP.md` §Near-term (instalación en máquina limpia, Search Console,
 capturas reales, video, blog) y el Hito 35 (pairing en `exportal.dev/pair`).
+
+Del lado de GEO, una vez mergeado el PR #6: validar la home con el Rich Results Test ya publicada,
+verificar `exportal.dev` en Search Console, y después las capas 2 (una página que responda la
+pregunta literal "cómo paso un chat de claude.ai a VS Code", y la comparativa contra otros
+exporters sacada de la última línea del FAQ) y 3 (awesome-lists y Show HN, que ya están en el
+roadmap y no son código).
 
 ## 3. Cómo relanzar
 
