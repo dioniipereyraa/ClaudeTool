@@ -6004,3 +6004,31 @@ implementados (5 INFORMATIVA pasaron a "fixed", 2 quedan como
 ### Por qué
 - Tres archivos con roles claros evitan que una sesión nueva lea 6000 líneas de historia para
   encontrar una regla, o que una regla quede enterrada en una entrada de abril.
+
+## 2026-09-17 · GEO, capa 1: la landing legible por máquina (JSON-LD, canonical, llms.txt)
+
+### Qué hicimos
+- **Medimos antes de escribir nada.** La landing ya tenía lo caro (dominio propio, FAQ de 7 preguntas redactadas como respuestas directas, `robots.txt` que no bloquea nada, tres páginas en el sitemap) y le faltaba lo barato: cero JSON-LD en las tres páginas, `index.html` sin `rel="canonical"` (lo tenían `privacy` y `support`, no la home), `sitemap.xml` con `lastmod` del 2026-04-29 cuando las tres páginas se tocaron en septiembre, y ningún `llms.txt`.
+- **Un solo bloque JSON-LD** en `docs/index.html`, un `@graph` de tres nodos: `SoftwareApplication` (versión, licencia MIT, `offers` gratis, `installUrl` a las dos tiendas, `codeRepository`, `featureList` de siete líneas sacadas del README), `Person` con `@id` y el `SoftwareApplication` apuntando a él por referencia, y `FAQPage` con las mismas 7 preguntas que ve el usuario.
+- **El FAQPage no se escribió a mano:** se generó extrayendo los `<details>` del propio HTML y normalizando el texto. La única forma de que la respuesta marcada difiera de la visible es que alguien edite una y no la otra, y para eso está el test.
+- `docs/llms.txt` siguiendo la convención (H1, blockquote de resumen, secciones con links descritos): qué hace, qué no hace, dónde se instala, los documentos públicos y las respuestas cortas a las preguntas frecuentes. Dice explícitamente que el proyecto no está afiliado a Anthropic ni a OpenAI.
+- `docs/sitemap.xml` con el `lastmod` real de cada página, tomado del último commit que la tocó, y ordenado igual que la lista del test.
+- **19 tests nuevos** en `tests/docs/landing-metadata.test.ts` (350 en total): canonical por página, forma del JSON-LD, `softwareVersion` igual a `package.json`, el FAQPage espejo del FAQ visible, el sitemap listando exactamente las páginas publicadas, la convención de `llms.txt` con la lista blanca de hosts, y cero em dashes en los seis archivos de la landing.
+
+### Por qué
+- Un motor generativo cita lo que puede leer sin ambigüedad: un dato estructurado con versión, licencia y autor es citable, y una FAQ marcada es la unidad que estos motores extraen entera. El contenido ya estaba escrito; lo que faltaba era la capa que la máquina lee.
+- **La metadata es invisible, y lo invisible deriva sin que nadie lo note.** Es la misma familia del audit de abril, cuando la landing decía "PII redactada" y el código no lo hacía. Por eso cada afirmación del JSON-LD tiene un test que la ata a su fuente: la versión a `package.json`, la FAQ al HTML, las URLs a las tiendas reales.
+- **La versión va en el markup a propósito**, aunque agregue un paso al release. Es el dato que más se cita y el que peor envejece. El test lo convierte en un error de CI en vez de en una mentira silenciosa, que es exactamente la lección del `package-lock.json` cinco releases atrasado.
+- **No tocamos `robots.txt`.** `User-agent: *` con `Allow: /` ya alcanza a GPTBot, ClaudeBot, PerplexityBot y Google-Extended. Agregar un grupo por bot no habilita nada nuevo y sí introduce el riesgo clásico del formato: un grupo específico deja de heredar las reglas de `*`, así que habría que repetir el `Disallow: /promo/` en cada uno. Beneficio cero, superficie de error real.
+- Se descartó `og:locale` y un `WebSite` en el grafo por YAGNI: ninguno de los dos cambia lo que un motor puede responder sobre Exportal hoy.
+
+### Lección de instrumento
+- **El CSP de la landing es `script-src 'self'` sin inline, y el JSON-LD es un bloque inline.** Por spec un `<script>` con un `type` no ejecutable es un bloque de datos y no cae bajo `script-src`, pero eso se midió en vez de asumirse: Chrome headless contra la página servida en local, cero violaciones en el log y el nodo presente en el DOM volcado. La prueba decisiva fue un `verify.js` externo (externo porque el CSP no permite inline, justamente) que parsea `textContent` y escribe el resultado en el DOM: `LDCHECK_OK types=SoftwareApplication|Person|FAQPage version=0.11.10 faq=7`.
+- **`timeout` no existe en macOS** (es de GNU coreutils). Dos corridas de Chrome que parecían "no imprimir nada" en realidad nunca ejecutaron Chrome: salían con 127 y la redirección igual creaba el log vacío, así que el `grep` posterior daba un cero tranquilizador. Un exit code que nadie mira convierte un comando inexistente en evidencia falsa.
+- **Chrome headless no siempre termina solo:** vuelca el DOM y se queda vivo por el updater, sobre todo con `--enable-logging`. El archivo de salida ya está completo mientras el proceso sigue colgado, así que se lee el archivo y se mata el proceso, no al revés. Y `console.error` en `--headless=new` no llegó a stderr con `--enable-logging=stderr`: si el navegador tiene que contarte algo, que lo escriba en el DOM, que es lo que `--dump-dom` sí devuelve.
+- El test de la FAQ se verificó mutando el HTML visible (una respuesta cambiada, el JSON-LD intacto): falló donde tenía que fallar y volvió a verde al restaurar. Un invariante que nunca se vio fallar no es un invariante, es decoración.
+
+### Próximo paso
+- Capa 2 de GEO: contenido de cola larga que responda la pregunta literal ("cómo paso un chat de claude.ai a VS Code"), y sacar la comparativa contra otros exporters de la última línea del FAQ a una página propia.
+- Capa 3: las awesome-lists y el Show HN que ya están en `ROADMAP.md`. Es la capa que más mueve la aguja y no es código.
+- Una vez publicado, validar la home con el Rich Results Test y verificar `exportal.dev` en Search Console, que sigue pendiente desde el roadmap.

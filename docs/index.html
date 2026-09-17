@@ -17,6 +17,7 @@
 <link rel="icon" href="/favicon.png?v=2026-05-06" type="image/png" sizes="128x128">
 <link rel="apple-touch-icon" href="/favicon.png?v=2026-05-06">
 <link rel="preload" href="/fonts/inter-tight-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="canonical" href="https://exportal.dev/">
 
 <meta property="og:title" content="Exportal: bridge between AI chat and your editor">
 <meta property="og:description" content="Bidirectional bridge between Claude.ai/ChatGPT and Claude Code. One click in any chat, Markdown in your VS Code workspace, auto-attached to Claude Code as @-mention.">
@@ -24,6 +25,124 @@
 <meta property="og:url" content="https://exportal.dev/">
 <meta property="og:image" content="https://exportal.dev/screenshots/exportal-s6-chatgpt-1280x800.png">
 <meta name="twitter:card" content="summary_large_image">
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "SoftwareApplication",
+      "@id": "https://exportal.dev/#exportal",
+      "name": "Exportal",
+      "url": "https://exportal.dev/",
+      "description": "Bidirectional bridge between claude.ai, ChatGPT and Claude Code in VS Code. Exports an AI conversation to Markdown in your workspace with one click and attaches it to Claude Code as an @-mention, and sends a Claude Code session back to the web chat.",
+      "applicationCategory": "DeveloperApplication",
+      "operatingSystem": "Windows, macOS, Linux",
+      "softwareVersion": "0.11.10",
+      "softwareRequirements": "Visual Studio Code 1.85 or newer, plus a Chromium-based browser for the companion extension",
+      "license": "https://opensource.org/licenses/MIT",
+      "isAccessibleForFree": true,
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "USD"
+      },
+      "codeRepository": "https://github.com/dioniipereyraa/ClaudeTool",
+      "installUrl": [
+        "https://marketplace.visualstudio.com/items?itemName=dioniipereyraa.exportal",
+        "https://chromewebstore.google.com/detail/exportal-companion/lmnmekfphhpfaciehfdaonjfchbicdnm"
+      ],
+      "screenshot": "https://exportal.dev/screenshots/exportal-s6-chatgpt-1280x800.png",
+      "featureList": [
+        "One-click export of a claude.ai, Claude Design or ChatGPT conversation to Markdown in your VS Code workspace",
+        "Auto-attaches the exported Markdown to Claude Code as an @-mention",
+        "Sends a Claude Code session back to claude.ai or ChatGPT through the clipboard",
+        "Imports the official claude.ai and ChatGPT data export ZIP",
+        "Optional .jsonl session so an imported chat shows up in Claude Code's /resume",
+        "Secret and path redaction on by default, with a preview before anything is written to disk",
+        "Local-first: the bridge listens on 127.0.0.1 and the product makes no other network calls"
+      ],
+      "author": {
+        "@id": "https://exportal.dev/#author"
+      },
+      "maintainer": {
+        "@id": "https://exportal.dev/#author"
+      }
+    },
+    {
+      "@type": "Person",
+      "@id": "https://exportal.dev/#author",
+      "name": "Dionisio Pereyra Bocchio",
+      "url": "https://github.com/dioniipereyraa",
+      "sameAs": [
+        "https://github.com/dioniipereyraa"
+      ]
+    },
+    {
+      "@type": "FAQPage",
+      "@id": "https://exportal.dev/#faq",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "Does Exportal work without the VS Code extension?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "No. Exportal is a bridge, so both halves are required. The Chrome companion talks to a local HTTP server that lives inside the VS Code extension. Both are free and MIT-licensed."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Why does the Chrome extension ask for network permissions if it's local?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "The \"network\" permission is used only to talk to 127.0.0.1, your own machine's loopback address. There is no remote server. You can verify this by reading the source code."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Will Anthropic or OpenAI ban my account?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "No. Exportal only reads conversations you already have access to, using your existing browser session, the same way your browser does when you scroll through them. No automation, no scraping, no rate-limit abuse."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Does it work with Pro, Max, Team and Enterprise plans?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Yes, with all of them. Exportal uses your existing logged-in session: whatever you can see in your browser, Exportal can export."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "What if Anthropic or OpenAI change their internal API?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Exportal parses responses defensively and falls back gracefully. If a structural change breaks something, file an issue on GitHub and it will be fixed quickly. The official ZIP import path is always available as a fallback that does not depend on the internal API."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Is the /resume integration officially supported?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "No. The .jsonl session format used by Claude Code is reverse-engineered, not officially documented by Anthropic. The /resume integration is opt-in and labelled experimental; it may break across Claude Code versions. The Markdown export, which is the primary feature, is unaffected."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "How is this different from existing exporters in the Chrome Web Store?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Existing exporters save chats to a file. Exportal is a bridge: the exported conversation is auto-attached to Claude Code in VS Code so you continue the conversation, not just archive it. It is also bidirectional, supports claude.ai/design/p with asset download, and is the only tool that integrates with Claude Code's /resume command."
+          }
+        }
+      ]
+    }
+  ]
+}
+</script>
 
 <style>
   /* ---------- Fonts (self-hosted: the CSP only allows font-src 'self') ---------- */

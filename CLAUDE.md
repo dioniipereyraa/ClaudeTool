@@ -80,7 +80,9 @@ nos costaron caro.** Se lee entero antes de tocar código.
 ### Release
 
 1. Bump en `package.json`, `package-lock.json` (dos campos: `version` y `packages[""].version`),
-   `chrome/manifest.json`. El Companion se bumpea por simetría aunque no cambie.
+   `chrome/manifest.json` y el `softwareVersion` del JSON-LD en `docs/index.html`. El Companion
+   se bumpea por simetría aunque no cambie. Si te olvidás de la landing falla
+   `tests/docs/landing-metadata.test.ts`, que es justamente para que no mienta en silencio.
 2. Entrada en `CHANGELOG.md` con fecha. Si hubo silent patches, se consolidan acá.
 3. `npm run package:vsix` y `npm run package:chrome`. Los artefactos son ignorados por git.
 4. Tag `vX.Y.Z` → `release.yml` corre `npm run ci`, empaqueta y crea el GitHub Release. Hay un
@@ -109,6 +111,13 @@ nos costaron caro.** Se lee entero antes de tocar código.
 - Marca vigente: monocromo estricto, tinta `#1F1F1F`, sin acento de color. `design-cds/` es
   anterior al rebrand y no sirve de referencia.
 - Los HTML de `docs/` no pasan por prettier (solo `script.js`).
+- La metadata legible por máquina (JSON-LD, `canonical`, `sitemap.xml`, `llms.txt`) está cubierta
+  por `tests/docs/landing-metadata.test.ts`. El `FAQPage` es espejo exacto de los `<details>` de
+  la página: si editás una respuesta visible hay que editar también el JSON-LD, o el test para el
+  commit. El bloque JSON-LD es inline y **no** viola el CSP: un `<script>` con `type` no
+  ejecutable es un bloque de datos, medido en Chrome el 2026-09-17.
+- `robots.txt` no lleva grupos por bot. `User-agent: *` ya alcanza a GPTBot, ClaudeBot,
+  PerplexityBot y Google-Extended, y un grupo específico dejaría de heredar el `Disallow: /promo/`.
 
 ---
 
@@ -323,6 +332,14 @@ nos costaron caro.** Se lee entero antes de tocar código.
 - **`pathLength="1"` + `non-scaling-stroke` y `offset-path` sobre `<circle>` no son universales**
   (Safari) · **Regla:** `getTotalLength()` + transición CSS, y `<animateMotion>` + `<mpath>`
   nativos. (2026-09-07)
+- **`timeout` no existe en macOS** (es de GNU coreutils) · dos corridas de Chrome salieron con
+  127 sin ejecutar nada, y como la redirección creaba igual el log vacío, el `grep` posterior daba
+  cero y parecía un resultado tranquilizador. **Regla:** en macOS no se usa `timeout`, y un exit
+  code que nadie mira convierte un comando inexistente en evidencia falsa. (2026-09-17)
+- **Chrome headless vuelca el DOM y se queda vivo** (el updater, sobre todo con
+  `--enable-logging`), y `console.error` no llega a stderr en `--headless=new` · **Regla:** leer
+  el archivo de salida, que ya está completo, y después matar el proceso; si el navegador tiene
+  que reportar algo, que lo escriba en el DOM, que es lo que `--dump-dom` devuelve. (2026-09-17)
 - **El flake de vitest en Windows** (`Cannot read properties of undefined (reading 'config')`,
   corrida de <2 s, cwd con la letra del drive en minúscula) · **Regla:**
   `rm -rf node_modules/.vite node_modules/.vitest` y reintentar; aparece tras ráfagas de edición.

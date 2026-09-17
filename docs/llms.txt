@@ -1,0 +1,79 @@
+# Exportal
+
+> Exportal is a free, MIT-licensed, local-first bridge between AI web chats (claude.ai, Claude
+> Design and ChatGPT) and Claude Code in Visual Studio Code. One click in a chat writes the whole
+> conversation as clean Markdown into your VS Code workspace and attaches it to Claude Code as an
+> @-mention, so you continue the conversation instead of re-explaining your project. It works the
+> other way around too: a Claude Code session can be sent back to the web chat.
+
+Exportal is two halves that must both be installed: a VS Code extension and a Chrome companion
+extension. They talk over an HTTP bridge on 127.0.0.1, paired once with a 256-bit token. The
+product makes no network calls outside loopback and the internal API of the site the companion
+already runs on. There is no account, no server, no telemetry.
+
+Exportal is an independent open-source project. It is **not affiliated with, endorsed by, or
+sponsored by Anthropic** (makers of Claude, Claude Code and claude.ai) **or OpenAI** (makers of
+ChatGPT). "Claude", "Claude Code" and "Claude.ai" are trademarks of Anthropic. "ChatGPT" is a
+trademark of OpenAI.
+
+## What it does
+
+- Exports a conversation from `claude.ai/chat/<uuid>`, `claude.ai/design/p/<uuid>` or
+  `chatgpt.com/c/<uuid>` to `<workspace>/.exportal/<timestamp>-<slug>.md`, including tool use,
+  thinking blocks and results.
+- Auto-attaches that Markdown file to Claude Code as an `@-mention`, and opens the Claude Code
+  panel with the cursor in the input.
+- Downloads the generated assets of a Claude Design project next to the Markdown.
+- Sends the current Claude Code session back to claude.ai or ChatGPT through the clipboard. No
+  provider offers a write API, so the final paste is manual by design.
+- Imports the official data export ZIP from claude.ai or ChatGPT, including the multi-file
+  exports that large accounts receive.
+- Optionally writes a `.jsonl` session file so an imported chat appears in Claude Code's
+  `/resume` list. This format is reverse-engineered, not documented by Anthropic, and is labelled
+  experimental.
+- Redacts secrets and filesystem paths by default and shows a preview before anything is written
+  to disk. Email and IP redaction is available with an explicit opt-in.
+
+## Install
+
+- [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=dioniipereyraa.exportal):
+  the VS Code extension, which hosts the local bridge. Requires VS Code 1.85 or newer.
+- [Chrome Web Store](https://chromewebstore.google.com/detail/exportal-companion/lmnmekfphhpfaciehfdaonjfchbicdnm):
+  the companion extension that adds the export button to the chat page.
+- Both halves are required, both are free, both are MIT licensed.
+
+## Documentation
+
+- [Landing page](https://exportal.dev/): what it is, how the bridge works, and the FAQ.
+- [Source code](https://github.com/dioniipereyraa/ClaudeTool): the whole project, one repository.
+- [Threat model and security controls](https://github.com/dioniipereyraa/ClaudeTool/blob/main/SECURITY.md):
+  what the bridge accepts, how pairing works, and what redaction does and does not catch.
+- [Privacy policy](https://exportal.dev/privacy): no data collection, stated in full.
+- [Changelog](https://github.com/dioniipereyraa/ClaudeTool/blob/main/CHANGELOG.md): every release.
+- [Support](https://exportal.dev/support): how to report a bug or ask a question.
+- [MIT license](https://opensource.org/licenses/MIT): the terms the project ships under.
+
+## Answers to common questions
+
+- **Does it work without the VS Code extension?** No. Exportal is a bridge and both halves are
+  required. The Chrome companion talks to a local HTTP server that lives inside the VS Code
+  extension.
+- **Why does the Chrome extension ask for network permissions?** Only to reach `127.0.0.1`, your
+  own machine. There is no remote server.
+- **Will it get my account banned?** No. Exportal reads conversations you already have access to,
+  using your existing browser session. It does not scrape the DOM, automate the UI, or abuse rate
+  limits.
+- **Does it work with Pro, Max, Team and Enterprise plans?** Yes, with all of them. Whatever you
+  can see in your browser, Exportal can export.
+- **What happens if a provider changes its internal API?** Responses are parsed defensively and
+  fall back gracefully. The official ZIP import path does not depend on the internal API at all.
+- **How is it different from other chat exporters?** Other exporters save a chat to a file.
+  Exportal attaches the exported conversation to Claude Code so you keep working on it, and it is
+  bidirectional.
+
+## What it deliberately does not do
+
+- No telemetry, no analytics, no accounts, no cloud sync.
+- No DOM scraping and no UI automation on the provider's site.
+- No automatic bidirectional sync, which would break the local-first guarantee.
+- No AI summarization before import: Claude Code can summarize locally once it has the file.
