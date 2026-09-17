@@ -12,11 +12,13 @@
   lo creó Claude tras el merge; `release.yml` corrió verde). Contenido: email de la cuenta
   opt-in en el Markdown (issue #2) y documentación + test de un VS Code con varios navegadores
   (issue #1). Detalle en `CHANGELOG.md`.
-- **PR #6 abierto:** metadata legible por máquina en la landing (JSON-LD, canonical, `llms.txt`,
-  sitemap con fechas reales) más los tests que la anclan. CI verde, a la espera de review y merge.
+- **PR #6 mergeado y en vivo:** metadata legible por máquina en la landing (JSON-LD con
+  `SoftwareApplication` + `Person` + `FAQPage`, canonical en la home, `llms.txt`, sitemap con
+  fechas reales) más los 19 tests que la anclan. Verificado contra `exportal.dev` después del
+  deploy: `llms.txt` da 200, la home sirve el bloque JSON-LD con `softwareVersion 0.11.10`.
   Es la capa 1 de tres para que los motores generativos puedan citar Exportal.
-- **Fuera de eso `main` está limpio:** PR #4 (feature) y PR #5 (reorganización de docs) mergeados,
-  cero issues, ramas de trabajo borradas.
+- **`main` limpio:** PR #4, #5 y #6 mergeados, cero issues y cero PRs abiertos, ramas de trabajo
+  borradas. Solo existe `main`.
 - **Tags:** entre `v0.11.2` y `v0.11.10` no hay tags ni GitHub Releases (esas versiones se
   subieron a las tiendas a mano sin taggear). No hace falta rehacerlas; queda anotado para no
   extrañarse.
