@@ -28,14 +28,14 @@ const SITE = 'https://exportal.dev';
  */
 const PAGES: readonly { file: string; canonical: string; data: boolean }[] = [
   { file: 'index.html', canonical: `${SITE}/`, data: true },
-  { file: 'compare/index.html', canonical: `${SITE}/compare`, data: true },
+  { file: 'compare/index.html', canonical: `${SITE}/compare/`, data: true },
   {
     file: 'export-claude-chat-to-vscode/index.html',
-    canonical: `${SITE}/export-claude-chat-to-vscode`,
+    canonical: `${SITE}/export-claude-chat-to-vscode/`,
     data: true,
   },
-  { file: 'privacy/index.html', canonical: `${SITE}/privacy`, data: false },
-  { file: 'support/index.html', canonical: `${SITE}/support`, data: false },
+  { file: 'privacy/index.html', canonical: `${SITE}/privacy/`, data: false },
+  { file: 'support/index.html', canonical: `${SITE}/support/`, data: false },
 ];
 
 const readPage = (file: string): string => readRepoFile('docs', ...file.split('/'));
@@ -202,6 +202,30 @@ describe('HowTo structured data', () => {
 });
 
 describe('internal linking', () => {
+  it('never links to the bare path, which GitHub Pages answers with a 301', () => {
+    // A canonical, a sitemap entry or a link pointing at /compare instead
+    // of /compare/ costs a redirect on every visit, and a canonical that
+    // resolves through a redirect is a canonical search engines discard.
+    const routes = PAGES.map((page) => page.canonical.slice(SITE.length)).filter(
+      (path) => path !== '/',
+    );
+    const sources = [
+      ...PAGES.map((page) => `docs/${page.file}`),
+      'docs/llms.txt',
+      'docs/sitemap.xml',
+    ];
+
+    for (const file of sources) {
+      const text = readRepoFile(...file.split('/'));
+      for (const route of routes) {
+        const bare = route.slice(0, -1);
+        expect(text, `${file} should not point at ${bare}`).not.toMatch(
+          new RegExp(`${bare}(?=["')<\\s])`.replaceAll('/', '\\/')),
+        );
+      }
+    }
+  });
+
   it('leaves no page orphaned: the home page links to every other one', () => {
     // A page nothing links to is a page crawlers reach late and readers
     // never reach at all.

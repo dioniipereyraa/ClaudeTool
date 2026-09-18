@@ -45,19 +45,19 @@ trademark of OpenAI.
 
 ## Documentation
 
-- [How to export a Claude.ai or ChatGPT chat into VS Code](https://exportal.dev/export-claude-chat-to-vscode):
+- [How to export a Claude.ai or ChatGPT chat into VS Code](https://exportal.dev/export-claude-chat-to-vscode/):
   the step-by-step guide, from installing both halves to the one-click export, plus the ZIP, CLI
   and editor-to-chat paths and what to do when the companion badge shows an error.
-- [How Exportal compares to other chat exporters](https://exportal.dev/compare): capability by
+- [How Exportal compares to other chat exporters](https://exportal.dev/compare/): capability by
   capability against a typical exporter, and the honest list of cases where you should not use
   Exportal at all.
 - [Landing page](https://exportal.dev/): what it is, how the bridge works, and the FAQ.
 - [Source code](https://github.com/dioniipereyraa/ClaudeTool): the whole project, one repository.
 - [Threat model and security controls](https://github.com/dioniipereyraa/ClaudeTool/blob/main/SECURITY.md):
   what the bridge accepts, how pairing works, and what redaction does and does not catch.
-- [Privacy policy](https://exportal.dev/privacy): no data collection, stated in full.
+- [Privacy policy](https://exportal.dev/privacy/): no data collection, stated in full.
 - [Changelog](https://github.com/dioniipereyraa/ClaudeTool/blob/main/CHANGELOG.md): every release.
-- [Support](https://exportal.dev/support): how to report a bug or ask a question.
+- [Support](https://exportal.dev/support/): how to report a bug or ask a question.
 - [MIT license](https://opensource.org/licenses/MIT): the terms the project ships under.
 
 ## Answers to common questions

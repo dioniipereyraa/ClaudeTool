@@ -327,6 +327,13 @@ nos costaron caro.** Se lee entero antes de tocar código.
   ffmpeg (`-crf 28 -preset slow`, 165 KB); el peso manda, no la prioridad. (2026-04-29)
 - **El texto literal del Contributor Covenant lo marcan los clasificadores de contenido** ·
   **Regla:** CoC por link canónico + contacto. (2026-04-29)
+- **GitHub Pages responde 301 a la ruta sin barra final** · el `canonical` de `/privacy`,
+  `/support`, `/compare` y la guía declaraba `exportal.dev/compare`, que redirige a
+  `exportal.dev/compare/`: un canonical que resuelve por redirección es un canonical que los
+  buscadores descartan, y cada link interno pagaba un round-trip. **Regla:** canonical, `og:url`,
+  sitemap, `llms.txt` y links internos usan la URL que el server sirve de verdad, con barra final;
+  hay un test que falla si vuelve la forma pelada. Se descubrió midiendo con `curl` después del
+  deploy, no leyendo el HTML. (2026-09-17)
 - **Cloudflare no acepta un Worker con custom domain si el apex ya apunta a GitHub Pages** ·
   **Regla:** las subpáginas viven en `docs/<ruta>/index.html`. (2026-04-29)
 - **`chrome --headless --window-size=390` no da 390 en macOS** (clampa a 500 y recorta) ·

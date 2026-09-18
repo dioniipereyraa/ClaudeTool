@@ -17,10 +17,13 @@
   fechas reales) más los 19 tests que la anclan. Verificado contra `exportal.dev` después del
   deploy: `llms.txt` da 200, la home sirve el bloque JSON-LD con `softwareVersion 0.11.10`.
   Es la capa 1 de tres para que los motores generativos puedan citar Exportal.
-- **PR #7 abierto:** capa 2 de GEO, dos páginas de contenido (`/export-claude-chat-to-vscode` y
-  `/compare`) más `scripts/build-landing-jsonld.mjs`, que genera el JSON-LD de las tres páginas
-  en vez de mantenerlo a mano. 359 tests.
-- **`main` limpio:** PR #4, #5 y #6 mergeados, cero issues, ramas de trabajo borradas.
+- **PR #7 mergeado y en vivo:** capa 2 de GEO, dos páginas de contenido
+  (`/export-claude-chat-to-vscode` y `/compare`) más `scripts/build-landing-jsonld.mjs`, que
+  genera el JSON-LD de las tres páginas en vez de mantenerlo a mano.
+- **PR #8 abierto:** el `canonical` de las cuatro subpáginas apuntaba a una URL que GitHub Pages
+  responde con 301. Corregido a la forma con barra final en canonical, `og:url`, sitemap,
+  `llms.txt`, JSON-LD y links internos, con un test que impide la recaída. 360 tests.
+- **`main` limpio:** PR #4, #5, #6 y #7 mergeados, cero issues, ramas de trabajo borradas.
 - **Tags:** entre `v0.11.2` y `v0.11.10` no hay tags ni GitHub Releases (esas versiones se
   subieron a las tiendas a mano sin taggear). No hace falta rehacerlas; queda anotado para no
   extrañarse.
