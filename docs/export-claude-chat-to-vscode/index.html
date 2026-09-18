@@ -1,0 +1,658 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; font-src 'self'; connect-src 'self'; form-action 'none'; base-uri 'self';">
+<title>How to export a Claude.ai or ChatGPT chat into VS Code</title>
+<meta name="description" content="Step by step: install the Exportal VS Code extension and browser companion, pair them once, and send any claude.ai, Claude Design or ChatGPT conversation to your VS Code workspace as Markdown, attached to Claude Code as an @-mention.">
+<meta name="theme-color" content="#1f1f1f">
+
+<link rel="icon" href="/favicon.svg?v=2026-05-06" type="image/svg+xml">
+<link rel="icon" href="/favicon.png?v=2026-05-06" type="image/png" sizes="128x128">
+<link rel="apple-touch-icon" href="/favicon.png?v=2026-05-06">
+<link rel="canonical" href="https://exportal.dev/export-claude-chat-to-vscode">
+
+<meta property="og:title" content="How to export a Claude.ai or ChatGPT chat into VS Code">
+<meta property="og:description" content="Step by step: install the Exportal VS Code extension and browser companion, pair them once, and send any claude.ai, Claude Design or ChatGPT conversation to your VS Code workspace as Markdown, attached to Claude Code as an @-mention.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://exportal.dev/export-claude-chat-to-vscode">
+<meta property="og:image" content="https://exportal.dev/screenshots/exportal-s1-fab-1280x800.png">
+<meta name="twitter:card" content="summary_large_image">
+
+<!-- structured-data:start -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "HowTo",
+      "@id": "https://exportal.dev/export-claude-chat-to-vscode#howto",
+      "name": "How to export a Claude.ai or ChatGPT chat into VS Code",
+      "description": "Install the Exportal VS Code extension and browser companion, pair them once, and send any conversation to your workspace as Markdown attached to Claude Code.",
+      "tool": [
+        {
+          "@type": "HowToTool",
+          "name": "Visual Studio Code 1.85 or newer"
+        },
+        {
+          "@type": "HowToTool",
+          "name": "A Chromium-based browser"
+        }
+      ],
+      "step": [
+        {
+          "@type": "HowToStep",
+          "position": 1,
+          "name": "Install the VS Code extension",
+          "text": "Press Ctrl+Shift+X, search for \"Exportal\" and install it. The first time VS Code opens it, a two-step pairing wizard appears."
+        },
+        {
+          "@type": "HowToStep",
+          "position": 2,
+          "name": "Install the browser companion",
+          "text": "Step 1 of the wizard sends you to the Chrome Web Store. Install Exportal Companion there."
+        },
+        {
+          "@type": "HowToStep",
+          "position": 3,
+          "name": "Pair them once",
+          "text": "Step 2 of the wizard shows a pairing token with a \"Copy token and open Chrome\" button. Click it: claude.ai opens with the token in the URL fragment, the companion captures it, its options page says \"Done! All connected\", and VS Code confirms. Nothing to copy or paste by hand. If you skipped the wizard, reopen it with Ctrl+Shift+P and \"Exportal: Show pairing token\"."
+        },
+        {
+          "@type": "HowToStep",
+          "position": 4,
+          "name": "Open the chat you want and click Export",
+          "text": "Go to the conversation at claude.ai/chat/<uuid>, claude.ai/design/p/<uuid> or chatgpt.com/c/<uuid>, click the floating Exportal button in the bottom-right corner and choose \"Export this chat\". The keyboard shortcut Alt+Shift+E does the same without opening the panel."
+        },
+        {
+          "@type": "HowToStep",
+          "position": 5,
+          "name": "Write your prompt in Claude Code",
+          "text": "VS Code saves the Markdown, opens it, and opens the Claude Code panel with the file already attached as an @-mention. The Exportal panel also shows quick prompts such as \"Continue this conversation\" that copy the prompt with the cursor already in Claude Code's input."
+        }
+      ],
+      "author": {
+        "@id": "https://exportal.dev/#author"
+      },
+      "about": {
+        "@id": "https://exportal.dev/#exportal"
+      }
+    },
+    {
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        {
+          "@type": "ListItem",
+          "position": 1,
+          "name": "Exportal",
+          "item": "https://exportal.dev/"
+        },
+        {
+          "@type": "ListItem",
+          "position": 2,
+          "name": "Guide",
+          "item": "https://exportal.dev/export-claude-chat-to-vscode"
+        }
+      ]
+    }
+  ]
+}
+</script>
+<!-- structured-data:end -->
+
+<style>
+  /* Fonts, self-hosted: the CSP only allows font-src 'self'. */
+  @font-face { font-family: "Inter Tight"; font-style: normal; font-weight: 100 900; font-display: swap; src: url("/fonts/inter-tight-latin.woff2") format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+  @font-face { font-family: "Inter Tight"; font-style: normal; font-weight: 100 900; font-display: swap; src: url("/fonts/inter-tight-latin-ext.woff2") format("woff2"); unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF; }
+  @font-face { font-family: "JetBrains Mono"; font-style: normal; font-weight: 400 800; font-display: swap; src: url("/fonts/jetbrains-mono-latin.woff2") format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+  @font-face { font-family: "JetBrains Mono"; font-style: normal; font-weight: 400 800; font-display: swap; src: url("/fonts/jetbrains-mono-latin-ext.woff2") format("woff2"); unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF; }
+
+  /* Tokens: strictly monochrome, same ink as the landing. */
+  :root {
+    --ink: #1f1f1f;
+    --ink-2: #1f1f1f;
+    --muted: rgba(31, 31, 31, 0.66);
+    --line: rgba(31, 31, 31, 0.14);
+    --bg: #ffffff;
+    --bg-2: #ffffff;
+    --accent: #1f1f1f;
+    --accent-soft: rgba(31, 31, 31, 0.06);
+    --code-bg: #1f1f1f;
+    --code-ink: #ffffff;
+    --sans: "Inter Tight", "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --mono: "JetBrains Mono", "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  }
+  code, kbd, pre { font-family: var(--mono); font-variant-ligatures: none; }
+  header.site .brand-mark { width: 22px; height: 22px; flex-shrink: 0; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body {
+    font-family: var(--sans);
+    color: var(--ink);
+    line-height: 1.65;
+    background: var(--bg);
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap {
+    max-width: 880px;
+    margin: 0 auto;
+    padding: 0 24px;
+  }
+  header.site {
+    border-bottom: 1px solid var(--line);
+    padding: 18px 0;
+    position: sticky;
+    top: 0;
+    background: rgba(255, 255, 255, 0.92);
+    backdrop-filter: blur(8px);
+    z-index: 10;
+    transition: box-shadow 0.2s ease, border-color 0.2s ease;
+  }
+  header.site.scrolled {
+    box-shadow: 0 4px 14px rgba(11, 18, 32, 0.05);
+  }
+  header.site .row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+  }
+  header.site .brand {
+    font-weight: 700;
+    font-size: 1.05rem;
+    letter-spacing: -0.01em;
+    color: var(--ink);
+    text-decoration: none;
+  }
+  header.site nav a {
+    color: var(--muted);
+    text-decoration: none;
+    margin-left: 18px;
+    font-size: 0.92rem;
+    transition: color 0.18s ease;
+  }
+  header.site nav a:hover { color: var(--ink); }
+  header.site .brand { gap: 10px; }
+  header.site nav a.current { color: var(--ink); font-weight: 600; }
+
+  .hero { padding: 72px 0 40px; }
+  .hero .eyebrow {
+    display: block;
+    font-size: 0.95rem;
+    font-weight: 500;
+    color: var(--muted);
+    margin-bottom: 14px;
+  }
+  .hero h1 {
+    font-size: clamp(2.2rem, 5vw, 3.4rem);
+    line-height: 1.08;
+    letter-spacing: -0.02em;
+    margin-bottom: 18px;
+    font-weight: 700;
+  }
+  .hero .lede {
+    font-size: 1.18rem;
+    color: var(--muted);
+    margin-bottom: 28px;
+    max-width: 640px;
+  }
+  .hero .lede strong { color: var(--ink); font-weight: 600; }
+
+  .ctas {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 16px;
+  }
+  .ctas a {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 11px 18px;
+    background: var(--ink);
+    color: #fff;
+    text-decoration: none;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 0.95rem;
+    border: 1px solid var(--ink);
+    transition:
+      transform 0.12s cubic-bezier(0.22, 0.61, 0.36, 1),
+      background-color 0.2s ease,
+      border-color 0.2s ease;
+  }
+  .ctas a:hover { transform: translateY(-1px); }
+  .ctas a.secondary {
+    background: var(--bg);
+    color: var(--ink);
+    border-color: var(--line);
+  }
+  .ctas a.secondary:hover { border-color: var(--ink); }
+
+  .meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px 22px;
+    color: var(--muted);
+    font-size: 0.9rem;
+    margin-top: 14px;
+  }
+  .meta-item { display: inline-flex; align-items: center; gap: 6px; }
+  .meta-item .dot {
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--accent);
+  }
+
+  section { padding: 56px 0; border-top: 1px solid var(--line); }
+  section h2 {
+    font-size: 1.7rem;
+    letter-spacing: -0.015em;
+    margin-bottom: 8px;
+    font-weight: 700;
+  }
+  section .sub {
+    color: var(--muted);
+    margin-bottom: 28px;
+    font-size: 1rem;
+  }
+
+  .features {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 22px;
+    margin-top: 8px;
+  }
+  .feature {
+    display: block;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 20px;
+    background: var(--bg-2);
+    color: var(--ink);
+    text-decoration: none;
+    transition:
+      transform 0.18s ease,
+      box-shadow 0.18s ease,
+      border-color 0.18s ease;
+  }
+  .feature:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 18px rgba(11, 18, 32, 0.07);
+    border-color: rgba(29, 78, 216, 0.28);
+  }
+  .feature h3 {
+    font-size: 1.02rem;
+    margin-bottom: 6px;
+    font-weight: 600;
+  }
+  .feature p {
+    color: var(--muted);
+    font-size: 0.95rem;
+  }
+  .feature .arrow {
+    color: var(--accent);
+    font-weight: 600;
+    margin-left: 4px;
+  }
+
+  /* FAQ-style "Before you write": uses the same details/summary pattern
+     as the homepage so the script.js animation works if reused. */
+  .faq details {
+    border-bottom: 1px solid var(--line);
+    padding: 14px 0;
+  }
+  .faq details:first-of-type { border-top: 1px solid var(--line); }
+  .faq summary {
+    cursor: pointer;
+    font-weight: 600;
+    list-style: none;
+    padding-right: 24px;
+    position: relative;
+    font-size: 0.98rem;
+    transition: color 0.18s ease;
+  }
+  .faq summary:hover { color: var(--accent); }
+  .faq summary::after {
+    content: "+";
+    position: absolute;
+    right: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--muted);
+    font-weight: 400;
+    font-size: 1.3rem;
+    line-height: 1;
+    transition: transform 0.22s ease, color 0.18s ease;
+  }
+  .faq details[open] summary::after { content: "−"; color: var(--accent); }
+  .faq details p {
+    color: var(--muted);
+    font-size: 0.95rem;
+    margin-top: 10px;
+  }
+  .faq details p code {
+    font-family: "SF Mono", Monaco, Consolas, monospace;
+    font-size: 0.88em;
+    background: rgba(0, 0, 0, 0.05);
+    padding: 1px 5px;
+    border-radius: 3px;
+  }
+  .faq details p a { color: var(--accent); }
+
+  .faq details > .faq-body {
+    display: block;
+    overflow: hidden;
+    transition:
+      height 0.32s cubic-bezier(0.22, 0.61, 0.36, 1),
+      opacity 0.22s ease;
+  }
+  .faq details:not([open]) > .faq-body {
+    height: 0;
+    opacity: 0;
+  }
+
+  footer.site {
+    padding: 36px 0 56px;
+    color: var(--muted);
+    font-size: 0.88rem;
+    border-top: 1px solid var(--line);
+    margin-top: 24px;
+  }
+  footer.site .row {
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 16px;
+  }
+  footer.site a { color: var(--muted); text-decoration: none; margin-right: 18px; }
+  footer.site a:hover { color: var(--ink); }
+  footer.site .disclaimer {
+    margin-top: 18px;
+    font-size: 0.82rem;
+    color: var(--muted);
+    line-height: 1.55;
+    max-width: 720px;
+  }
+
+
+  /* Long-form pages: the landing is a pitch, these are answers. */
+  .answer {
+    border-left: 2px solid var(--ink);
+    padding: 0 0 0 20px;
+    margin: 0 0 28px;
+  }
+  .answer p {
+    font-size: 1.12rem;
+    line-height: 1.6;
+  }
+  .answer p + p { margin-top: 12px; }
+  .prose p { margin-bottom: 16px; }
+  .prose p:last-child { margin-bottom: 0; }
+  .prose h3 {
+    font-size: 1.05rem;
+    font-weight: 650;
+    letter-spacing: -0.01em;
+    margin: 28px 0 10px;
+  }
+  .prose ul { margin: 0 0 16px 20px; }
+  .prose li { margin-bottom: 8px; }
+  .prose a { color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
+  .prose code {
+    background: var(--accent-soft);
+    padding: 1px 5px;
+    border-radius: 3px;
+    font-size: 0.88em;
+  }
+
+  /* Numbered steps: the order is the content, so the numbers are typed. */
+  ol.steps {
+    list-style: none;
+    counter-reset: step;
+    margin: 0;
+  }
+  ol.steps > li {
+    counter-increment: step;
+    position: relative;
+    padding: 0 0 20px 44px;
+    border-left: 1px solid var(--line);
+    margin-left: 12px;
+  }
+  ol.steps > li:last-child { border-left-color: transparent; padding-bottom: 0; }
+  ol.steps > li::before {
+    content: counter(step);
+    position: absolute;
+    left: -12px;
+    top: 0;
+    width: 24px;
+    height: 24px;
+    border: 1px solid var(--line);
+    border-radius: 50%;
+    background: var(--bg);
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  ol.steps h3 { margin: 0 0 6px; }
+  ol.steps p { margin-bottom: 8px; }
+
+  /* Capability table. */
+  .cmp {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.94rem;
+  }
+  .cmp th, .cmp td {
+    text-align: left;
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--line);
+    vertical-align: top;
+  }
+  .cmp thead th {
+    font-size: 0.74rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    font-weight: 600;
+  }
+  .cmp tbody th { font-weight: 500; width: 38%; }
+  .cmp td { color: var(--muted); }
+  .cmp td.yes { color: var(--ink); font-weight: 500; }
+  .cmp-note { font-size: 0.85rem; color: var(--muted); margin-top: 14px; }
+  .table-scroll { overflow-x: auto; }
+
+  .callout {
+    border: 1px solid var(--line);
+    padding: 18px 20px;
+    margin: 24px 0 0;
+    font-size: 0.94rem;
+  }
+  .callout strong { font-weight: 650; }
+
+  @media (max-width: 720px) {
+    .hero { padding: 48px 0 32px; }
+    .features { grid-template-columns: 1fr; }
+    header.site nav a { margin-left: 12px; font-size: 0.85rem; }
+    .cmp tbody th { width: 46%; }
+    .cmp th, .cmp td { padding: 10px 8px; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+</style>
+</head>
+<body>
+
+<header class="site">
+  <div class="wrap row">
+    <a href="/" class="brand" aria-label="Exportal home">
+      <svg class="brand-mark" viewBox="0 0 100 100" aria-hidden="true">
+        <rect x="22" y="20" width="56" height="14" rx="2" fill="#1F1F1F"/>
+        <rect x="22" y="20" width="14" height="60" rx="2" fill="#1F1F1F"/>
+        <rect x="22" y="66" width="56" height="14" rx="2" fill="#1F1F1F"/>
+        <rect x="36" y="43" width="36" height="14" rx="2" fill="#1F1F1F"/>
+        <path d="M 72 50 L 82 50" stroke="#1F1F1F" stroke-width="14" stroke-linecap="round"/>
+      </svg>
+      Exportal
+    </a>
+    <nav>
+      <a href="/#how">How it works</a>
+      <a href="/compare">Compare</a>
+      <a href="/#faq">FAQ</a>
+      <a href="/support">Support</a>
+      <a href="https://github.com/dioniipereyraa/ClaudeTool">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+
+<section class="hero" style="border-top: none;">
+  <div class="eyebrow">Guide</div>
+  <h1>How to export a Claude.ai or ChatGPT chat into VS Code</h1>
+  <div class="answer">
+    <p>Install the Exportal VS Code extension and the Exportal Companion browser extension, pair them once, then click the floating button in any chat at <code>claude.ai/chat</code>, <code>claude.ai/design/p</code> or <code>chatgpt.com/c</code>. The whole conversation is written as Markdown to <code>&lt;workspace&gt;/.exportal/</code> in VS Code and attached to Claude Code as an <code>@-mention</code>, so you keep working on it instead of re-explaining your project.</p>
+    <p>It takes about two minutes to set up and one click per chat after that. Both halves are free and MIT licensed.</p>
+  </div>
+</section>
+
+<section id="requirements">
+  <h2>What you need</h2>
+  <div class="prose">
+    <ul>
+      <li><strong>Visual Studio Code 1.85 or newer</strong>, with the Exportal extension from the <a href="https://marketplace.visualstudio.com/items?itemName=dioniipereyraa.exportal">VS Code Marketplace</a>.</li>
+      <li><strong>A Chromium-based browser</strong> (Chrome, Edge, Brave) with <a href="https://chromewebstore.google.com/detail/exportal-companion/lmnmekfphhpfaciehfdaonjfchbicdnm">Exportal Companion</a> installed.</li>
+      <li><strong>An open workspace folder in VS Code.</strong> The Markdown is written inside it, so a window with no folder has nowhere to put the file.</li>
+      <li>Your normal logged-in browser session. Exportal reads the conversation with the session you already have, so there is no API key and no account to create.</li>
+    </ul>
+    <p>Both halves are required. The browser extension talks to a small HTTP server that lives inside the VS Code extension and listens only on <code>127.0.0.1</code>.</p>
+  </div>
+</section>
+
+<section id="steps">
+  <h2>The one-click path</h2>
+  <p class="sub">What you will do once, and what you will do every time after that.</p>
+  <ol class="steps">
+    <li>
+      <h3>Install the VS Code extension</h3>
+      <p>Press <kbd>Ctrl+Shift+X</kbd>, search for "Exportal" and install it. The first time VS Code opens it, a two-step pairing wizard appears.</p>
+    </li>
+    <li>
+      <h3>Install the browser companion</h3>
+      <p>Step 1 of the wizard sends you to the Chrome Web Store. Install Exportal Companion there.</p>
+    </li>
+    <li>
+      <h3>Pair them once</h3>
+      <p>Step 2 of the wizard shows a pairing token with a "Copy token and open Chrome" button. Click it: claude.ai opens with the token in the URL fragment, the companion captures it, its options page says "Done! All connected", and VS Code confirms. Nothing to copy or paste by hand. If you skipped the wizard, reopen it with <kbd>Ctrl+Shift+P</kbd> and "Exportal: Show pairing token".</p>
+    </li>
+    <li>
+      <h3>Open the chat you want and click Export</h3>
+      <p>Go to the conversation at <code>claude.ai/chat/&lt;uuid&gt;</code>, <code>claude.ai/design/p/&lt;uuid&gt;</code> or <code>chatgpt.com/c/&lt;uuid&gt;</code>, click the floating Exportal button in the bottom-right corner and choose "Export this chat". The keyboard shortcut <kbd>Alt+Shift+E</kbd> does the same without opening the panel.</p>
+    </li>
+    <li>
+      <h3>Write your prompt in Claude Code</h3>
+      <p>VS Code saves the Markdown, opens it, and opens the Claude Code panel with the file already attached as an <code>@-mention</code>. The Exportal panel also shows quick prompts such as "Continue this conversation" that copy the prompt with the cursor already in Claude Code's input.</p>
+    </li>
+  </ol>
+  <div class="callout">
+    <strong>VS Code closed?</strong> The floating button detects it and opens VS Code through the <code>vscode://</code> handler. The conversation is imported as soon as the bridge starts. The first time, your browser may ask you to confirm opening Visual Studio Code.
+  </div>
+</section>
+
+<section id="output">
+  <h2>Where the file lands, and what is in it</h2>
+  <div class="prose">
+    <p>The conversation is written to <code>&lt;workspace&gt;/.exportal/&lt;timestamp&gt;-&lt;slug&gt;.md</code>. It contains the full exchange, including tool use, thinking blocks and results, as clean Markdown rather than a screenshot of a chat.</p>
+    <p>Secrets and filesystem paths are redacted by default, and turning that off takes an explicit opt-out. Email and IP redaction is available with an explicit opt-in. Add <code>.exportal/</code> to your <code>.gitignore</code> if you do not want the imports in version control.</p>
+    <p>For a Claude Design project, the generated assets (HTML, JSX, JSON and so on) are downloaded to a sibling folder, and the Markdown starts with a list of them so Claude Code knows they are there.</p>
+  </div>
+</section>
+
+<section id="other-paths">
+  <h2>The other three paths</h2>
+  <div class="prose">
+    <h3>From the official export ZIP</h3>
+    <p>If you would rather use the provider's own export (claude.ai: Settings, Export data; ChatGPT: Settings, Data controls, Export), open the Exportal tab in VS Code and click the provider's row. A recently downloaded ZIP is detected automatically, including the multi-file exports that large accounts receive. This path does not depend on any internal API.</p>
+    <h3>From Claude Code back to the web chat</h3>
+    <p>In the Exportal tab, under "Export current session", click claude.ai or ChatGPT. Exportal picks your most recent Claude Code session, renders it to Markdown, copies it to the clipboard, saves a copy to <code>.exportal/</code> and opens the provider. You paste it yourself: no provider offers a write API, so that last step is manual by design. Both sites silently truncate pastes over 100K characters, which is why the file is saved as a fallback you can drag in instead.</p>
+    <h3>From the terminal</h3>
+    <p>The CLI covers the same ground without the browser: <code>npx exportal export &lt;sessionId&gt; --out session.md</code> renders a Claude Code session, and <code>npx exportal import list</code> and <code>import show</code> read a provider ZIP. Both redact secrets by default and print a preview of what will be written before it touches the disk.</p>
+  </div>
+</section>
+
+<section id="resume">
+  <h2>Making an imported chat show up in <code>/resume</code></h2>
+  <div class="prose">
+    <p>Turn on the <code>exportal.alsoWriteJsonl</code> setting and, alongside the Markdown, Exportal writes a <code>.jsonl</code> session to <code>~/.claude/projects/</code>. The imported conversation then appears in Claude Code's <code>/resume</code> list as if it had been a local session.</p>
+    <p>This one is opt-in and labelled experimental on purpose: the <code>.jsonl</code> format is reverse-engineered, not documented by Anthropic, and can break between Claude Code versions. The Markdown export, which is the main feature, does not depend on it.</p>
+  </div>
+</section>
+
+<section id="troubleshooting">
+  <h2>If something does not work</h2>
+  <div class="prose">
+    <p>The companion's icon badge tells you where the problem is before you open anything: <code>OK</code> in green means the import landed, <code>SET</code> in yellow means the token is missing, <code>OFF</code> in red means VS Code is not responding, <code>AUTH</code> means the token is invalid, and <code>OLD</code> means the VS Code side is outdated. Click the icon in any error state and the options page opens with a banner explaining the fix.</p>
+    <h3>The badge says SET or AUTH</h3>
+    <p>The companion has no token, or one that no longer matches. In VS Code run "Exportal: Show pairing token" and click "Copy token and open Chrome". A companion loaded unpacked has a different extension id than the store build, which means separate storage, so it needs its own pairing.</p>
+    <h3>The badge says OFF</h3>
+    <p>VS Code is not running, or its window has no workspace folder open. The banner offers Retry and Open VS Code.</p>
+    <h3>You use more than one browser</h3>
+    <p>Install the companion in each one and paste the same token into its options page. The token belongs to the VS Code profile, not to a browser, so one VS Code pairs with as many browsers as you like. The "paired" notification only appears once per token, so the second browser confirms on its own options page.</p>
+  </div>
+</section>
+
+<section id="next">
+  <h2>Related</h2>
+  <div class="prose">
+    <ul>
+      <li><a href="/compare">How Exportal compares to other chat exporters</a>, including when you should not use it.</li>
+      <li><a href="/#faq">The FAQ</a>: account safety, plans, what happens when a provider changes its internal API.</li>
+      <li><a href="https://github.com/dioniipereyraa/ClaudeTool/blob/main/SECURITY.md">The threat model</a>: what the bridge accepts and what redaction does and does not catch.</li>
+      <li><a href="/support">Support</a>, if none of the above covers it.</li>
+    </ul>
+  </div>
+</section>
+
+</main>
+
+<footer class="site">
+  <div class="wrap">
+    <div class="row">
+      <div>
+        <a href="https://github.com/dioniipereyraa/ClaudeTool">GitHub</a>
+        <a href="https://chromewebstore.google.com/detail/exportal-companion/lmnmekfphhpfaciehfdaonjfchbicdnm">Chrome Web Store</a>
+        <a href="https://marketplace.visualstudio.com/items?itemName=dioniipereyraa.exportal">VS Code Marketplace</a>
+        <a href="/export-claude-chat-to-vscode">Guide</a>
+        <a href="/compare">Compare</a>
+        <a href="/privacy">Privacy</a>
+        <a href="/support">Support</a>
+        <a href="https://github.com/dioniipereyraa/ClaudeTool/blob/main/SECURITY.md">Security</a>
+        <a href="https://github.com/dioniipereyraa/ClaudeTool/blob/main/LICENSE">License</a>
+      </div>
+      <div>
+        Built by <a href="https://github.com/dioniipereyraa">Dioni Pereyra</a>. MIT licensed.
+      </div>
+    </div>
+    <p class="disclaimer">
+      Exportal is an independent open-source project. It is not
+      affiliated with, endorsed by, or sponsored by Anthropic (makers of
+      Claude and Claude Code) or OpenAI (makers of ChatGPT). "Claude",
+      "Claude Code", and "Claude.ai" are trademarks of Anthropic.
+      "ChatGPT" is a trademark of OpenAI.
+    </p>
+  </div>
+</footer>
+
+</body>
+</html>

@@ -6032,3 +6032,30 @@ implementados (5 INFORMATIVA pasaron a "fixed", 2 quedan como
 - Capa 2 de GEO: contenido de cola larga que responda la pregunta literal ("cómo paso un chat de claude.ai a VS Code"), y sacar la comparativa contra otros exporters de la última línea del FAQ a una página propia.
 - Capa 3: las awesome-lists y el Show HN que ya están en `ROADMAP.md`. Es la capa que más mueve la aguja y no es código.
 - Una vez publicado, validar la home con el Rich Results Test y verificar `exportal.dev` en Search Console, que sigue pendiente desde el roadmap.
+
+## 2026-09-17 (cierre) · GEO, capa 2: dos páginas que responden preguntas, y el generador de JSON-LD
+
+### Qué hicimos
+- **`/export-claude-chat-to-vscode`**: la guía que responde la pregunta literal que alguien escribe en un buscador o le hace a un LLM. Arriba de todo la respuesta corta en dos párrafos (instalar las dos mitades, emparejar una vez, un click), y después los requisitos, los cinco pasos numerados, dónde cae el archivo y qué tiene, los otros tres caminos (ZIP oficial, CLI, la vuelta desde Claude Code), el `.jsonl` para `/resume` con su etiqueta de experimental, y un troubleshooting ordenado por lo que muestra el badge del Companion. Todo sacado del README, no inventado.
+- **`/compare`**: la comparativa que hasta hoy vivía escondida en la última línea del FAQ. Tabla capacidad por capacidad contra "un exporter típico", con la nota de que es una generalización sobre la categoría y no una afirmación sobre ningún producto concreto. Incluye la fila donde el otro gana (una extensión contra dos) y una sección entera de **cuándo no usar Exportal**: si solo querés archivar, si no usás VS Code, si no usás Claude Code, si querés sync automático, si usás otro proveedor.
+- **`scripts/build-landing-jsonld.mjs`**: el JSON-LD de las tres páginas se genera, no se escribe. Deriva el `FAQPage` de los `<details>` y el `HowTo` de los `<li>` de `<ol class="steps">`, toma la versión de `package.json`, y reemplaza lo que hay entre `<!-- structured-data:start -->` y `:end`. La primera corrida reprodujo **byte a byte** el bloque que ya estaba publicado en la home, que fue la prueba de que el script y lo publicado decían lo mismo.
+- Las páginas nuevas quedaron enlazadas desde el nav de la home (Guide), el footer de las cinco páginas, el FAQ de la home (la respuesta de comparación ahora linkea a `/compare`), `llms.txt`, el sitemap y los dos README.
+- Tests: 28 en `landing-metadata` (359 en total). El invariante del FAQ dejó de ser "la home" y pasó a ser "toda página que tenga un `FAQPage`"; se sumó el del `HowTo` contra los pasos visibles, y uno nuevo de **linking interno**: la home tiene que linkear a todas las demás páginas publicadas.
+
+### Por qué
+- Un motor generativo cita lo que responde la pregunta tal como se hizo. La home es un pitch y contesta "qué es"; ninguna de sus secciones contesta "cómo paso este chat a VS Code" ni "en qué se diferencia del exporter que ya tengo instalado". Esas dos páginas existen para eso.
+- **La sección de cuándo no usarlo no es modestia, es la parte más citable.** Un modelo que recomienda herramientas necesita saber para quién no sirve, y una página que solo dice cosas buenas se lee como marketing y se cita menos.
+- La tabla compara **categorías, no productos**. Nombrar extensiones concretas envejece mal (cambian sin avisar) y obligaría a verificar cada afirmación cada pocas semanas.
+- El generador aparece recién ahora, con tres consumidores reales (el FAQ de la home, el FAQ de `/compare`, el HowTo de la guía), que es la regla del proyecto para abstraer. Con uno solo habría sido ceremonia.
+- Las páginas duplican el `<style>` de `support/` en vez de compartir una hoja: es el patrón vigente de la landing y no toca lo que ya funciona. Queda anotado en `CLAUDE.md` que con la cuarta página conviene extraerla.
+
+### Una corrección de rumbo
+- La respuesta del FAQ de la home decía que Exportal **"is the only tool that integrates with Claude Code's `/resume`"**. Un superlativo que no podemos verificar y que un LLM repetiría textual. Quedó como "integrates with", sin el "only". La diferencia real ya la cuenta la tabla de `/compare`.
+
+### Lección de instrumento
+- **El bucle secuencial de Chrome headless se cuelga en la primera iteración**, porque Chrome vuelca el DOM y sigue vivo: la segunda página nunca se cargó y el archivo faltante parecía un error de la página. Hay que lanzarlos de a uno, leer el archivo y matar el proceso. Ya estaba anotado en `CLAUDE.md` de esta misma mañana y lo volvimos a pisar igual.
+- Verificación de las dos páginas en Chrome: cero violaciones de CSP y el bloque parseado desde el DOM dio `LDCHECK_OK FAQPage:4|BreadcrumbList` y `LDCHECK_OK HowTo:5|BreadcrumbList`. Capturas a 1280 de las dos, revisadas a ojo: tipografía, monocromo y jerarquía consistentes con el resto del sitio.
+
+### Próximo paso
+- Capa 3, la que mueve la aguja y no es código: awesome-lists, Show HN y Reddit, con los prerrequisitos que ya están en `ROADMAP.md`.
+- Una vez publicado: Rich Results Test sobre las tres páginas con datos, y Search Console con el sitemap nuevo.

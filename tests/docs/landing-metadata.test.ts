@@ -22,12 +22,23 @@ const readRepoFile = (...parts: string[]): string =>
 
 const SITE = 'https://exportal.dev';
 
-/** Every HTML page we publish, with the canonical URL it must declare. */
-const PAGES: readonly { file: string; canonical: string }[] = [
-  { file: 'index.html', canonical: `${SITE}/` },
-  { file: 'privacy/index.html', canonical: `${SITE}/privacy` },
-  { file: 'support/index.html', canonical: `${SITE}/support` },
+/**
+ * Every HTML page we publish, with the canonical URL it must declare and
+ * whether it carries a JSON-LD data block. The order is the sitemap's.
+ */
+const PAGES: readonly { file: string; canonical: string; data: boolean }[] = [
+  { file: 'index.html', canonical: `${SITE}/`, data: true },
+  { file: 'compare/index.html', canonical: `${SITE}/compare`, data: true },
+  {
+    file: 'export-claude-chat-to-vscode/index.html',
+    canonical: `${SITE}/export-claude-chat-to-vscode`,
+    data: true,
+  },
+  { file: 'privacy/index.html', canonical: `${SITE}/privacy`, data: false },
+  { file: 'support/index.html', canonical: `${SITE}/support`, data: false },
 ];
+
+const readPage = (file: string): string => readRepoFile('docs', ...file.split('/'));
 
 interface FaqEntry {
   readonly question: string;
@@ -85,8 +96,7 @@ const indexHtml = readRepoFile('docs', 'index.html');
 describe('canonical URLs', () => {
   for (const page of PAGES) {
     it(`docs/${page.file} declares its canonical URL`, () => {
-      const html = readRepoFile('docs', ...page.file.split('/'));
-      expect(html).toContain(`<link rel="canonical" href="${page.canonical}">`);
+      expect(readPage(page.file)).toContain(`<link rel="canonical" href="${page.canonical}">`);
     });
   }
 });
@@ -133,21 +143,72 @@ describe('JSON-LD on the landing page', () => {
 });
 
 describe('FAQ structured data', () => {
-  it('mirrors the FAQ a human reads, question for question', () => {
-    // Google requires the marked-up FAQ to match the visible one, and
-    // an answer that only exists in the markup is an answer nobody
-    // maintains.
-    const visible = visibleFaq(indexHtml);
-    const faqPage = nodeOfType(jsonLdGraph(indexHtml), 'FAQPage');
+  // Google requires the marked-up FAQ to match the visible one, and an
+  // answer that exists only in the markup is an answer nobody maintains.
+  // `node scripts/build-landing-jsonld.mjs` regenerates both blocks.
+  const withFaq = PAGES.filter((page) => page.data).filter((page) =>
+    readPage(page.file).includes('"FAQPage"'),
+  );
+
+  it('is present on the pages that have a visible FAQ', () => {
+    expect(withFaq.map((page) => page.file)).toEqual([
+      'index.html',
+      'compare/index.html',
+    ]);
+  });
+
+  for (const page of withFaq) {
+    it(`docs/${page.file} mirrors its visible FAQ, question for question`, () => {
+      const html = readPage(page.file);
+      const visible = visibleFaq(html);
+      const faqPage = nodeOfType(jsonLdGraph(html), 'FAQPage');
+
+      expect(visible.length).toBeGreaterThan(0);
+      expect(faqPage.mainEntity).toEqual(
+        visible.map((entry) => ({
+          '@type': 'Question',
+          name: entry.question,
+          acceptedAnswer: { '@type': 'Answer', text: entry.answer },
+        })),
+      );
+    });
+  }
+});
+
+describe('HowTo structured data', () => {
+  const guide = readPage('export-claude-chat-to-vscode/index.html');
+
+  it('mirrors the numbered steps a human reads', () => {
+    const list = /<ol class="steps">([\s\S]*?)<\/ol>/.exec(guide);
+    const visible = [
+      ...(list?.[1] ?? '').matchAll(/<li>\s*<h3>([\s\S]*?)<\/h3>\s*<p>([\s\S]*?)<\/p>/g),
+    ].map((match, i) => ({
+      '@type': 'HowToStep',
+      position: i + 1,
+      name: plainText(match[1] ?? ''),
+      text: plainText(match[2] ?? ''),
+    }));
+    const howTo = nodeOfType(jsonLdGraph(guide), 'HowTo');
 
     expect(visible.length).toBeGreaterThan(0);
-    expect(faqPage.mainEntity).toEqual(
-      visible.map((entry) => ({
-        '@type': 'Question',
-        name: entry.question,
-        acceptedAnswer: { '@type': 'Answer', text: entry.answer },
-      })),
-    );
+    expect(howTo.step).toEqual(visible);
+  });
+
+  it('points back at the product it describes', () => {
+    const howTo = nodeOfType(jsonLdGraph(guide), 'HowTo');
+
+    expect(howTo.about).toEqual({ '@id': `${SITE}/#exportal` });
+  });
+});
+
+describe('internal linking', () => {
+  it('leaves no page orphaned: the home page links to every other one', () => {
+    // A page nothing links to is a page crawlers reach late and readers
+    // never reach at all.
+    for (const page of PAGES.filter((entry) => entry.canonical !== `${SITE}/`)) {
+      const path = page.canonical.slice(SITE.length);
+      expect(indexHtml, `docs/index.html should link to ${path}`).toContain(`href="${path}"`);
+    }
   });
 });
 
@@ -206,9 +267,7 @@ describe('llms.txt', () => {
 
 describe('house style', () => {
   const files = [
-    'docs/index.html',
-    'docs/privacy/index.html',
-    'docs/support/index.html',
+    ...PAGES.map((page) => `docs/${page.file}`),
     'docs/llms.txt',
     'docs/sitemap.xml',
     'docs/robots.txt',

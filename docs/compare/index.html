@@ -1,0 +1,680 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; font-src 'self'; connect-src 'self'; form-action 'none'; base-uri 'self';">
+<title>How Exportal compares to other chat exporters</title>
+<meta name="description" content="Exportal against a typical chat exporter, capability by capability, plus the honest list of cases where you should not use it. A plain exporter saves a chat to a file; Exportal puts it in your VS Code workspace and attaches it to Claude Code.">
+<meta name="theme-color" content="#1f1f1f">
+
+<link rel="icon" href="/favicon.svg?v=2026-05-06" type="image/svg+xml">
+<link rel="icon" href="/favicon.png?v=2026-05-06" type="image/png" sizes="128x128">
+<link rel="apple-touch-icon" href="/favicon.png?v=2026-05-06">
+<link rel="canonical" href="https://exportal.dev/compare">
+
+<meta property="og:title" content="How Exportal compares to other chat exporters">
+<meta property="og:description" content="Exportal against a typical chat exporter, capability by capability, plus the honest list of cases where you should not use it. A plain exporter saves a chat to a file; Exportal puts it in your VS Code workspace and attaches it to Claude Code.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://exportal.dev/compare">
+<meta property="og:image" content="https://exportal.dev/screenshots/exportal-s6-chatgpt-1280x800.png">
+<meta name="twitter:card" content="summary_large_image">
+
+<!-- structured-data:start -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "FAQPage",
+      "@id": "https://exportal.dev/compare#faq",
+      "name": "How Exportal compares to other chat exporters",
+      "about": {
+        "@id": "https://exportal.dev/#exportal"
+      },
+      "author": {
+        "@id": "https://exportal.dev/#author"
+      },
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "Why two extensions instead of one?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "A browser extension cannot write to your filesystem, and a VS Code extension cannot see the chat you have open. The bridge is what joins them, and it needs one half on each side. A single extension could only do this by sending the conversation through a server, which is exactly what Exportal is built to avoid."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Does reading the internal API risk my account?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Exportal reads conversations you already have access to, through the same internal endpoints the site's own frontend uses, with the session already in your browser. It does not scrape the DOM, automate the UI, or work around rate limits. The official ZIP import is always available as a path that touches no internal API at all."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Can I use it purely as an exporter and ignore the Claude Code part?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Yes. The result is an ordinary Markdown file in your workspace, and the auto-attach step can be turned off with the exportal.autoAttachToClaudeCode setting. You lose the reason the tool was built, but nothing breaks."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "What happens to Exportal if a provider changes its internal API?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Responses are parsed defensively and unknown block types are skipped rather than failing the whole import, which is a lesson that cost a full release to learn. If a structural change does break something, the official ZIP import keeps working while it is fixed, because it does not depend on the internal API."
+          }
+        }
+      ]
+    },
+    {
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        {
+          "@type": "ListItem",
+          "position": 1,
+          "name": "Exportal",
+          "item": "https://exportal.dev/"
+        },
+        {
+          "@type": "ListItem",
+          "position": 2,
+          "name": "Compare",
+          "item": "https://exportal.dev/compare"
+        }
+      ]
+    }
+  ]
+}
+</script>
+<!-- structured-data:end -->
+
+<style>
+  /* Fonts, self-hosted: the CSP only allows font-src 'self'. */
+  @font-face { font-family: "Inter Tight"; font-style: normal; font-weight: 100 900; font-display: swap; src: url("/fonts/inter-tight-latin.woff2") format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+  @font-face { font-family: "Inter Tight"; font-style: normal; font-weight: 100 900; font-display: swap; src: url("/fonts/inter-tight-latin-ext.woff2") format("woff2"); unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF; }
+  @font-face { font-family: "JetBrains Mono"; font-style: normal; font-weight: 400 800; font-display: swap; src: url("/fonts/jetbrains-mono-latin.woff2") format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+  @font-face { font-family: "JetBrains Mono"; font-style: normal; font-weight: 400 800; font-display: swap; src: url("/fonts/jetbrains-mono-latin-ext.woff2") format("woff2"); unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF; }
+
+  /* Tokens: strictly monochrome, same ink as the landing. */
+  :root {
+    --ink: #1f1f1f;
+    --ink-2: #1f1f1f;
+    --muted: rgba(31, 31, 31, 0.66);
+    --line: rgba(31, 31, 31, 0.14);
+    --bg: #ffffff;
+    --bg-2: #ffffff;
+    --accent: #1f1f1f;
+    --accent-soft: rgba(31, 31, 31, 0.06);
+    --code-bg: #1f1f1f;
+    --code-ink: #ffffff;
+    --sans: "Inter Tight", "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --mono: "JetBrains Mono", "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  }
+  code, kbd, pre { font-family: var(--mono); font-variant-ligatures: none; }
+  header.site .brand-mark { width: 22px; height: 22px; flex-shrink: 0; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body {
+    font-family: var(--sans);
+    color: var(--ink);
+    line-height: 1.65;
+    background: var(--bg);
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap {
+    max-width: 880px;
+    margin: 0 auto;
+    padding: 0 24px;
+  }
+  header.site {
+    border-bottom: 1px solid var(--line);
+    padding: 18px 0;
+    position: sticky;
+    top: 0;
+    background: rgba(255, 255, 255, 0.92);
+    backdrop-filter: blur(8px);
+    z-index: 10;
+    transition: box-shadow 0.2s ease, border-color 0.2s ease;
+  }
+  header.site.scrolled {
+    box-shadow: 0 4px 14px rgba(11, 18, 32, 0.05);
+  }
+  header.site .row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+  }
+  header.site .brand {
+    font-weight: 700;
+    font-size: 1.05rem;
+    letter-spacing: -0.01em;
+    color: var(--ink);
+    text-decoration: none;
+  }
+  header.site nav a {
+    color: var(--muted);
+    text-decoration: none;
+    margin-left: 18px;
+    font-size: 0.92rem;
+    transition: color 0.18s ease;
+  }
+  header.site nav a:hover { color: var(--ink); }
+  header.site .brand { gap: 10px; }
+  header.site nav a.current { color: var(--ink); font-weight: 600; }
+
+  .hero { padding: 72px 0 40px; }
+  .hero .eyebrow {
+    display: block;
+    font-size: 0.95rem;
+    font-weight: 500;
+    color: var(--muted);
+    margin-bottom: 14px;
+  }
+  .hero h1 {
+    font-size: clamp(2.2rem, 5vw, 3.4rem);
+    line-height: 1.08;
+    letter-spacing: -0.02em;
+    margin-bottom: 18px;
+    font-weight: 700;
+  }
+  .hero .lede {
+    font-size: 1.18rem;
+    color: var(--muted);
+    margin-bottom: 28px;
+    max-width: 640px;
+  }
+  .hero .lede strong { color: var(--ink); font-weight: 600; }
+
+  .ctas {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 16px;
+  }
+  .ctas a {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 11px 18px;
+    background: var(--ink);
+    color: #fff;
+    text-decoration: none;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 0.95rem;
+    border: 1px solid var(--ink);
+    transition:
+      transform 0.12s cubic-bezier(0.22, 0.61, 0.36, 1),
+      background-color 0.2s ease,
+      border-color 0.2s ease;
+  }
+  .ctas a:hover { transform: translateY(-1px); }
+  .ctas a.secondary {
+    background: var(--bg);
+    color: var(--ink);
+    border-color: var(--line);
+  }
+  .ctas a.secondary:hover { border-color: var(--ink); }
+
+  .meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px 22px;
+    color: var(--muted);
+    font-size: 0.9rem;
+    margin-top: 14px;
+  }
+  .meta-item { display: inline-flex; align-items: center; gap: 6px; }
+  .meta-item .dot {
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--accent);
+  }
+
+  section { padding: 56px 0; border-top: 1px solid var(--line); }
+  section h2 {
+    font-size: 1.7rem;
+    letter-spacing: -0.015em;
+    margin-bottom: 8px;
+    font-weight: 700;
+  }
+  section .sub {
+    color: var(--muted);
+    margin-bottom: 28px;
+    font-size: 1rem;
+  }
+
+  .features {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 22px;
+    margin-top: 8px;
+  }
+  .feature {
+    display: block;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 20px;
+    background: var(--bg-2);
+    color: var(--ink);
+    text-decoration: none;
+    transition:
+      transform 0.18s ease,
+      box-shadow 0.18s ease,
+      border-color 0.18s ease;
+  }
+  .feature:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 18px rgba(11, 18, 32, 0.07);
+    border-color: rgba(29, 78, 216, 0.28);
+  }
+  .feature h3 {
+    font-size: 1.02rem;
+    margin-bottom: 6px;
+    font-weight: 600;
+  }
+  .feature p {
+    color: var(--muted);
+    font-size: 0.95rem;
+  }
+  .feature .arrow {
+    color: var(--accent);
+    font-weight: 600;
+    margin-left: 4px;
+  }
+
+  /* FAQ-style "Before you write": uses the same details/summary pattern
+     as the homepage so the script.js animation works if reused. */
+  .faq details {
+    border-bottom: 1px solid var(--line);
+    padding: 14px 0;
+  }
+  .faq details:first-of-type { border-top: 1px solid var(--line); }
+  .faq summary {
+    cursor: pointer;
+    font-weight: 600;
+    list-style: none;
+    padding-right: 24px;
+    position: relative;
+    font-size: 0.98rem;
+    transition: color 0.18s ease;
+  }
+  .faq summary:hover { color: var(--accent); }
+  .faq summary::after {
+    content: "+";
+    position: absolute;
+    right: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--muted);
+    font-weight: 400;
+    font-size: 1.3rem;
+    line-height: 1;
+    transition: transform 0.22s ease, color 0.18s ease;
+  }
+  .faq details[open] summary::after { content: "−"; color: var(--accent); }
+  .faq details p {
+    color: var(--muted);
+    font-size: 0.95rem;
+    margin-top: 10px;
+  }
+  .faq details p code {
+    font-family: "SF Mono", Monaco, Consolas, monospace;
+    font-size: 0.88em;
+    background: rgba(0, 0, 0, 0.05);
+    padding: 1px 5px;
+    border-radius: 3px;
+  }
+  .faq details p a { color: var(--accent); }
+
+  .faq details > .faq-body {
+    display: block;
+    overflow: hidden;
+    transition:
+      height 0.32s cubic-bezier(0.22, 0.61, 0.36, 1),
+      opacity 0.22s ease;
+  }
+  .faq details:not([open]) > .faq-body {
+    height: 0;
+    opacity: 0;
+  }
+
+  footer.site {
+    padding: 36px 0 56px;
+    color: var(--muted);
+    font-size: 0.88rem;
+    border-top: 1px solid var(--line);
+    margin-top: 24px;
+  }
+  footer.site .row {
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 16px;
+  }
+  footer.site a { color: var(--muted); text-decoration: none; margin-right: 18px; }
+  footer.site a:hover { color: var(--ink); }
+  footer.site .disclaimer {
+    margin-top: 18px;
+    font-size: 0.82rem;
+    color: var(--muted);
+    line-height: 1.55;
+    max-width: 720px;
+  }
+
+
+  /* Long-form pages: the landing is a pitch, these are answers. */
+  .answer {
+    border-left: 2px solid var(--ink);
+    padding: 0 0 0 20px;
+    margin: 0 0 28px;
+  }
+  .answer p {
+    font-size: 1.12rem;
+    line-height: 1.6;
+  }
+  .answer p + p { margin-top: 12px; }
+  .prose p { margin-bottom: 16px; }
+  .prose p:last-child { margin-bottom: 0; }
+  .prose h3 {
+    font-size: 1.05rem;
+    font-weight: 650;
+    letter-spacing: -0.01em;
+    margin: 28px 0 10px;
+  }
+  .prose ul { margin: 0 0 16px 20px; }
+  .prose li { margin-bottom: 8px; }
+  .prose a { color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
+  .prose code {
+    background: var(--accent-soft);
+    padding: 1px 5px;
+    border-radius: 3px;
+    font-size: 0.88em;
+  }
+
+  /* Numbered steps: the order is the content, so the numbers are typed. */
+  ol.steps {
+    list-style: none;
+    counter-reset: step;
+    margin: 0;
+  }
+  ol.steps > li {
+    counter-increment: step;
+    position: relative;
+    padding: 0 0 20px 44px;
+    border-left: 1px solid var(--line);
+    margin-left: 12px;
+  }
+  ol.steps > li:last-child { border-left-color: transparent; padding-bottom: 0; }
+  ol.steps > li::before {
+    content: counter(step);
+    position: absolute;
+    left: -12px;
+    top: 0;
+    width: 24px;
+    height: 24px;
+    border: 1px solid var(--line);
+    border-radius: 50%;
+    background: var(--bg);
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  ol.steps h3 { margin: 0 0 6px; }
+  ol.steps p { margin-bottom: 8px; }
+
+  /* Capability table. */
+  .cmp {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.94rem;
+  }
+  .cmp th, .cmp td {
+    text-align: left;
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--line);
+    vertical-align: top;
+  }
+  .cmp thead th {
+    font-size: 0.74rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    font-weight: 600;
+  }
+  .cmp tbody th { font-weight: 500; width: 38%; }
+  .cmp td { color: var(--muted); }
+  .cmp td.yes { color: var(--ink); font-weight: 500; }
+  .cmp-note { font-size: 0.85rem; color: var(--muted); margin-top: 14px; }
+  .table-scroll { overflow-x: auto; }
+
+  .callout {
+    border: 1px solid var(--line);
+    padding: 18px 20px;
+    margin: 24px 0 0;
+    font-size: 0.94rem;
+  }
+  .callout strong { font-weight: 650; }
+
+  @media (max-width: 720px) {
+    .hero { padding: 48px 0 32px; }
+    .features { grid-template-columns: 1fr; }
+    header.site nav a { margin-left: 12px; font-size: 0.85rem; }
+    .cmp tbody th { width: 46%; }
+    .cmp th, .cmp td { padding: 10px 8px; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+</style>
+</head>
+<body>
+
+<header class="site">
+  <div class="wrap row">
+    <a href="/" class="brand" aria-label="Exportal home">
+      <svg class="brand-mark" viewBox="0 0 100 100" aria-hidden="true">
+        <rect x="22" y="20" width="56" height="14" rx="2" fill="#1F1F1F"/>
+        <rect x="22" y="20" width="14" height="60" rx="2" fill="#1F1F1F"/>
+        <rect x="22" y="66" width="56" height="14" rx="2" fill="#1F1F1F"/>
+        <rect x="36" y="43" width="36" height="14" rx="2" fill="#1F1F1F"/>
+        <path d="M 72 50 L 82 50" stroke="#1F1F1F" stroke-width="14" stroke-linecap="round"/>
+      </svg>
+      Exportal
+    </a>
+    <nav>
+      <a href="/#how">How it works</a>
+      <a href="/export-claude-chat-to-vscode">Guide</a>
+      <a href="/#faq">FAQ</a>
+      <a href="/support">Support</a>
+      <a href="https://github.com/dioniipereyraa/ClaudeTool">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+
+<section class="hero" style="border-top: none;">
+  <div class="eyebrow">Comparison</div>
+  <h1>How Exportal compares to other chat exporters</h1>
+  <div class="answer">
+    <p>Most chat exporters save a conversation to a file. Exportal is a bridge: the exported conversation lands inside your VS Code workspace and is attached to Claude Code as an <code>@-mention</code>, so the point is continuing the conversation rather than archiving it. It also runs in the other direction, sending a Claude Code session back to the web chat.</p>
+    <p>That is the whole difference, and it is also the whole cost: a plain exporter is one browser extension, Exportal is two pieces that have to be paired. If you only want a saved copy of a chat, a plain exporter is the simpler tool and you should use one.</p>
+  </div>
+</section>
+
+<section id="capabilities">
+  <h2>Capability by capability</h2>
+  <p class="sub">What the two kinds of tool actually do, not which one is better.</p>
+  <div class="table-scroll">
+    <table class="cmp">
+      <thead>
+        <tr>
+          <th scope="col">Capability</th>
+          <th scope="col">A typical chat exporter</th>
+          <th scope="col">Exportal</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <th scope="row">Saves the conversation as Markdown</th>
+          <td class="yes">Yes</td>
+          <td class="yes">Yes</td>
+        </tr>
+        <tr>
+          <th scope="row">Where the file ends up</th>
+          <td>Your downloads folder</td>
+          <td class="yes">Your VS Code workspace, under <code>.exportal/</code></td>
+        </tr>
+        <tr>
+          <th scope="row">Attaches the chat to Claude Code</th>
+          <td>No</td>
+          <td class="yes">Yes, as an <code>@-mention</code>, with the panel focused</td>
+        </tr>
+        <tr>
+          <th scope="row">Works editor to web chat as well</th>
+          <td>No</td>
+          <td class="yes">Yes, through the clipboard</td>
+        </tr>
+        <tr>
+          <th scope="row">Imports the official provider export ZIP</th>
+          <td>Usually not</td>
+          <td class="yes">Yes, including multi-file exports</td>
+        </tr>
+        <tr>
+          <th scope="row">Downloads Claude Design project assets</th>
+          <td>No</td>
+          <td class="yes">Yes, into a sibling folder</td>
+        </tr>
+        <tr>
+          <th scope="row">Appears in Claude Code's <code>/resume</code></th>
+          <td>No</td>
+          <td class="yes">Opt-in, and labelled experimental</td>
+        </tr>
+        <tr>
+          <th scope="row">Redacts secrets before writing</th>
+          <td>Varies</td>
+          <td class="yes">On by default, opt-out is explicit</td>
+        </tr>
+        <tr>
+          <th scope="row">Sends your conversation to a server</th>
+          <td>Varies, check each one</td>
+          <td class="yes">Never. Loopback only, no account, no telemetry</td>
+        </tr>
+        <tr>
+          <th scope="row">Source you can read</th>
+          <td>Varies</td>
+          <td class="yes">MIT, the whole repository</td>
+        </tr>
+        <tr>
+          <th scope="row">Pieces you have to install</th>
+          <td class="yes">One browser extension</td>
+          <td>Two: a VS Code extension and a browser companion</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="cmp-note">"A typical chat exporter" is a generalisation about the category, not a claim about any specific product. Extensions change, so check the current behaviour of whichever one you are comparing against, especially on the two rows that matter for your data: where the conversation is sent, and whether secrets are redacted before anything is written.</p>
+</section>
+
+<section id="when-not">
+  <h2>When you should not use Exportal</h2>
+  <div class="prose">
+    <p>The honest list, so you do not install two things to find out:</p>
+    <ul>
+      <li><strong>You only want an archive of your chats.</strong> The official export from claude.ai or ChatGPT already does that, for free, with everything included. Exportal can read that ZIP, but it is not why it exists.</li>
+      <li><strong>You do not use VS Code.</strong> Half of Exportal is a VS Code extension, and the bridge lives inside it. There is a CLI for terminal use, but the one-click flow needs the editor.</li>
+      <li><strong>You do not use Claude Code.</strong> Exportal still writes a clean Markdown file you can use with any tool, but the @-mention step, which is the reason for the whole design, does nothing for you.</li>
+      <li><strong>You want automatic two-way sync.</strong> Exportal will not do this, by decision rather than by omission: continuous sync would mean a service watching your conversations, and that contradicts the local-first guarantee. You move a conversation when you decide to.</li>
+      <li><strong>You use a provider other than claude.ai or ChatGPT.</strong> Those two are what is supported today.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="cost">
+  <h2>What it costs you</h2>
+  <div class="prose">
+    <p>Two extensions instead of one, and a one-time pairing. In exchange, the export button writes into your project instead of your downloads folder.</p>
+    <p>The pairing exists because the browser extension has to reach VS Code, and the only thing on your machine that can accept that is a local HTTP server inside the extension. It listens on <code>127.0.0.1</code> in a fixed port range, every request carries a 256-bit bearer token, and nothing else can talk to it. That is the price of not having a server in the middle: a server would need no pairing, and it would also need your conversations.</p>
+    <p>The way back, from Claude Code to the web chat, is a clipboard paste that you do yourself. No provider offers a write API, so any tool that claims a fully automatic round trip is either automating the UI or sending your text somewhere. Exportal does neither.</p>
+  </div>
+</section>
+
+<section id="questions" class="faq">
+  <h2>Questions people ask when comparing</h2>
+  <details>
+    <summary>Why two extensions instead of one?</summary>
+    <p>A browser extension cannot write to your filesystem, and a VS Code extension cannot see the chat you have open. The bridge is what joins them, and it needs one half on each side. A single extension could only do this by sending the conversation through a server, which is exactly what Exportal is built to avoid.</p>
+  </details>
+  <details>
+    <summary>Does reading the internal API risk my account?</summary>
+    <p>Exportal reads conversations you already have access to, through the same internal endpoints the site's own frontend uses, with the session already in your browser. It does not scrape the DOM, automate the UI, or work around rate limits. The official ZIP import is always available as a path that touches no internal API at all.</p>
+  </details>
+  <details>
+    <summary>Can I use it purely as an exporter and ignore the Claude Code part?</summary>
+    <p>Yes. The result is an ordinary Markdown file in your workspace, and the auto-attach step can be turned off with the exportal.autoAttachToClaudeCode setting. You lose the reason the tool was built, but nothing breaks.</p>
+  </details>
+  <details>
+    <summary>What happens to Exportal if a provider changes its internal API?</summary>
+    <p>Responses are parsed defensively and unknown block types are skipped rather than failing the whole import, which is a lesson that cost a full release to learn. If a structural change does break something, the official ZIP import keeps working while it is fixed, because it does not depend on the internal API.</p>
+  </details>
+</section>
+
+<section id="next">
+  <h2>Related</h2>
+  <div class="prose">
+    <ul>
+      <li><a href="/export-claude-chat-to-vscode">The step-by-step guide</a>: install, pair and export in about two minutes.</li>
+      <li><a href="https://github.com/dioniipereyraa/ClaudeTool/blob/main/SECURITY.md">The threat model</a>: what the bridge accepts, and what redaction does and does not catch.</li>
+      <li><a href="/privacy">The privacy policy</a>, which is short because there is no data collection to describe.</li>
+    </ul>
+  </div>
+</section>
+
+</main>
+
+<footer class="site">
+  <div class="wrap">
+    <div class="row">
+      <div>
+        <a href="https://github.com/dioniipereyraa/ClaudeTool">GitHub</a>
+        <a href="https://chromewebstore.google.com/detail/exportal-companion/lmnmekfphhpfaciehfdaonjfchbicdnm">Chrome Web Store</a>
+        <a href="https://marketplace.visualstudio.com/items?itemName=dioniipereyraa.exportal">VS Code Marketplace</a>
+        <a href="/export-claude-chat-to-vscode">Guide</a>
+        <a href="/compare">Compare</a>
+        <a href="/privacy">Privacy</a>
+        <a href="/support">Support</a>
+        <a href="https://github.com/dioniipereyraa/ClaudeTool/blob/main/SECURITY.md">Security</a>
+        <a href="https://github.com/dioniipereyraa/ClaudeTool/blob/main/LICENSE">License</a>
+      </div>
+      <div>
+        Built by <a href="https://github.com/dioniipereyraa">Dioni Pereyra</a>. MIT licensed.
+      </div>
+    </div>
+    <p class="disclaimer">
+      Exportal is an independent open-source project. It is not
+      affiliated with, endorsed by, or sponsored by Anthropic (makers of
+      Claude and Claude Code) or OpenAI (makers of ChatGPT). "Claude",
+      "Claude Code", and "Claude.ai" are trademarks of Anthropic.
+      "ChatGPT" is a trademark of OpenAI.
+    </p>
+  </div>
+</footer>
+
+</body>
+</html>
