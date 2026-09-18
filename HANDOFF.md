@@ -5,7 +5,7 @@
 > `CLAUDE.md`; el relato de cada sesión, en pasado, en `DEVLOG.md`; la cola larga de ideas en
 > `ROADMAP.md`; los releases en `CHANGELOG.md`.
 
-## 1. Estado al 2026-09-17
+## 1. Estado al 2026-09-18
 
 - **Versión publicada: 0.11.10**, en el VS Code Marketplace, en la Chrome Web Store (en review,
   puede tardar horas o días) y como GitHub Release `v0.11.10` con VSIX y ZIP adjuntos (el tag
@@ -45,8 +45,18 @@
   y pegar, Session history nativo con los requisitos sacados de la documentación de Anthropic, y
   MCP) y una quinta pregunta sobre MCP en su FAQ. Sale directo de lo que mostró la línea base.
   Verificado tras el deploy: la sección está publicada y el `FAQPage` en vivo tiene 5 preguntas.
-- **`main` limpio:** PR #4 a #9 mergeados, cero issues y cero PRs abiertos, ramas de trabajo
-  borradas. Solo existe `main`.
+- **Dos PRs abiertos, con CI verde, esperando la review de Dionisio (2026-09-18):**
+  **#10** saca el 301 de los links de los dos README a la landing, les suma `/compare/` y mete los
+  README en el test que impide la forma pelada; **#11** agrega el GIF de la demo (692 KB) para el
+  markdown que no controlamos. **Mergear #11 antes de abrir el PR a `awesome-vscode`**, que
+  referencia ese GIF por `raw.githubusercontent.com` y cuyo CI verifica todos los links.
+- **Metadata del repo corregida el 2026-09-18:** `homepage` ahora es `https://exportal.dev` (estaba
+  vacía, siendo el repo la fuente que los motores citan) y el topic `chatpgt` pasó a `chatgpt`.
+  **Decisión abierta:** renombrar el repo de `ClaudeTool` a `exportal`. La marca dice una cosa y la
+  URL citada dice otra; el costo es revisar los links raw de las imágenes y lo declarado en las
+  dos tiendas.
+- **`main`:** PR #4 a #9 mergeados y sus ramas borradas, cero issues abiertos. Vivas quedan las dos
+  ramas de los PR #10 y #11, que esperan review.
 - **Tags:** entre `v0.11.2` y `v0.11.10` no hay tags ni GitHub Releases (esas versiones se
   subieron a las tiendas a mano sin taggear). No hace falta rehacerlas; queda anotado para no
   extrañarse.
@@ -88,8 +98,14 @@ Capas 1 y 2 hechas y en vivo, Rich Results limpio, Search Console con el sitemap
 base tomada. Todo mergeado y verificado en vivo. **Lo primero al retomar es la capa 3**, que es la que mueve
 la aguja y no es código:
 
-1. PRs a `awesome-claude-code`, `awesome-vscode` y `awesome-chrome-extensions`, una línea
-   descriptiva cada uno. Los puedo preparar yo; publicarlos va con la cuenta de Dionisio.
+1. ~~PRs a las tres awesome-lists.~~ **Medido el 2026-09-18 y corregido:** `awesome-claude-code`
+   (54k estrellas, viva) **prohíbe los PRs**, pide el issue form del web UI y exige que lo mande
+   una persona; el texto de los seis campos está redactado en el DEVLOG de ese día, listo para
+   pegar, y el sexto checkbox del form es una trampa que va sin marcar. `awesome-vscode` no mergea
+   desde agosto de 2023 y poda extensiones de baja tracción: el PR está preparado en el fork
+   `dioniipereyraa/awesome-vscode`, rama `add-exportal`, y se abre a sabiendas de que es lotería.
+   `awesome-chrome-extensions` no existe como lista canónica viva, no hay a dónde mandar nada.
+   **Queda pendiente en la cancha de Dionisio: mandar el issue form y abrir el PR.**
 2. Show HN y Reddit (`r/ClaudeAI`, `r/vscode`), con los prerrequisitos que ya fija `ROADMAP.md`:
    Chrome Store aprobado, VSIX estable, video bueno, landing andando. Un solo intento de Show HN,
    no quemarlo antes de tiempo.

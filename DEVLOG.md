@@ -6186,6 +6186,54 @@ habla por Exportal es el repo. Mirando el repo como lo mira un motor aparecieron
 - Las nueve URLs medidas con `curl` antes de tocar nada: las cinco con barra dan 200 directo, las
   cuatro peladas dan 301.
 
+### Lo otro que salió de la misma medición
+- **Un GIF de la demo** (`docs/screenshots/exportal-demo.gif`, 692 KB, generado desde el mismo MP4
+  a 800 px y 10 fps). El MP4 sigue siendo el de la landing y el README propio, que por peso ganó
+  la medición de LCP del 2026-04-29. El GIF existe para el caso contrario: markdown de terceros,
+  donde GitHub sanitiza `<video>` y una URL pelada no embebe. Todas las superficies de la capa 3
+  (awesome-lists, foros, Show HN) son de ese tipo. El comando de `ffmpeg` quedó en
+  `docs/screenshots/README.md` para que el binario no sea huérfano.
+- **El PR a `awesome-vscode` se preparó igual**, con la decisión tomada sabiendo que el repo no
+  mergea desde 2023: es barato y la espera no cuesta nada. Entrada en `# Productivity` en orden
+  alfabético, link al Marketplace y no a GitHub como pide su guía, índice actualizado y el GIF
+  referenciado por `raw.githubusercontent.com`. **Ojo con el orden:** su CI corre `awesome_bot`
+  sobre todos los links, así que el GIF tiene que estar en `main` antes de abrir ese PR, o el
+  check arranca en rojo.
+- **La metadata del repo, corregida:** `homepage` pasó a `https://exportal.dev` (estaba vacía) y
+  el topic `chatpgt` a `chatgpt`.
+- **Lo que NO se hizo:** renombrar el repo de `ClaudeTool` a `exportal`. La marca es Exportal y la
+  URL que los motores citan dice otra cosa, pero el rename toca los links raw de las imágenes y lo
+  declarado en las dos tiendas. Queda como decisión abierta.
+
+### El texto para el form de `awesome-claude-code`, listo para pegar
+La recomendación la manda Dionisio desde
+`https://github.com/hesreallyhim/awesome-claude-code/issues/new?template=recommend-resource.yml`.
+Queda acá porque el form no se puede automatizar y el texto se pierde si vive solo en un chat.
+
+| campo | valor |
+|---|---|
+| Display Name | `Exportal` |
+| Category | `Providers, Runtime & Integration Infrastructure` |
+| Link | `https://github.com/dioniipereyraa/ClaudeTool` |
+| Author Name | `Dioni Pereyra` |
+| Author Link | `https://github.com/dioniipereyraa` |
+
+Description, 415 caracteres de los 500 que admite, una línea, sin emojis y descriptiva y no
+promocional como pide su guía de estilo:
+
+> A VS Code extension and Chrome companion that move a conversation between the web chats and
+> Claude Code: a claude.ai, Claude Design or ChatGPT chat is exported to Markdown in the workspace
+> and attached to Claude Code as an @-mention, and a Claude Code session can be sent back to the
+> web chat. The two halves talk over a token-authenticated loopback bridge on 127.0.0.1, with no
+> remote server, account or telemetry.
+
+La categoría se eligió mirando el CSV de los 212 recursos de la lista, no a ojo: en
+`Providers, Runtime & Integration Infrastructure` ya vive `Flue`, *"a tiny bridge that lets Claude
+Code drive desktop software"*, que es la misma familia. `Memory & Context Persistence`, la otra
+candidata, resultó ser índices de historial y memoria persistente, que no es lo que hace Exportal.
+Se revisaron además los 212 por si había un equivalente: ninguno mueve una conversación de la web
+hacia Claude Code. **El sexto checkbox del form es una trampa deliberada** y va sin marcar.
+
 ### La regla que sale
 **Cuando un fix se apoya en un test, el test tiene que cubrir todos los archivos donde el bug puede
 aparecer, no solo donde apareció.** El PR #8 arregló `docs/` y dejó los README con el mismo defecto
