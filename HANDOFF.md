@@ -41,10 +41,12 @@
   **inestable** (la misma pregunta dos veces citó y no citó); a *"what tools bridge claude.ai and
   Claude Code"* el modelo contesta **MCP** y no lo menciona. **`exportal.dev` no fue fuente citada
   en ninguna consulta**: hoy hablan por Exportal el repo y las dos tiendas.
-- **PR #9 abierto:** sección en `/compare` contra las tres alternativas reales (copiar y pegar,
-  Session history nativo, MCP) y una quinta pregunta sobre MCP en su FAQ. Sale directo de lo que
-  mostró la línea base.
-- **`main` limpio:** PR #4 a #8 mergeados, cero issues, ramas de trabajo borradas.
+- **PR #9 mergeado y en vivo:** sección en `/compare` contra las tres alternativas reales (copiar
+  y pegar, Session history nativo con los requisitos sacados de la documentación de Anthropic, y
+  MCP) y una quinta pregunta sobre MCP en su FAQ. Sale directo de lo que mostró la línea base.
+  Verificado tras el deploy: la sección está publicada y el `FAQPage` en vivo tiene 5 preguntas.
+- **`main` limpio:** PR #4 a #9 mergeados, cero issues y cero PRs abiertos, ramas de trabajo
+  borradas. Solo existe `main`.
 - **Tags:** entre `v0.11.2` y `v0.11.10` no hay tags ni GitHub Releases (esas versiones se
   subieron a las tiendas a mano sin taggear). No hace falta rehacerlas; queda anotado para no
   extrañarse.
@@ -83,8 +85,8 @@ capturas reales, video, blog) y el Hito 35 (pairing en `exportal.dev/pair`).
 ### Hilo GEO: al retomar, empezar por acá
 
 Capas 1 y 2 hechas y en vivo, Rich Results limpio, Search Console con el sitemap enviado, línea
-base tomada. **Lo primero de mañana: mergear el PR #9** (o revisarlo), borrar su rama y seguir con
-la **capa 3**, que es la que mueve la aguja y no es código:
+base tomada. Todo mergeado y verificado en vivo. **Lo primero al retomar es la capa 3**, que es la que mueve
+la aguja y no es código:
 
 1. PRs a `awesome-claude-code`, `awesome-vscode` y `awesome-chrome-extensions`, una línea
    descriptiva cada uno. Los puedo preparar yo; publicarlos va con la cuenta de Dionisio.
@@ -94,7 +96,12 @@ la **capa 3**, que es la que mueve la aguja y no es código:
 3. Volver a medir dentro de dos o tres meses con **las mismas consultas del DEVLOG**, repitiendo
    cada una dos o tres veces porque la respuesta es inestable. **La métrica no es "aparece o no"**
    en la consulta genérica, que ya aparece, sino **si `exportal.dev` entra entre las fuentes
-   citadas**. Eso es lo que dirá si las capas 1 y 2 sirvieron.
+   citadas**. Eso es lo que dirá si las capas 1 y 2 sirvieron. **No medir antes:** el sitemap se
+   envió el 2026-09-17 y la indexación tarda días o semanas, así que una medición temprana devuelve
+   ruido.
+4. Mientras tanto, la señal objetiva es Search Console, sección **Páginas**: las cinco URLs
+   deberían pasar a "Indexada" en unos días. Si a los diez días siguen sin indexar, eso sí hay que
+   mirarlo.
 
 ## 3. Cómo relanzar
 
