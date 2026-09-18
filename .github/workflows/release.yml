@@ -119,8 +119,12 @@ jobs:
         id: artifact
         run: echo "vsix=exportal-${GITHUB_REF_NAME#v}.vsix" >> "$GITHUB_OUTPUT"
 
-      # vsce fails with an opaque error on an empty PAT, and a missing secret
-      # is the likeliest cause the first few times.
+      # Both CLIs read the token from the environment (vsce from VSCE_PAT,
+      # ovsx from OVSX_PAT), so it never appears on a command line, where
+      # it would be visible to every process on the runner.
+      #
+      # vsce fails with an opaque error on an empty PAT, and a missing
+      # secret is the likeliest cause the first few times.
       - name: Publish to the VS Code Marketplace
         env:
           VSCE_PAT: ${{ secrets.VSCE_PAT }}
@@ -130,7 +134,7 @@ jobs:
             echo "VSCE_PAT is not set on the 'stores' environment. See CONTRIBUTING.md." >&2
             exit 1
           fi
-          npx --yes @vscode/vsce@latest publish --packagePath "$VSIX" --pat "$VSCE_PAT"
+          npx --yes @vscode/vsce@latest publish --packagePath "$VSIX"
 
       # Open VSX serves Cursor, VSCodium and Windsurf. It is secondary: a
       # failure here must not mask a Marketplace publish that already
@@ -145,4 +149,4 @@ jobs:
             echo "OVSX_PAT is not set on the 'stores' environment; skipping Open VSX." >&2
             exit 1
           fi
-          npx --yes ovsx@latest publish "$VSIX" --pat "$OVSX_PAT"
+          npx --yes ovsx@latest publish "$VSIX"

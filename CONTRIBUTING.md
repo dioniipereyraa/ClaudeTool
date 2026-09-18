@@ -161,19 +161,69 @@ byte-for-byte what hangs off the GitHub Release.
 
 ### Secrets
 
-Both live on the `stores` environment, never on the repository at large:
+Both live on the `stores` **environment**, never on the repository at large:
 `ci.yml` runs on pull requests, including from forks, and must never be able
-to read them.
+to read them. Repository-level secrets would be visible there; environment
+secrets are not, and `stores` is additionally restricted to `v*` tags.
 
-| secret     | where it comes from                                                                             |
-| ---------- | ----------------------------------------------------------------------------------------------- |
-| `VSCE_PAT` | Azure DevOps personal access token, scope _Marketplace → Manage_. It expires, so note the date. |
-| `OVSX_PAT` | open-vsx.org access token, after claiming the `dioniipereyraa` namespace.                       |
+```sh
+gh secret set VSCE_PAT --env stores
+gh secret set OVSX_PAT --env stores
+```
+
+Neither token is ever passed on a command line: `vsce` reads `VSCE_PAT` and
+`ovsx` reads `OVSX_PAT` from the environment, so they stay out of the
+process list and out of the logs.
+
+#### `VSCE_PAT`, for the VS Code Marketplace
+
+Created on [Azure DevOps](https://dev.azure.com), under _User settings →
+Personal access tokens → New Token_:
+
+- **Organization: `All accessible organizations`.** This is the setting
+  people get wrong. A token scoped to one organization authenticates but
+  cannot publish, and the failure does not say so.
+- **Scopes:** click _Show all scopes_, then **Marketplace → Manage**.
+- Set an expiry you can live with and write the date down.
+
+> **This mechanism has a deadline.** Microsoft retires global Azure DevOps
+> PATs on **1 December 2026**, and "global" is exactly what _All accessible
+> organizations_ means. The documented replacement is Microsoft Entra ID
+> (`vsce publish --azure-credential`), but its setup is written for Azure
+> DevOps Pipelines with workload identity federation, not for GitHub
+> Actions. Before that date this job needs revisiting.
+
+#### `OVSX_PAT`, for Open VSX
+
+Open VSX serves Cursor, VSCodium and Windsurf. Getting an account takes a
+few steps because the Eclipse Foundation requires a signed agreement:
+
+1. Create an [Eclipse account](https://accounts.eclipse.org) whose GitHub
+   username matches yours **exactly**.
+2. Log in to [open-vsx.org](https://open-vsx.org) with GitHub, open the
+   profile page and click _Log in with Eclipse_, then read and sign the
+   Publisher Agreement.
+3. Avatar → _Settings → Access Tokens → Generate New Token_. The value is
+   shown once.
+4. **Claim the namespace before the first publish**, or publishing fails:
+
+   ```sh
+   npx ovsx create-namespace dioniipereyraa -p <token>
+   ```
+
+   Creating it does not verify ownership. Claiming ownership is a separate
+   request to the Open VSX maintainers, and until it goes through the
+   listing carries an "unverified publisher" notice.
 
 Open VSX is secondary: the step is `continue-on-error`, so a failure there
 never masks a Marketplace publish that already went through. Without
 `OVSX_PAT` the step reports and is skipped; without `VSCE_PAT` the job fails
 loudly, because that is the publish that matters.
+
+Newer `ovsx` versions can also exchange a GitHub Actions OIDC token for a
+short-lived publishing token (`--trusted-publishing`), which would remove
+this secret entirely. Not adopted yet: it needs the publisher configured as
+a trusted publisher on open-vsx.org first.
 
 The Chrome Web Store is not wired up yet. Its plan, including the OAuth
 setup and its two gotchas, is in `HANDOFF.md`.

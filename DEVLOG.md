@@ -6308,6 +6308,29 @@ y por un motivo que valía la pena entender:
 - El YAML de los dos workflows parseado y verificada la cadena de `needs`, el `environment` y los
   `permissions` de cada job.
 
+### Lo que apareció al verificar las CLI contra las reales (mismo día)
+El workflow se escribió sin haberlo ejecutado nunca, así que antes de darlo por bueno se corrieron
+`--help` de las dos herramientas. Cuatro cosas:
+
+- **`vsce` y `ovsx` leen el token del entorno** (`VSCE_PAT` y `OVSX_PAT`; en ovsx está en
+  `lib/util.js:39`, `options.pat ?? (options.pat = process.env.OVSX_PAT)`). Pasarlo con `--pat` lo
+  deja visible en la lista de procesos del runner. Se sacó de la línea de comandos en los dos.
+- **`-p, --pat` en `ovsx` es opción del programa, no del subcomando.** Se verificó que igual se
+  parsea después de `publish`, que es como está escrito: falla por el archivo inexistente, no por
+  opción desconocida.
+- **Los PAT globales de Azure DevOps se retiran el 1 de diciembre de 2026**, y "global" es
+  exactamente *All accessible organizations*, que es lo que el Marketplace exige. El reemplazo que
+  documenta Microsoft es Entra ID (`vsce publish --azure-credential`), pero su setup está escrito
+  para Azure DevOps Pipelines con workload identity federation, no para GitHub Actions. **Queda con
+  fecha de vencimiento conocida y anotado en `CONTRIBUTING.md`.**
+- **En Open VSX hay que crear el namespace antes del primer publish** (`ovsx create-namespace`), y
+  crearlo no verifica la propiedad: el claim es un pedido aparte y hasta que pase el listing sale
+  con el aviso de *unverified publisher*. También hace falta una cuenta Eclipse con el mismo
+  usuario de GitHub y el Publisher Agreement firmado. Nada de eso estaba en el plan del HANDOFF.
+- `ovsx` 1.2.0 ya soporta `--trusted-publishing`, que intercambia el token OIDC de GitHub Actions
+  por uno efímero y **eliminaría el secret**. No se adoptó todavía porque exige configurar al
+  publisher como trusted publisher del lado de open-vsx.org.
+
 ### La regla que sale
 **Un artefacto con el nombre correcto no prueba que el repositorio esté bien.** Cuando el
 empaquetado deriva o reescribe un dato, el chequeo tiene que mirar la fuente, no el producto. Y el
