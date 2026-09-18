@@ -206,6 +206,11 @@ describe('internal linking', () => {
     // A canonical, a sitemap entry or a link pointing at /compare instead
     // of /compare/ costs a redirect on every visit, and a canonical that
     // resolves through a redirect is a canonical search engines discard.
+    //
+    // The two READMEs are in here because the baseline showed the repo,
+    // not the landing, is what generative engines quote today: a bare
+    // path in the README is the redirect they hand to a reader, and the
+    // link text is what a model reads, so both halves need the slash.
     const routes = PAGES.map((page) => page.canonical.slice(SITE.length)).filter(
       (path) => path !== '/',
     );
@@ -213,6 +218,8 @@ describe('internal linking', () => {
       ...PAGES.map((page) => `docs/${page.file}`),
       'docs/llms.txt',
       'docs/sitemap.xml',
+      'README.md',
+      'README.vsix.md',
     ];
 
     for (const file of sources) {
@@ -220,7 +227,7 @@ describe('internal linking', () => {
       for (const route of routes) {
         const bare = route.slice(0, -1);
         expect(text, `${file} should not point at ${bare}`).not.toMatch(
-          new RegExp(`${bare}(?=["')<\\s])`.replaceAll('/', '\\/')),
+          new RegExp(`${bare}(?=["')\\]<\\s])`.replaceAll('/', '\\/')),
         );
       }
     }
