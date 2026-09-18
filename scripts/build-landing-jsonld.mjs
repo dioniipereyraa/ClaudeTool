@@ -131,7 +131,7 @@ const PAGES = [
     graph: (html) => [
       {
         '@type': 'HowTo',
-        '@id': `${SITE}/export-claude-chat-to-vscode#howto`,
+        '@id': `${SITE}/export-claude-chat-to-vscode/#howto`,
         name: 'How to export a Claude.ai or ChatGPT chat into VS Code',
         description:
           'Install the Exportal VS Code extension and browser companion, pair them once, and ' +
@@ -144,7 +144,7 @@ const PAGES = [
         author: { '@id': AUTHOR_ID },
         about: { '@id': APP_ID },
       },
-      breadcrumb('Guide', `${SITE}/export-claude-chat-to-vscode`),
+      breadcrumb('Guide', `${SITE}/export-claude-chat-to-vscode/`),
     ],
   },
   {
@@ -152,13 +152,13 @@ const PAGES = [
     graph: (html) => [
       {
         '@type': 'FAQPage',
-        '@id': `${SITE}/compare#faq`,
+        '@id': `${SITE}/compare/#faq`,
         name: 'How Exportal compares to other chat exporters',
         about: { '@id': APP_ID },
         author: { '@id': AUTHOR_ID },
         mainEntity: questionsFrom(html),
       },
-      breadcrumb('Compare', `${SITE}/compare`),
+      breadcrumb('Compare', `${SITE}/compare/`),
     ],
   },
 ];

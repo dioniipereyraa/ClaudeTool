@@ -6059,3 +6059,17 @@ implementados (5 INFORMATIVA pasaron a "fixed", 2 quedan como
 ### Próximo paso
 - Capa 3, la que mueve la aguja y no es código: awesome-lists, Show HN y Reddit, con los prerrequisitos que ya están en `ROADMAP.md`.
 - Una vez publicado: Rich Results Test sobre las tres páginas con datos, y Search Console con el sitemap nuevo.
+
+## 2026-09-17 (post-merge) · El canonical apuntaba a una redirección
+
+### Qué pasó
+- Con las cinco páginas ya publicadas, el paso de validación de la capa 1 era pasar la home por el Rich Results Test. Antes de eso, un `curl` a cada URL del sitemap: las cuatro subpáginas responden **301 a la versión con barra final**. GitHub Pages sirve `/compare/` y redirige `/compare`.
+- El `canonical` y el `og:url` de esas páginas declaraban la forma pelada, o sea **una URL que redirige**. Un canonical que resuelve por redirección es una señal que los buscadores descartan, y Search Console lo reporta como problema. Los links internos, además, pagaban un round-trip por click.
+- No era de las páginas nuevas: `/privacy` y `/support` venían así desde que se les puso canonical. Las dos páginas de hoy heredaron el patrón.
+
+### Qué hicimos
+- Canonical, `og:url`, sitemap, `llms.txt`, los `@id` y los breadcrumbs del JSON-LD, y los 38 links internos de las cinco páginas pasaron a la forma con barra final.
+- Un test nuevo recorre las cinco páginas más `llms.txt` y el sitemap y falla si aparece cualquier ruta conocida en su forma pelada. Se verificó mutando un link a `/compare`: falla; restaurado, verde. 360 tests.
+
+### La lección
+- **La landing se mide después del deploy, no en el árbol.** El HTML era correcto en el repo y el problema solo existía en la interacción con el servidor real. Nada en el código lo podía revelar; un `curl -w "%{http_code} -> %{redirect_url}"` a cada URL del sitemap lo mostró en un segundo.
