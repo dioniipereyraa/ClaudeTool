@@ -80,9 +80,10 @@ nos costaron caro.** Se lee entero antes de tocar código.
 ### Release
 
 1. Bump en `package.json`, `package-lock.json` (dos campos: `version` y `packages[""].version`),
-   `chrome/manifest.json` y el `softwareVersion` del JSON-LD en `docs/index.html`. El Companion
-   se bumpea por simetría aunque no cambie. Si te olvidás de la landing falla
-   `tests/docs/landing-metadata.test.ts`, que es justamente para que no mienta en silencio.
+   `chrome/manifest.json`, y después `node scripts/build-landing-jsonld.mjs` para que el
+   `softwareVersion` del JSON-LD de la landing acompañe. El Companion se bumpea por simetría
+   aunque no cambie. Si te olvidás de la landing falla `tests/docs/landing-metadata.test.ts`,
+   que es justamente para que no mienta en silencio.
 2. Entrada en `CHANGELOG.md` con fecha. Si hubo silent patches, se consolidan acá.
 3. `npm run package:vsix` y `npm run package:chrome`. Los artefactos son ignorados por git.
 4. Tag `vX.Y.Z` → `release.yml` corre `npm run ci`, empaqueta y crea el GitHub Release. Hay un
@@ -111,11 +112,16 @@ nos costaron caro.** Se lee entero antes de tocar código.
 - Marca vigente: monocromo estricto, tinta `#1F1F1F`, sin acento de color. `design-cds/` es
   anterior al rebrand y no sirve de referencia.
 - Los HTML de `docs/` no pasan por prettier (solo `script.js`).
-- La metadata legible por máquina (JSON-LD, `canonical`, `sitemap.xml`, `llms.txt`) está cubierta
-  por `tests/docs/landing-metadata.test.ts`. El `FAQPage` es espejo exacto de los `<details>` de
-  la página: si editás una respuesta visible hay que editar también el JSON-LD, o el test para el
-  commit. El bloque JSON-LD es inline y **no** viola el CSP: un `<script>` con `type` no
-  ejecutable es un bloque de datos, medido en Chrome el 2026-09-17.
+- **El JSON-LD no se edita a mano.** Vive entre los marcadores `<!-- structured-data:start -->`
+  y `:end` de cada página, y lo escribe `node scripts/build-landing-jsonld.mjs`, que deriva el
+  `FAQPage` de los `<details>` y el `HowTo` de los `<li>` de `<ol class="steps">`. Editás el HTML
+  visible, corrés el script. `tests/docs/landing-metadata.test.ts` falla si quedaron
+  desincronizados, así que olvidarse es CI en rojo, no una mentira publicada.
+- El bloque JSON-LD es inline y **no** viola el CSP: un `<script>` con `type` no ejecutable es un
+  bloque de datos, medido en Chrome el 2026-09-17.
+- Páginas de contenido (`/export-claude-chat-to-vscode`, `/compare`): cada una es autocontenida
+  con su `<style>` copiado del de `support/`, que es el patrón vigente. Cuando entre la cuarta
+  conviene extraer la hoja a `docs/` y linkearla, no antes.
 - `robots.txt` no lleva grupos por bot. `User-agent: *` ya alcanza a GPTBot, ClaudeBot,
   PerplexityBot y Google-Extended, y un grupo específico dejaría de heredar el `Disallow: /promo/`.
 

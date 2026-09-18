@@ -17,8 +17,10 @@
   fechas reales) más los 19 tests que la anclan. Verificado contra `exportal.dev` después del
   deploy: `llms.txt` da 200, la home sirve el bloque JSON-LD con `softwareVersion 0.11.10`.
   Es la capa 1 de tres para que los motores generativos puedan citar Exportal.
-- **`main` limpio:** PR #4, #5 y #6 mergeados, cero issues y cero PRs abiertos, ramas de trabajo
-  borradas. Solo existe `main`.
+- **PR #7 abierto:** capa 2 de GEO, dos páginas de contenido (`/export-claude-chat-to-vscode` y
+  `/compare`) más `scripts/build-landing-jsonld.mjs`, que genera el JSON-LD de las tres páginas
+  en vez de mantenerlo a mano. 359 tests.
+- **`main` limpio:** PR #4, #5 y #6 mergeados, cero issues, ramas de trabajo borradas.
 - **Tags:** entre `v0.11.2` y `v0.11.10` no hay tags ni GitHub Releases (esas versiones se
   subieron a las tiendas a mano sin taggear). No hace falta rehacerlas; queda anotado para no
   extrañarse.
@@ -54,11 +56,12 @@ Release. Falta el paso que los sube a las tiendas. Plan acordado el 2026-09-08, 
 Después de esto, sigue `ROADMAP.md` §Near-term (instalación en máquina limpia, Search Console,
 capturas reales, video, blog) y el Hito 35 (pairing en `exportal.dev/pair`).
 
-Del lado de GEO, una vez mergeado el PR #6: validar la home con el Rich Results Test ya publicada,
-verificar `exportal.dev` en Search Console, y después las capas 2 (una página que responda la
-pregunta literal "cómo paso un chat de claude.ai a VS Code", y la comparativa contra otros
-exporters sacada de la última línea del FAQ) y 3 (awesome-lists y Show HN, que ya están en el
-roadmap y no son código).
+Del lado de GEO, las capas 1 y 2 están hechas (PR #6 mergeado, PR #7 abierto). Queda:
+validar las tres páginas con datos en el Rich Results Test una vez publicadas, verificar
+`exportal.dev` en Search Console y mandarle el sitemap de cinco URLs, y la capa 3, que es la que
+mueve la aguja y no es código: awesome-lists, Show HN y Reddit, ya planificadas en `ROADMAP.md`.
+Conviene además tomar una línea base preguntándoles hoy a ChatGPT, Claude y Perplexity qué dicen
+de Exportal, para tener contra qué comparar dentro de unos meses.
 
 ## 3. Cómo relanzar
 
