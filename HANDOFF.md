@@ -69,25 +69,41 @@
   suma JSON-LD, canonical y `llms.txt`. Atención: desde ahora el bump de versión también toca el
   `softwareVersion` de `docs/index.html` (lo vigila `tests/docs/landing-metadata.test.ts`).
 
-## 2. Próximo paso (acordado el 2026-09-08): publicar a las dos tiendas desde CI
+## 2. Publicar a las dos tiendas desde CI: el Marketplace hecho, Chrome pendiente
 
-Hoy `release.yml` (tag `v*`) corre `npm run ci`, empaqueta VSIX y ZIP y los cuelga de un GitHub
-Release. Falta el paso que los sube a las tiendas. Plan acordado el 2026-09-08, sin empezar:
+**Paso 1 hecho en el PR #12 (2026-09-18), esperando review.** `release.yml` pasó a tres jobs:
+`build` (chequeo de versiones contra el tag, `npm run ci`, `package:all`, notas del CHANGELOG,
+sube los artefactos), `github-release` (el único con `contents: write`) y `publish-vscode`
+(aprobación humana, publica al Marketplace y a Open VSX). Los artefactos se construyen una sola
+vez y viajan entre jobs, así a las tiendas van los mismos bytes que cuelgan del Release. El
+environment `stores` ya existe en GitHub, con Dionisio como revisor obligatorio y restringido a
+tags `v*`.
 
-1. **VS Code Marketplace primero** (se prueba en diez minutos). Job nuevo en `release.yml`:
-   `npx @vscode/vsce publish --packagePath <vsix> --pat $VSCE_PAT`. Secret: PAT de Azure DevOps
-   con scope *Marketplace → Manage* (vence, anotar la fecha). Opcional y gratis en el mismo paso:
-   `ovsx publish` a Open VSX (Cursor, VSCodium, Windsurf).
-2. **Chrome Web Store después.** API oficial: `PUT` del ZIP al item + `POST .../publish`
+**Lo único que falta para que el paso 1 funcione son los dos secrets, que son credenciales
+personales de Dionisio** (documentados en `CONTRIBUTING.md` §Releasing):
+
+- `VSCE_PAT`: PAT de Azure DevOps, scope *Marketplace → Manage*. Vence, anotar la fecha.
+- `OVSX_PAT`: token de open-vsx.org, después de reclamar el namespace `dioniipereyraa`.
+
+Se cargan en el environment `stores`, no en el repo:
+`gh secret set VSCE_PAT --env stores`. Sin `VSCE_PAT` el job falla ruidosamente; sin `OVSX_PAT`
+solo se saltea el paso secundario. **Hasta que existan, un tag publica el GitHub Release igual y
+la publicación a las tiendas queda esperando aprobación.**
+
+Falta el paso 2, la otra tienda:
+1. **Chrome Web Store.** API oficial: `PUT` del ZIP al item + `POST .../publish`
    (envuelto por `chrome-webstore-upload-cli` o la action `PlasmoHQ/bpp`). Credencial OAuth2:
    proyecto en Google Cloud, habilitar *Chrome Web Store API*, OAuth client, consentimiento a mano
    una vez, y secrets `client_id`, `client_secret`, `refresh_token`. **Dos gotchas:** la app OAuth
    tiene que estar *In production*, en *Testing* el refresh token expira a los 7 días; y `publish`
    no publica, encola la review.
-3. **Cuidados:** un job por tienda con `continue-on-error` en el de Chrome; los secrets solo en el
-   workflow de tags, nunca en `ci.yml` (corre en PRs); un `environment` con *required reviewers*
-   para tener un botón de aprobar antes de salir; y un chequeo de que el tag coincide con
-   `package.json` y `chrome/manifest.json`, que hoy nadie hace.
+2. **Cuidados:** `continue-on-error` en el job de Chrome. Lo demás de esta lista ya está hecho en
+   el PR #12: secrets solo en el workflow de tags, environment con *required reviewers*, y el
+   chequeo de versiones, que resultó estar a medias por un motivo que conviene recordar:
+   `scripts/package-chrome.mjs` pisa `manifest.version` con la de `package.json` al empaquetar, así
+   que el ZIP sale bien nombrado aunque el manifest en disco esté viejo. El paquete nunca miente,
+   el repositorio sí. Ahora lo vigilan `npm run check:versions` y
+   `tests/release/version-sync.test.ts`.
 
 Después de esto, sigue `ROADMAP.md` §Near-term (instalación en máquina limpia, Search Console,
 capturas reales, video, blog) y el Hito 35 (pairing en `exportal.dev/pair`).
