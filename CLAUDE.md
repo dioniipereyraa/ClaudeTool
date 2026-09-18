@@ -334,6 +334,14 @@ nos costaron caro.** Se lee entero antes de tocar código.
   sitemap, `llms.txt` y links internos usan la URL que el server sirve de verdad, con barra final;
   hay un test que falla si vuelve la forma pelada. Se descubrió midiendo con `curl` después del
   deploy, no leyendo el HTML. (2026-09-17)
+- **Ese mismo fix dejó afuera los dos README, porque el test solo miraba `docs/`** · el archivo que
+  los motores generativos más citan siguió un día entero mandando a los usuarios por un 301.
+  **Regla:** un test que sostiene un fix cubre todos los archivos donde el bug puede aparecer, no
+  solo donde apareció; y en markdown el texto visible del link también lleva la barra, porque un
+  modelo lee el texto, no el `href`. (2026-09-18)
+- **El repo se llama `ClaudeTool` y no tenía homepage seteada** · siendo la fuente que los motores
+  citan, no declaraba `exportal.dev`. **Regla:** la metadata del repo (homepage, topics,
+  descripción) es superficie de GEO y se revisa junto con la landing. (2026-09-18)
 - **Cloudflare no acepta un Worker con custom domain si el apex ya apunta a GitHub Pages** ·
   **Regla:** las subpáginas viven en `docs/<ruta>/index.html`. (2026-04-29)
 - **`chrome --headless --window-size=390` no da 390 en macOS** (clampa a 500 y recorta) ·

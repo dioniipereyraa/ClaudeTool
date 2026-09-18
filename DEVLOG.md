@@ -6125,3 +6125,120 @@ Dionisio corrió las tres preguntas en un asistente con búsqueda. Resultado, po
 
 ### Verificación
 - `npm run ci` verde, 360 tests. Captura de la sección revisada a ojo, consistente con el resto del sitio.
+
+## 2026-09-18 · GEO, capa 3: medir las listas antes de escribir para ellas, y el 301 que quedó en el README
+
+### Lo que veníamos a hacer, y por qué no era eso
+El `HANDOFF.md` mandaba abrir PRs a `awesome-claude-code`, `awesome-vscode` y
+`awesome-chrome-extensions`. Antes de redactar una línea se midió cada repo con la API de GitHub:
+estrellas, fecha del último merge, PRs abiertos, y la guía de contribución leída entera. Las tres
+premisas del plan resultaron falsas:
+
+| lista | estrellas | último merge | PRs abiertos |
+|---|---|---|---|
+| `hesreallyhim/awesome-claude-code` | 54.247 | 2026-09-14 | 0 |
+| `jqueryscript/awesome-claude-code` | 517 | nunca | 510 |
+| `viatsko/awesome-vscode` | 29.046 | 2023-08-03 | 30 |
+| `ccplugins/awesome-claude-code-plugins` | 946 | 2026-08-12 | 179 |
+| `linsa-io/chrome-extensions` | 481 | 2026-03-03 | 38 |
+
+1. **La lista que importa prohíbe los PRs.** `awesome-claude-code` exige el issue form del web UI,
+   avisa que quien abra un PR arriesga que lo restrinjan, y dice con todas las letras que no se
+   puede enviar por `gh` CLI. Los 0 PRs abiertos no son inactividad, son la política funcionando.
+   Además pide que la recomendación la haga una persona. Entregable nuestro: el texto, no el PR.
+2. **`awesome-vscode` no mergea desde agosto de 2023.** Tiene 30 PRs abiertos, cierra sin mergear
+   los recientes, y su último commit (2026-06-21) fue *"Remove low-traction extensions"*. Con 4
+   estrellas, un PR nuestro cae justo en el criterio con el que el mantenedor está podando.
+3. **`awesome-chrome-extensions` no existe** como lista canónica viva. Los candidatos son repos de
+   pocos cientos de estrellas, uno sin tocar desde 2024.
+
+Los requisitos de entrada de `awesome-claude-code` sí los cumple Exportal, pero por la vía (i), no
+por la (ii): 14 días o más de desarrollo activo desde el primer commit (2026-04-16, con 29 commits
+en los últimos 30 días), no por las 100 estrellas, que son 4.
+
+### Lo que sí encontramos midiendo, que vale más que las tres listas
+La línea base de ayer decía que `exportal.dev` no es fuente citada por ningún motor y que quien
+habla por Exportal es el repo. Mirando el repo como lo mira un motor aparecieron tres cosas:
+
+- **Los dos README linkean a la landing con la forma que devuelve 301.** El PR #8 arregló el
+  canonical, el sitemap, `llms.txt` y los links internos, pero **el test solo miraba `docs/`**, así
+  que `README.md` y `README.vsix.md` quedaron fuera del arreglo y de la red que lo sostiene.
+  Medido con `curl` contra el server real: `/export-claude-chat-to-vscode`, `/support` y `/privacy`
+  responden 301 hacia la versión con barra.
+- **El repo no tiene homepage seteada** (`homepage: ""`). La fuente que los motores sí citan no
+  declara la landing que queremos que citen.
+- **Un topic con typo:** `chatpgt` en vez de `chatgpt`.
+
+### Qué se cambió
+- `README.md` y `README.vsix.md`: los cinco links a la landing en su forma con barra final, **en el
+  href y en el texto visible**. Lo segundo importa porque un modelo lee el texto, no el atributo.
+- Los dos README suman el link a `/compare/`, que no estaban linkeando. Un crawler que llega por el
+  repo no tenía cómo descubrir esa página.
+- `tests/docs/landing-metadata.test.ts`: los dos README entran a la lista de fuentes del test que
+  impide la forma pelada, y la clase de caracteres del lookahead suma `]` para que el caso markdown
+  `[texto](url)` quede cubierto además del HTML.
+
+### Verificación
+- Se comprobó que el test **falla** ante la recaída, no solo que pasa: con `git stash` del README
+  corregido, `README.md should not point at /export-claude-chat-to-vscode`. Un test que no falla
+  ante el bug que dice cubrir no prueba nada.
+- `npm run ci` verde: 360 tests en 28 archivos, lint y typecheck limpios, build OK.
+- Las nueve URLs medidas con `curl` antes de tocar nada: las cinco con barra dan 200 directo, las
+  cuatro peladas dan 301.
+
+### Lo otro que salió de la misma medición
+- **Un GIF de la demo** (`docs/screenshots/exportal-demo.gif`, 692 KB, generado desde el mismo MP4
+  a 800 px y 10 fps). El MP4 sigue siendo el de la landing y el README propio, que por peso ganó
+  la medición de LCP del 2026-04-29. El GIF existe para el caso contrario: markdown de terceros,
+  donde GitHub sanitiza `<video>` y una URL pelada no embebe. Todas las superficies de la capa 3
+  (awesome-lists, foros, Show HN) son de ese tipo. El comando de `ffmpeg` quedó en
+  `docs/screenshots/README.md` para que el binario no sea huérfano.
+- **El PR a `awesome-vscode` se preparó igual**, con la decisión tomada sabiendo que el repo no
+  mergea desde 2023: es barato y la espera no cuesta nada. Entrada en `# Productivity` en orden
+  alfabético, link al Marketplace y no a GitHub como pide su guía, índice actualizado y el GIF
+  referenciado por `raw.githubusercontent.com`. **Ojo con el orden:** su CI corre `awesome_bot`
+  sobre todos los links, así que el GIF tiene que estar en `main` antes de abrir ese PR, o el
+  check arranca en rojo.
+- **La metadata del repo, corregida:** `homepage` pasó a `https://exportal.dev` (estaba vacía) y
+  el topic `chatpgt` a `chatgpt`.
+- **Lo que NO se hizo:** renombrar el repo de `ClaudeTool` a `exportal`. La marca es Exportal y la
+  URL que los motores citan dice otra cosa, pero el rename toca los links raw de las imágenes y lo
+  declarado en las dos tiendas. Queda como decisión abierta.
+
+### El texto para el form de `awesome-claude-code`, listo para pegar
+La recomendación la manda Dionisio desde
+`https://github.com/hesreallyhim/awesome-claude-code/issues/new?template=recommend-resource.yml`.
+Queda acá porque el form no se puede automatizar y el texto se pierde si vive solo en un chat.
+
+| campo | valor |
+|---|---|
+| Display Name | `Exportal` |
+| Category | `Providers, Runtime & Integration Infrastructure` |
+| Link | `https://github.com/dioniipereyraa/ClaudeTool` |
+| Author Name | `Dioni Pereyra` |
+| Author Link | `https://github.com/dioniipereyraa` |
+
+Description, 415 caracteres de los 500 que admite, una línea, sin emojis y descriptiva y no
+promocional como pide su guía de estilo:
+
+> A VS Code extension and Chrome companion that move a conversation between the web chats and
+> Claude Code: a claude.ai, Claude Design or ChatGPT chat is exported to Markdown in the workspace
+> and attached to Claude Code as an @-mention, and a Claude Code session can be sent back to the
+> web chat. The two halves talk over a token-authenticated loopback bridge on 127.0.0.1, with no
+> remote server, account or telemetry.
+
+La categoría se eligió mirando el CSV de los 212 recursos de la lista, no a ojo: en
+`Providers, Runtime & Integration Infrastructure` ya vive `Flue`, *"a tiny bridge that lets Claude
+Code drive desktop software"*, que es la misma familia. `Memory & Context Persistence`, la otra
+candidata, resultó ser índices de historial y memoria persistente, que no es lo que hace Exportal.
+Se revisaron además los 212 por si había un equivalente: ninguno mueve una conversación de la web
+hacia Claude Code. **El sexto checkbox del form es una trampa deliberada** y va sin marcar.
+
+### La regla que sale
+**Cuando un fix se apoya en un test, el test tiene que cubrir todos los archivos donde el bug puede
+aparecer, no solo donde apareció.** El PR #8 arregló `docs/` y dejó los README con el mismo defecto
+durante un día, en el archivo que los motores más citan.
+
+Y la otra, para el trabajo de difusión: **antes de escribir para una lista, medir si la lista está
+viva y qué acepta.** Dos de los tres destinos del plan no servían, y eso se supo con tres llamadas
+a la API, no después de redactar tres textos.
