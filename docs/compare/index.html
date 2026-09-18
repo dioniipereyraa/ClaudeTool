@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; font-src 'self'; connect-src 'self'; form-action 'none'; base-uri 'self';">
 <title>How Exportal compares to other chat exporters</title>
-<meta name="description" content="Exportal against a typical chat exporter, capability by capability, plus the honest list of cases where you should not use it. A plain exporter saves a chat to a file; Exportal puts it in your VS Code workspace and attaches it to Claude Code.">
+<meta name="description" content="Exportal against a typical chat exporter, against copying and pasting by hand, against Claude Code's native Session history, and against MCP. Includes the honest list of cases where you should not use Exportal at all.">
 <meta name="theme-color" content="#1f1f1f">
 
 <link rel="icon" href="/favicon.svg?v=2026-05-06" type="image/svg+xml">
@@ -14,7 +14,7 @@
 <link rel="canonical" href="https://exportal.dev/compare/">
 
 <meta property="og:title" content="How Exportal compares to other chat exporters">
-<meta property="og:description" content="Exportal against a typical chat exporter, capability by capability, plus the honest list of cases where you should not use it. A plain exporter saves a chat to a file; Exportal puts it in your VS Code workspace and attaches it to Claude Code.">
+<meta property="og:description" content="Exportal against a typical chat exporter, against copying and pasting by hand, against Claude Code's native Session history, and against MCP. Includes the honest list of cases where you should not use Exportal at all.">
 <meta property="og:type" content="article">
 <meta property="og:url" content="https://exportal.dev/compare/">
 <meta property="og:image" content="https://exportal.dev/screenshots/exportal-s6-chatgpt-1280x800.png">
@@ -50,6 +50,14 @@
           "acceptedAnswer": {
             "@type": "Answer",
             "text": "Exportal reads conversations you already have access to, through the same internal endpoints the site's own frontend uses, with the session already in your browser. It does not scrape the DOM, automate the UI, or work around rate limits. The official ZIP import is always available as a path that touches no internal API at all."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Is Exportal an MCP server, or a replacement for one?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Neither. MCP connects a model to tools and data, so claude.ai and Claude Code can reach the same repository or database. Exportal moves the conversation itself into your workspace. They solve different problems and work fine together: MCP shares capabilities, Exportal carries the context you already built."
           }
         },
         {
@@ -592,6 +600,23 @@
   <p class="cmp-note">"A typical chat exporter" is a generalisation about the category, not a claim about any specific product. Extensions change, so check the current behaviour of whichever one you are comparing against, especially on the two rows that matter for your data: where the conversation is sent, and whether secrets are redacted before anything is written.</p>
 </section>
 
+<section id="alternatives">
+  <h2>The alternatives you are actually choosing between</h2>
+  <p class="sub">Other exporters are not the real competition. These three are.</p>
+  <div class="prose">
+    <h3>Copying and pasting by hand</h3>
+    <p>Nothing to install, and for a short chat it is the right answer. Two things break quietly as the conversation grows. What you copy off the page is what the page renders, so collapsed thinking blocks and tool calls do not come along. And both claude.ai and ChatGPT truncate a paste over roughly 100K characters without telling you, which means the failure mode on a long conversation is a silent one: the model answers confidently from a conversation that lost its middle.</p>
+
+    <h3>Claude Code's own Session history</h3>
+    <p>If your conversation started as a <strong>Claude Code cloud session on the web</strong>, you do not need Exportal at all. Claude Code downloads it itself: Session history, then the Web tab. Anthropic's documentation is explicit about the limit, though: <a href="https://code.claude.com/docs/en/vs-code">only cloud sessions started with a GitHub repository appear there</a>, it needs a Claude.ai subscription rather than a Console account, and changes are not synced back.</p>
+    <p>So it covers sessions that were already Claude Code. It does not cover an ordinary chat at <code>claude.ai/chat</code>, a Claude Design project, or anything at all from ChatGPT. That gap is the one Exportal exists for. If your work lives inside cloud sessions with a repo attached, use the native path.</p>
+
+    <h3>MCP</h3>
+    <p>MCP is the usual answer when someone asks how to bridge claude.ai and Claude Code, and for its own question it is the right one. It gives a model access to tools and data, your repository, a database, an internal API, and both claude.ai and Claude Code can speak it, so both sides reach the same systems.</p>
+    <p>What MCP does not do is move a conversation. It shares capabilities, not context: an MCP server can let Claude Code read your repo, but it cannot hand it the reasoning you and Claude already did in a web chat. The two solve different problems and nothing stops you from using both.</p>
+  </div>
+</section>
+
 <section id="when-not">
   <h2>When you should not use Exportal</h2>
   <div class="prose">
@@ -624,6 +649,10 @@
   <details>
     <summary>Does reading the internal API risk my account?</summary>
     <p>Exportal reads conversations you already have access to, through the same internal endpoints the site's own frontend uses, with the session already in your browser. It does not scrape the DOM, automate the UI, or work around rate limits. The official ZIP import is always available as a path that touches no internal API at all.</p>
+  </details>
+  <details>
+    <summary>Is Exportal an MCP server, or a replacement for one?</summary>
+    <p>Neither. MCP connects a model to tools and data, so claude.ai and Claude Code can reach the same repository or database. Exportal moves the conversation itself into your workspace. They solve different problems and work fine together: MCP shares capabilities, Exportal carries the context you already built.</p>
   </details>
   <details>
     <summary>Can I use it purely as an exporter and ignore the Claude Code part?</summary>

@@ -77,6 +77,16 @@ trademark of OpenAI.
 - **How is it different from other chat exporters?** Other exporters save a chat to a file.
   Exportal attaches the exported conversation to Claude Code so you keep working on it, and it is
   bidirectional.
+- **Is this MCP?** No. MCP connects a model to tools and data, so claude.ai and Claude Code can
+  reach the same repository or database. Exportal moves the conversation itself. Different
+  problems, and they work together.
+- **Is this the same as Claude Code's Session history?** No. That resumes a Claude Code cloud
+  session, and only one started with a GitHub repository. It does not cover an ordinary claude.ai
+  chat, a Claude Design project, or anything from ChatGPT, which is the gap Exportal fills. If
+  your work already lives in cloud sessions with a repo attached, use the native path instead.
+- **Why not just copy and paste?** For a short chat, do that. What you copy is what the page
+  renders, so collapsed thinking and tool calls are lost, and both providers silently truncate a
+  paste over about 100K characters.
 
 ## What it deliberately does not do
 
