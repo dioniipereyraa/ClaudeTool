@@ -125,6 +125,59 @@ Co-authored commits with Claude Code or other AI assistants are fine,
 mark them with the standard `Co-Authored-By:` trailer so the credit
 trail is honest.
 
+## Releasing (maintainers)
+
+Pushing a `vX.Y.Z` tag runs `.github/workflows/release.yml`, which builds
+once and hands the same bytes down the chain: a GitHub Release first, then
+the stores.
+
+Before tagging, bump the version everywhere and confirm it:
+
+```sh
+npm run check:versions
+```
+
+It reads `package.json`, both fields of `package-lock.json`, and
+`chrome/manifest.json`, and it fails naming the file and field that lags.
+`tests/release/version-sync.test.ts` runs the same check on every commit,
+so drift shows up long before release day. The landing's `softwareVersion`
+is covered separately by `tests/docs/landing-metadata.test.ts`, which is why
+a bump also means running `node scripts/build-landing-jsonld.mjs`.
+
+### The pipeline
+
+1. **build**: version check against the tag, `npm run ci`, `npm run
+package:all`, release notes carved out of `CHANGELOG.md`. Uploads the
+   VSIX, the companion ZIP and the notes as a workflow artifact.
+2. **github-release**: downloads that artifact and publishes the GitHub
+   Release. The only job with `contents: write`.
+3. **publish-vscode**: waits for a human to approve the `stores`
+   environment, then publishes the VSIX to the VS Code Marketplace and to
+   Open VSX. Publishing cannot be undone in either place, a bad version is
+   superseded rather than withdrawn, hence the approval gate.
+
+The artifacts are built once and reused, so what reaches the stores is
+byte-for-byte what hangs off the GitHub Release.
+
+### Secrets
+
+Both live on the `stores` environment, never on the repository at large:
+`ci.yml` runs on pull requests, including from forks, and must never be able
+to read them.
+
+| secret     | where it comes from                                                                             |
+| ---------- | ----------------------------------------------------------------------------------------------- |
+| `VSCE_PAT` | Azure DevOps personal access token, scope _Marketplace → Manage_. It expires, so note the date. |
+| `OVSX_PAT` | open-vsx.org access token, after claiming the `dioniipereyraa` namespace.                       |
+
+Open VSX is secondary: the step is `continue-on-error`, so a failure there
+never masks a Marketplace publish that already went through. Without
+`OVSX_PAT` the step reports and is skipped; without `VSCE_PAT` the job fails
+loudly, because that is the publish that matters.
+
+The Chrome Web Store is not wired up yet. Its plan, including the OAuth
+setup and its two gotchas, is in `HANDOFF.md`.
+
 ## What we say no to
 
 The project has explicit out-of-scope items in [`ROADMAP.md`](./ROADMAP.md):

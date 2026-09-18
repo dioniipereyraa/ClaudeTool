@@ -6242,3 +6242,74 @@ durante un día, en el archivo que los motores más citan.
 Y la otra, para el trabajo de difusión: **antes de escribir para una lista, medir si la lista está
 viva y qué acepta.** Dos de los tres destinos del plan no servían, y eso se supo con tres llamadas
 a la API, no después de redactar tres textos.
+
+## 2026-09-18 (tarde) · Publicar desde CI, y el chequeo de versiones que faltaba de verdad
+
+### Lo que decía el plan y lo que encontró la medición
+El `HANDOFF.md` §2 pedía, entre otras cosas, "un chequeo de que el tag coincide con `package.json`
+y `chrome/manifest.json`, que hoy nadie hace". Medido antes de escribirlo, resultó estar a medias
+y por un motivo que valía la pena entender:
+
+- El paso *Sanity-check artifact versions match the tag* **ya validaba `package.json`** contra el
+  tag, de forma indirecta: el VSIX lleva la versión en el nombre, así que un `package.json`
+  desfasado hace que el archivo esperado no exista.
+- **No validaba `chrome/manifest.json`, y no podía.** `scripts/package-chrome.mjs:23` pisa
+  `manifest.version` con la de `package.json` mientras arma el ZIP. El artefacto siempre sale con
+  el nombre correcto aunque el manifest en disco esté viejo. **El paquete nunca miente; el
+  repositorio sí.** Y nadie estaba mirando el repositorio.
+- Tampoco validaba `package-lock.json`, que es justamente el que ya se quedó cinco releases atrás
+  (familia E de este archivo).
+
+### Qué se construyó
+- **`scripts/check-version-sync.mjs`**: compara las cuatro declaraciones escritas a mano
+  (`package.json`, los **dos** campos de `package-lock.json`, `chrome/manifest.json`) entre sí y
+  contra el tag. Reporta **todas** las diferencias, no la primera, porque un bump que se olvidó de
+  dos archivos tiene que nombrar los dos. Queda como `npm run check:versions`.
+- **`tests/release/version-sync.test.ts`**: siete tests. La parte que importa es el invariante
+  sobre el árbol real, que convierte la desincronización en **CI en rojo en el commit que la
+  causa**, no en una sorpresa el día del release. Se verificó que falla de verdad: desincronizando
+  a mano `packages[""].version` a 0.11.9, el test señala el archivo y el campo.
+- **`release.yml` en tres jobs**: `build` (versiones contra el tag, `npm run ci`, `package:all`,
+  notas del CHANGELOG, sube los artefactos), `github-release` (el único con `contents: write`) y
+  `publish-vscode` (aprobación humana, Marketplace y Open VSX).
+- **Environment `stores`** en GitHub, con Dionisio como revisor obligatorio y restringido a tags
+  `v*`, así los secrets no son alcanzables desde una rama cualquiera.
+
+### Las decisiones y su porqué
+- **Los artefactos se construyen una sola vez y viajan entre jobs.** Reconstruir en el job de
+  publicación abriría la puerta a que las tiendas reciban bytes distintos de los que cuelgan del
+  GitHub Release. Con `upload-artifact` lo que se publica es exactamente lo que se firmó como
+  release.
+- **Aprobación humana antes de publicar.** En las dos tiendas publicar no se deshace: una versión
+  mala no se baja, se tapa con otra. El proyecto ya es fail-closed en el producto, la misma regla
+  aplica al release.
+- **Open VSX sí, pero secundario.** Alcanza Cursor, VSCodium y Windsurf, que son público natural.
+  Va con `continue-on-error` para que una falla ahí no tape un publish al Marketplace que ya
+  ocurrió, y el paso avisa si falta el token en vez de morir con un error críptico.
+- **Permisos por job.** `contents: read` arriba, `contents: write` solo en el job que crea el
+  release, y nada en el que publica: lo que ese necesita son credenciales de tienda, no del repo.
+  Los secrets viven en el environment, nunca en `ci.yml`, que corre en PRs incluso de forks.
+- **El `.d.mts` al lado del script.** El test importa un `.mjs` que no puede ser TypeScript, porque
+  el workflow lo corre con node pelado antes de compilar nada. Sin declaraciones, cada llamada es
+  un `any` y el linter del proyecto lo rechaza con 20 errores. Declarar los tipos al lado sale más
+  barato que meter `allowJs` en el `tsconfig` y arrastrar efectos en todo el build.
+
+### Lo que queda afuera y por qué
+- **Los dos secrets los crea Dionisio**, son credenciales personales: `VSCE_PAT` (Azure DevOps,
+  scope *Marketplace → Manage*, vence) y `OVSX_PAT` (open-vsx.org, después de reclamar el
+  namespace). Documentados en `CONTRIBUTING.md` §Releasing.
+- **Chrome Web Store no se cableó**, siguiendo el orden del HANDOFF: primero el Marketplace, que
+  se prueba en diez minutos, y recién después la tienda cuyo OAuth tiene dos trampas conocidas.
+
+### Verificación
+- `npm run ci` verde: **367 tests en 29 archivos** (7 nuevos), lint y typecheck limpios.
+- El script probado en sus tres modos: coherencia interna, contra el tag correcto, y contra un tag
+  equivocado, donde sale con exit 1 y nombra las cuatro diferencias.
+- El YAML de los dos workflows parseado y verificada la cadena de `needs`, el `environment` y los
+  `permissions` de cada job.
+
+### La regla que sale
+**Un artefacto con el nombre correcto no prueba que el repositorio esté bien.** Cuando el
+empaquetado deriva o reescribe un dato, el chequeo tiene que mirar la fuente, no el producto. Y el
+chequeo que solo corre en el release se entera tarde: el mismo invariante como test corre en cada
+commit y avisa el día que se rompe.

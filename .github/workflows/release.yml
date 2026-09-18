@@ -5,11 +5,18 @@ on:
     tags:
       - 'v*'
 
+# Least privilege, per job. The build job only reads the repo, the release
+# job is the only one that writes to it, and the publishing job gets no
+# repository permissions at all: what it needs are store credentials, and
+# those live in the `stores` environment, not in the GITHUB_TOKEN.
+#
+# Store secrets exist only in this workflow, which runs on tags. `ci.yml`
+# runs on pull requests, including from forks, and must never see them.
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  release:
+  build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -20,6 +27,14 @@ jobs:
           cache: 'npm'
 
       - run: npm ci
+
+      # Before anything is built: the four hand-edited version declarations
+      # have to agree with each other and with the tag. `package-lock.json`
+      # once fell five releases behind, and the artifact name alone would
+      # not have caught it, since package-chrome.mjs rewrites the manifest
+      # version while zipping.
+      - name: Every version in the tree matches the tag
+        run: node scripts/check-version-sync.mjs "$GITHUB_REF_NAME"
 
       - run: npm run ci
 
@@ -54,6 +69,28 @@ jobs:
             exit 1
           fi
 
+      # The stores must receive the same bytes the GitHub Release carries,
+      # so the artifacts are built once and handed down, never rebuilt.
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-artifacts
+          path: |
+            exportal-*.vsix
+            exportal-companion-*.zip
+            release-notes.md
+          if-no-files-found: error
+          retention-days: 7
+
+  github-release:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: release-artifacts
+
       - uses: softprops/action-gh-release@v2
         with:
           body_path: release-notes.md
@@ -61,3 +98,51 @@ jobs:
             exportal-*.vsix
             exportal-companion-*.zip
           fail_on_unmatched_files: true
+
+  publish-vscode:
+    needs: [build, github-release]
+    runs-on: ubuntu-latest
+    # `stores` carries the credentials and the required reviewer. Publishing
+    # cannot be undone in either marketplace: a bad version is not withdrawn,
+    # it is superseded. So a human approves before anything leaves.
+    environment: stores
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: release-artifacts
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Resolve the artifact for this tag
+        id: artifact
+        run: echo "vsix=exportal-${GITHUB_REF_NAME#v}.vsix" >> "$GITHUB_OUTPUT"
+
+      # vsce fails with an opaque error on an empty PAT, and a missing secret
+      # is the likeliest cause the first few times.
+      - name: Publish to the VS Code Marketplace
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}
+          VSIX: ${{ steps.artifact.outputs.vsix }}
+        run: |
+          if [[ -z "$VSCE_PAT" ]]; then
+            echo "VSCE_PAT is not set on the 'stores' environment. See CONTRIBUTING.md." >&2
+            exit 1
+          fi
+          npx --yes @vscode/vsce@latest publish --packagePath "$VSIX" --pat "$VSCE_PAT"
+
+      # Open VSX serves Cursor, VSCodium and Windsurf. It is secondary: a
+      # failure here must not mask a Marketplace publish that already
+      # succeeded, so the step reports and the job stays green.
+      - name: Publish to Open VSX
+        continue-on-error: true
+        env:
+          OVSX_PAT: ${{ secrets.OVSX_PAT }}
+          VSIX: ${{ steps.artifact.outputs.vsix }}
+        run: |
+          if [[ -z "$OVSX_PAT" ]]; then
+            echo "OVSX_PAT is not set on the 'stores' environment; skipping Open VSX." >&2
+            exit 1
+          fi
+          npx --yes ovsx@latest publish "$VSIX" --pat "$OVSX_PAT"

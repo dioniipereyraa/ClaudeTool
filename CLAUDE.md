@@ -84,12 +84,19 @@ nos costaron caro.** Se lee entero antes de tocar código.
    `softwareVersion` del JSON-LD de la landing acompañe. El Companion se bumpea por simetría
    aunque no cambie. Si te olvidás de la landing falla `tests/docs/landing-metadata.test.ts`,
    que es justamente para que no mienta en silencio.
-2. Entrada en `CHANGELOG.md` con fecha. Si hubo silent patches, se consolidan acá.
-3. `npm run package:vsix` y `npm run package:chrome`. Los artefactos son ignorados por git.
-4. Tag `vX.Y.Z` → `release.yml` corre `npm run ci`, empaqueta y crea el GitHub Release. Hay un
-   chequeo de que el nombre del artefacto coincide con el tag.
-5. Subida a las tiendas: manual mientras no exista el paso de CI (plan en `HANDOFF.md`).
-   Chrome Web Store pasa por review (horas a días); un rebote llega por mail.
+2. `npm run check:versions` confirma que los cuatro lugares dicen lo mismo, y nombra el archivo y
+   el campo que quedó atrás. Lo mismo corre en cada commit vía `tests/release/version-sync.test.ts`
+   y otra vez contra el tag en el job `build`.
+3. Entrada en `CHANGELOG.md` con fecha. Si hubo silent patches, se consolidan acá.
+4. Tag `vX.Y.Z` → `release.yml`. Tres jobs encadenados: **build** (versiones contra el tag,
+   `npm run ci`, `package:all`, notas del CHANGELOG, sube los artefactos), **github-release**
+   (único con `contents: write`) y **publish-vscode** (espera la aprobación del environment
+   `stores`, publica al Marketplace y a Open VSX). Los artefactos se construyen una sola vez y
+   viajan: a las tiendas van los mismos bytes que cuelgan del GitHub Release.
+5. La aprobación del environment `stores` es a propósito: publicar no se deshace en ninguna de las
+   dos tiendas, una versión mala no se baja, se tapa con otra.
+6. Chrome Web Store: todavía a mano, el plan con sus dos gotchas de OAuth está en `HANDOFF.md`.
+   Pasa por review (horas a días); un rebote llega por mail.
 
 ### Bridge y Companion, lo que hay que saber
 
