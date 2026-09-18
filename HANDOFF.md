@@ -20,9 +20,18 @@
 - **PR #7 mergeado y en vivo:** capa 2 de GEO, dos páginas de contenido
   (`/export-claude-chat-to-vscode` y `/compare`) más `scripts/build-landing-jsonld.mjs`, que
   genera el JSON-LD de las tres páginas en vez de mantenerlo a mano.
-- **PR #8 abierto:** el `canonical` de las cuatro subpáginas apuntaba a una URL que GitHub Pages
-  responde con 301. Corregido a la forma con barra final en canonical, `og:url`, sitemap,
-  `llms.txt`, JSON-LD y links internos, con un test que impide la recaída. 360 tests.
+- **PR #8 mergeado y verificado en vivo:** el `canonical` de las cuatro subpáginas apuntaba a una
+  URL que GitHub Pages responde con 301. Corregido a la forma con barra final en canonical,
+  `og:url`, sitemap, `llms.txt`, JSON-LD y links internos, con un test que impide la recaída.
+  Las cinco URLs del sitemap dan 200 directo y cada canonical apunta a sí misma.
+- **Rich Results Test pasado** sobre las tres páginas con datos: cero errores. La home detecta
+  `Software Apps` con una sola advertencia, `aggregateRating` faltante, que **se deja así a
+  propósito**: inventar una calificación sin reseñas reales sería falsear un dato, y Google además
+  descuenta los ratings autodeclarados. `/compare/` y la guía detectan `Breadcrumbs` sin
+  advertencias. El `FAQPage` y el `HowTo` no generan rich result porque Google los restringió
+  (FAQ, 2023) y deprecó (HowTo); siguen porque los motores generativos sí los leen.
+- **Search Console:** `exportal.dev` verificado como propiedad de dominio el 2026-09-17, con el
+  TXT `google-site-verification` conviviendo con el SPF de Cloudflare. Falta enviar el sitemap.
 - **`main` limpio:** PR #4, #5, #6 y #7 mergeados, cero issues, ramas de trabajo borradas.
 - **Tags:** entre `v0.11.2` y `v0.11.10` no hay tags ni GitHub Releases (esas versiones se
   subieron a las tiendas a mano sin taggear). No hace falta rehacerlas; queda anotado para no
