@@ -6073,3 +6073,24 @@ implementados (5 INFORMATIVA pasaron a "fixed", 2 quedan como
 
 ### La lección
 - **La landing se mide después del deploy, no en el árbol.** El HTML era correcto en el repo y el problema solo existía en la interacción con el servidor real. Nada en el código lo podía revelar; un `curl -w "%{http_code} -> %{redirect_url}"` a cada URL del sitemap lo mostró en un segundo.
+
+## 2026-09-17 (línea base) · Qué dice hoy la web de Exportal, antes de la capa 3
+
+### El protocolo
+Tres consultas fijas, para repetir dentro de dos o tres meses y comparar. Se anotan las fuentes que el motor cita, no solo si aparece:
+
+1. **Marca:** `Exportal claude.ai Claude Code VS Code bridge extension`
+2. **Genérica objetivo:** `how to export a claude.ai chat into VS Code and continue it in Claude Code`
+3. **Categoría:** `best chrome extension to export Claude conversations comparison 2026`
+
+### Qué devolvió (2026-09-17, buscador con resumen generado)
+
+- **Consulta 1, marca: aparece completo.** Chrome Web Store, VS Code Marketplace, el repo y `exportal.dev`. El resumen generado describe el producto con precisión, incluido el bridge por loopback en `127.0.0.1` con token, las dos mitades obligatorias y la licencia MIT. La información que publicamos se está leyendo bien.
+- **Consulta 2, la que importa: la gana Exportal.** El repo sale primero y el resumen lo recomienda explícitamente como la solución, con los pasos correctos (el FAB, el `@-mention`, la detección del ZIP en Downloads). **Pero las fuentes que cita son GitHub, la Chrome Web Store y el Marketplace, no `exportal.dev`.** Esperable: las páginas de contenido se publicaron hoy y el sitemap se envió hoy.
+- **Consulta 3, categoría: Exportal no aparece.** El terreno lo ocupan listicles de blogs de producto (`backrun.co`, `claudekit.app`, `ai-toolbox.co`, `pactify.io`) que rankean "los mejores exporters". Ninguno lo menciona.
+
+### Lo que esto significa
+- **La hipótesis de la capa 3 queda confirmada por medición, no por intuición:** hoy quien habla por Exportal son GitHub y las dos tiendas. La landing todavía no es fuente citada. Por eso las awesome-lists y los foros mueven más la aguja que cualquier markup.
+- **La consulta 2 ya se gana** porque es un nicho donde casi no hay competencia: nadie más hace el puente. El trabajo ahí es defensivo, que `exportal.dev` entre como fuente citada junto al repo.
+- **La consulta 3 no se gana escribiendo markup.** Se gana estando en esas listas, o no se gana. Y es coherente con lo que dice `/compare`: Exportal no compite como exporter, y un usuario que solo quiere archivar chats tiene mejores opciones. No hay que forzar esa consulta.
+- **La métrica a mirar en la próxima medición** no es "aparece o no" en la consulta 2, que ya aparece, sino **si `exportal.dev` entra entre las fuentes citadas**. Eso es lo que dirá si las capas 1 y 2 sirvieron.
