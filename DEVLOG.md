@@ -6109,3 +6109,19 @@ Dionisio corrió las tres preguntas en un asistente con búsqueda. Resultado, po
 1. **"Bridge" ya está ocupado.** En el contexto de Claude, un modelo que escucha "bridge claude.ai y Claude Code" piensa en **MCP**, que comparte herramientas y datos, no conversaciones. La landing se define a sí misma como bridge y esa palabra la lleva al lugar equivocado. Falta decir explícitamente en qué se diferencia de MCP.
 2. **El competidor real no es otro exporter.** Es **copiar y pegar a mano** y el **Session history nativo de Claude Code web**. `/compare` compara contra "un exporter típico", que es la comparación que nadie hace. Hay que comparar contra lo que el modelo propone de verdad.
 3. **La presencia es inestable.** La misma pregunta, dos veces seguidas, cita o no cita. Cualquier medición futura tiene que repetir cada consulta dos o tres veces antes de concluir nada.
+
+## 2026-09-17 (cierre de jornada) · `/compare` ahora compara contra las alternativas reales
+
+### Qué hicimos
+- Sección nueva en `/compare`, **"The alternatives you are actually choosing between"**, con las tres que la línea base mostró que son la competencia de verdad: **copiar y pegar a mano**, el **Session history** propio de Claude Code y **MCP**. La tabla contra "un exporter típico" se quedó, pero ya no es lo único.
+- **Se midió antes de escribir.** El asistente había dicho que el Session history nativo baja sesiones de la web, pero los requisitos exactos salieron de la documentación de Anthropic, no de la respuesta del modelo: solo aparecen en la pestaña Web las **cloud sessions iniciadas con un repo de GitHub**, hace falta suscripción de Claude.ai y no de Console, y los cambios no se sincronizan de vuelta. La página lo dice con esas palabras y linkea a la fuente.
+- La sección dice sin vueltas que **si tu trabajo ya vive en cloud sessions con repo, uses el camino nativo**. Y que para un chat corto, copiar y pegar es la respuesta correcta.
+- Pregunta nueva en el FAQ de `/compare`: *"Is Exportal an MCP server, or a replacement for one?"*. El JSON-LD la tomó sola: el `FAQPage` pasó de 4 a 5 preguntas sin tocar el bloque a mano.
+- `llms.txt` sumó las tres respuestas equivalentes, la guía linkea a la sección, y la `description` de `/compare` nombra las alternativas.
+
+### Por qué
+- La línea base mostró que a la pregunta *"what tools bridge claude.ai and Claude Code"* un modelo contesta **MCP**, y que a *"cómo muevo una conversación a VS Code"* propone primero copiar y pegar y segundo el Session history, con Exportal tercero. **Esas son las comparaciones que el usuario tiene en la cabeza y la página no contestaba ninguna.**
+- Decir cuándo la alternativa es mejor no regala nada: un modelo que recomienda herramientas necesita saber dónde encaja cada una, y la respuesta honesta al caso "cloud session con repo" es que Exportal ahí no hace falta.
+
+### Verificación
+- `npm run ci` verde, 360 tests. Captura de la sección revisada a ojo, consistente con el resto del sitio.
