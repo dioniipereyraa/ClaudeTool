@@ -6094,3 +6094,18 @@ Tres consultas fijas, para repetir dentro de dos o tres meses y comparar. Se ano
 - **La consulta 2 ya se gana** porque es un nicho donde casi no hay competencia: nadie más hace el puente. El trabajo ahí es defensivo, que `exportal.dev` entre como fuente citada junto al repo.
 - **La consulta 3 no se gana escribiendo markup.** Se gana estando en esas listas, o no se gana. Y es coherente con lo que dice `/compare`: Exportal no compite como exporter, y un usuario que solo quiere archivar chats tiene mejores opciones. No hay que forzar esa consulta.
 - **La métrica a mirar en la próxima medición** no es "aparece o no" en la consulta 2, que ya aparece, sino **si `exportal.dev` entra entre las fuentes citadas**. Eso es lo que dirá si las capas 1 y 2 sirvieron.
+
+### La otra mitad de la línea base: qué contesta un LLM con búsqueda (mismo día)
+
+Dionisio corrió las tres preguntas en un asistente con búsqueda. Resultado, por pregunta:
+
+- **"What is Exportal and what does it do?"**: respuesta completa y exacta. Nombra el loopback por `127.0.0.1`, que no hay servidor remoto ni telemetría ni cuentas, MIT, Claude Design, el `/resume` opcional, y hasta la versión 0.11.10 con su fecha de actualización en la Chrome Web Store. Cuando se pregunta por la marca, el modelo tiene todo.
+- **"How do I move a conversation from claude.ai into VS Code…"**: Exportal aparece **tercero**, como *"a convenient third-party option"*. Primero propone copiar y pegar a mano en un `claude-context.md`, y segundo el Session history nativo de Claude Code web. **Y al repetir la misma pregunta un minuto después, no lo citó en absoluto.**
+- **"What tools bridge claude.ai and Claude Code?"**: **no menciona Exportal**. Contesta MCP y Claude Code Projects.
+- **Fuentes citadas en las tres: GitHub y la documentación de Anthropic. `exportal.dev` en ninguna.**
+
+### Los tres hallazgos, que valen más que las búsquedas
+
+1. **"Bridge" ya está ocupado.** En el contexto de Claude, un modelo que escucha "bridge claude.ai y Claude Code" piensa en **MCP**, que comparte herramientas y datos, no conversaciones. La landing se define a sí misma como bridge y esa palabra la lleva al lugar equivocado. Falta decir explícitamente en qué se diferencia de MCP.
+2. **El competidor real no es otro exporter.** Es **copiar y pegar a mano** y el **Session history nativo de Claude Code web**. `/compare` compara contra "un exporter típico", que es la comparación que nadie hace. Hay que comparar contra lo que el modelo propone de verdad.
+3. **La presencia es inestable.** La misma pregunta, dos veces seguidas, cita o no cita. Cualquier medición futura tiene que repetir cada consulta dos o tres veces antes de concluir nada.
