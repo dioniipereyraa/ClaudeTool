@@ -30,9 +30,21 @@
   descuenta los ratings autodeclarados. `/compare/` y la guía detectan `Breadcrumbs` sin
   advertencias. El `FAQPage` y el `HowTo` no generan rich result porque Google los restringió
   (FAQ, 2023) y deprecó (HowTo); siguen porque los motores generativos sí los leen.
-- **Search Console:** `exportal.dev` verificado como propiedad de dominio el 2026-09-17, con el
-  TXT `google-site-verification` conviviendo con el SPF de Cloudflare. Falta enviar el sitemap.
-- **`main` limpio:** PR #4, #5, #6 y #7 mergeados, cero issues, ramas de trabajo borradas.
+- **Search Console: listo.** `exportal.dev` verificado como propiedad de **dominio** el
+  2026-09-17 (TXT `google-site-verification` conviviendo con el SPF de Cloudflare), y sitemap
+  enviado con **5 páginas descubiertas**. Ojo para la próxima: en una propiedad de dominio el
+  campo pide la URL completa (`https://exportal.dev/sitemap.xml`), la ruta relativa da
+  "Dirección de sitemap no válida".
+- **Línea base de GEO tomada el 2026-09-17**, con las consultas textuales y los resultados en el
+  `DEVLOG.md`. Lo esencial: por marca la respuesta es completa y exacta; en la consulta genérica
+  Exportal aparece **tercero**, detrás de copiar y pegar y del Session history nativo, y de forma
+  **inestable** (la misma pregunta dos veces citó y no citó); a *"what tools bridge claude.ai and
+  Claude Code"* el modelo contesta **MCP** y no lo menciona. **`exportal.dev` no fue fuente citada
+  en ninguna consulta**: hoy hablan por Exportal el repo y las dos tiendas.
+- **PR #9 abierto:** sección en `/compare` contra las tres alternativas reales (copiar y pegar,
+  Session history nativo, MCP) y una quinta pregunta sobre MCP en su FAQ. Sale directo de lo que
+  mostró la línea base.
+- **`main` limpio:** PR #4 a #8 mergeados, cero issues, ramas de trabajo borradas.
 - **Tags:** entre `v0.11.2` y `v0.11.10` no hay tags ni GitHub Releases (esas versiones se
   subieron a las tiendas a mano sin taggear). No hace falta rehacerlas; queda anotado para no
   extrañarse.
@@ -68,12 +80,21 @@ Release. Falta el paso que los sube a las tiendas. Plan acordado el 2026-09-08, 
 Después de esto, sigue `ROADMAP.md` §Near-term (instalación en máquina limpia, Search Console,
 capturas reales, video, blog) y el Hito 35 (pairing en `exportal.dev/pair`).
 
-Del lado de GEO, las capas 1 y 2 están hechas (PR #6 mergeado, PR #7 abierto). Queda:
-validar las tres páginas con datos en el Rich Results Test una vez publicadas, verificar
-`exportal.dev` en Search Console y mandarle el sitemap de cinco URLs, y la capa 3, que es la que
-mueve la aguja y no es código: awesome-lists, Show HN y Reddit, ya planificadas en `ROADMAP.md`.
-Conviene además tomar una línea base preguntándoles hoy a ChatGPT, Claude y Perplexity qué dicen
-de Exportal, para tener contra qué comparar dentro de unos meses.
+### Hilo GEO: al retomar, empezar por acá
+
+Capas 1 y 2 hechas y en vivo, Rich Results limpio, Search Console con el sitemap enviado, línea
+base tomada. **Lo primero de mañana: mergear el PR #9** (o revisarlo), borrar su rama y seguir con
+la **capa 3**, que es la que mueve la aguja y no es código:
+
+1. PRs a `awesome-claude-code`, `awesome-vscode` y `awesome-chrome-extensions`, una línea
+   descriptiva cada uno. Los puedo preparar yo; publicarlos va con la cuenta de Dionisio.
+2. Show HN y Reddit (`r/ClaudeAI`, `r/vscode`), con los prerrequisitos que ya fija `ROADMAP.md`:
+   Chrome Store aprobado, VSIX estable, video bueno, landing andando. Un solo intento de Show HN,
+   no quemarlo antes de tiempo.
+3. Volver a medir dentro de dos o tres meses con **las mismas consultas del DEVLOG**, repitiendo
+   cada una dos o tres veces porque la respuesta es inestable. **La métrica no es "aparece o no"**
+   en la consulta genérica, que ya aparece, sino **si `exportal.dev` entra entre las fuentes
+   citadas**. Eso es lo que dirá si las capas 1 y 2 sirvieron.
 
 ## 3. Cómo relanzar
 
