@@ -349,6 +349,14 @@ nos costaron caro.** Se lee entero antes de tocar código.
 - **El repo se llama `ClaudeTool` y no tenía homepage seteada** · siendo la fuente que los motores
   citan, no declaraba `exportal.dev`. **Regla:** la metadata del repo (homepage, topics,
   descripción) es superficie de GEO y se revisa junto con la landing. (2026-09-18)
+- **Publicar al VS Code Marketplace desde CI cuesta una tarjeta de crédito** · `vsce publish`
+  necesita un PAT, el PAT se emite dentro de una organización de Azure DevOps, y desde 2026 crear
+  una organización exige vincular una **suscripción de Azure**: el botón *Continue* del alta no
+  hace nada y el cartel lo dice. Encima el PAT que se obtendría es de los *global* (**All
+  accessible organizations**), que Microsoft **retira el 1 de diciembre de 2026**. **Regla:** el
+  Marketplace se sube a mano por `marketplace.visualstudio.com/manage`, que no pide token; el job
+  de CI se saltea el registro que no tenga secret y lo dice en el summary. Revisar cuando Entra ID
+  tenga un camino para GitHub Actions y no solo para Azure Pipelines. (2026-09-19)
 - **Cloudflare no acepta un Worker con custom domain si el apex ya apunta a GitHub Pages** ·
   **Regla:** las subpáginas viven en `docs/<ruta>/index.html`. (2026-04-29)
 - **`chrome --headless --window-size=390` no da 390 en macOS** (clampa a 500 y recorta) ·

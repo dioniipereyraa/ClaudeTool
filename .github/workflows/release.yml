@@ -99,11 +99,11 @@ jobs:
             exportal-companion-*.zip
           fail_on_unmatched_files: true
 
-  publish-vscode:
+  publish-extension:
     needs: [build, github-release]
     runs-on: ubuntu-latest
     # `stores` carries the credentials and the required reviewer. Publishing
-    # cannot be undone in either marketplace: a bad version is not withdrawn,
+    # cannot be undone in either registry: a bad version is not withdrawn,
     # it is superseded. So a human approves before anything leaves.
     environment: stores
     steps:
@@ -119,34 +119,46 @@ jobs:
         id: artifact
         run: echo "vsix=exportal-${GITHUB_REF_NAME#v}.vsix" >> "$GITHUB_OUTPUT"
 
-      # Both CLIs read the token from the environment (vsce from VSCE_PAT,
-      # ovsx from OVSX_PAT), so it never appears on a command line, where
-      # it would be visible to every process on the runner.
+      # Neither token is required, and a missing one is reported rather than
+      # fatal. The VS Code Marketplace is the reason why: publishing to it
+      # from CI needs a PAT, minting a PAT needs an Azure DevOps
+      # organization, and since 2026 creating one requires linking an Azure
+      # subscription, which requires a payment method. That price buys a
+      # credential Microsoft retires on 1 December 2026. Until that is worth
+      # paying, the VSIX goes up through the Marketplace web UI by hand,
+      # exactly as every release so far.
       #
-      # vsce fails with an opaque error on an empty PAT, and a missing
-      # secret is the likeliest cause the first few times.
+      # Both CLIs read the token from the environment (vsce from VSCE_PAT,
+      # ovsx from OVSX_PAT), so it never appears on a command line, where it
+      # would be visible to every process on the runner.
       - name: Publish to the VS Code Marketplace
+        id: marketplace
         env:
           VSCE_PAT: ${{ secrets.VSCE_PAT }}
           VSIX: ${{ steps.artifact.outputs.vsix }}
         run: |
           if [[ -z "$VSCE_PAT" ]]; then
-            echo "VSCE_PAT is not set on the 'stores' environment. See CONTRIBUTING.md." >&2
-            exit 1
+            echo "- **VS Code Marketplace**: skipped, no \`VSCE_PAT\`. Upload \`$VSIX\` by hand at https://marketplace.visualstudio.com/manage" >> "$GITHUB_STEP_SUMMARY"
+            echo "VSCE_PAT is not set; skipping. See CONTRIBUTING.md." >&2
+            exit 0
           fi
           npx --yes @vscode/vsce@latest publish --packagePath "$VSIX"
+          echo "- **VS Code Marketplace**: published \`$VSIX\`" >> "$GITHUB_STEP_SUMMARY"
 
-      # Open VSX serves Cursor, VSCodium and Windsurf. It is secondary: a
-      # failure here must not mask a Marketplace publish that already
-      # succeeded, so the step reports and the job stays green.
+      # Open VSX serves Cursor, VSCodium and Windsurf. `continue-on-error`
+      # so a failure here cannot mask a Marketplace publish that already
+      # went through.
       - name: Publish to Open VSX
+        id: openvsx
         continue-on-error: true
         env:
           OVSX_PAT: ${{ secrets.OVSX_PAT }}
           VSIX: ${{ steps.artifact.outputs.vsix }}
         run: |
           if [[ -z "$OVSX_PAT" ]]; then
-            echo "OVSX_PAT is not set on the 'stores' environment; skipping Open VSX." >&2
-            exit 1
+            echo "- **Open VSX**: skipped, no \`OVSX_PAT\`" >> "$GITHUB_STEP_SUMMARY"
+            echo "OVSX_PAT is not set; skipping. See CONTRIBUTING.md." >&2
+            exit 0
           fi
           npx --yes ovsx@latest publish "$VSIX"
+          echo "- **Open VSX**: published \`$VSIX\`" >> "$GITHUB_STEP_SUMMARY"

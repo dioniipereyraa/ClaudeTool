@@ -6336,3 +6336,56 @@ El workflow se escribió sin haberlo ejecutado nunca, así que antes de darlo po
 empaquetado deriva o reescribe un dato, el chequeo tiene que mirar la fuente, no el producto. Y el
 chequeo que solo corre en el release se entera tarde: el mismo invariante como test corre en cada
 commit y avisa el día que se rompe.
+
+## 2026-09-19 · El Marketplace desde CI cuesta una tarjeta, y el token se muere en diciembre
+
+### Qué pasó
+Con el PR #12 ya armado, faltaba que Dionisio creara el `VSCE_PAT`. No se pudo, y el camino hasta
+descubrir por qué dejó tres cosas que vale la pena anotar:
+
+1. **`dev.azure.com/_usersSettings/tokens` da 404** si no tenés una organización de Azure DevOps.
+   La página de tokens vive adentro de una organización. Publicar al Marketplace a mano por su web
+   nunca pidió token, así que se puede tener un publisher publicando hace meses sin haber creado
+   jamás una organización. Es exactamente el caso de Exportal.
+2. **El login rebotaba con `post_request_failed` de MSAL** en Safari con un bloqueador de contenido
+   activo. La doc de MSAL dice que ese error es literalmente "el POST no llegó: 4xx/5xx o red".
+   Se midió con `curl` desde la misma máquina: `dev.azure.com`, `login.microsoftonline.com` y
+   `marketplace.visualstudio.com` daban 200. O sea no era la red, era el navegador. En Chrome
+   entró de una.
+3. **Y ahí apareció el precio real.** El alta de organización corta con:
+   *"To create an Azure DevOps organization, you need to link it to an Azure subscription. We
+   couldn't find any subscriptions you have access to."* El botón *Continue* no responde porque
+   falta la suscripción, no porque esté roto. Suscripción significa tarjeta.
+
+### La decisión
+**No se paga.** Lo que se compraría es un PAT de los *global* (**All accessible organizations**,
+el único que el Marketplace acepta), y Microsoft **retira los global PATs el 1 de diciembre de
+2026**. Es decir: tarjeta y una tarde, a cambio de dos meses de automatización en un solo
+registro, después de los cuales hay que rehacer el camino entero con Entra ID, cuyo setup
+documentado es para Azure DevOps Pipelines y no para GitHub Actions.
+
+El Marketplace se sigue subiendo por `marketplace.visualstudio.com/manage`, que no pide token, como
+en todos los releases hasta ahora.
+
+### Qué se cambió en consecuencia
+- El job pasó a llamarse **`publish-extension`** y **ningún registro es obligatorio**: el que no
+  tenga su secret se saltea, escribe en el `$GITHUB_STEP_SUMMARY` que quedó pendiente y con qué
+  archivo, y el release sigue verde. Un release no se cae por una publicación que nunca se
+  configuró, y un skip no se lee como un publish hecho.
+- Se descartó un paso final que resumía con `if: ${{ !secrets.VSCE_PAT || ... }}`: **el contexto
+  `secrets` no está disponible en el `if` de un step**, así que esa condición no habría hecho lo
+  que decía. Los dos pasos ya dejan su línea en el summary.
+- `CONTRIBUTING.md` explica por qué el secret **no** está puesto, con la cita del cartel, para que
+  el próximo que lo lea no repita la tarde. Si algún día se emite el PAT, alcanza con
+  `gh secret set VSCE_PAT --env stores`: el paso publica solo en cuanto el secret existe.
+
+### Lo que sí conviene hacer
+**Open VSX**, que no tiene nada de esto y alcanza Cursor, VSCodium y Windsurf. Y mejor todavía,
+`ovsx` 1.2.0 soporta `--trusted-publishing`: cambia el OIDC de GitHub Actions por un token efímero
+y elimina el secret.
+
+### La regla que sale
+**Antes de automatizar una publicación, averiguar qué cuesta la credencial y cuánto vive.** Acá el
+obstáculo no era técnico ni se resolvía con otro navegador: era un requisito de facturación y una
+fecha de retiro, y ninguno de los dos aparece hasta el último formulario. La medición que faltaba
+no era de código.

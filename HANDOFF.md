@@ -69,7 +69,7 @@
   suma JSON-LD, canonical y `llms.txt`. Atención: desde ahora el bump de versión también toca el
   `softwareVersion` de `docs/index.html` (lo vigila `tests/docs/landing-metadata.test.ts`).
 
-## 2. Publicar a las dos tiendas desde CI: el Marketplace hecho, Chrome pendiente
+## 2. Publicar desde CI: el pipeline hecho, las tiendas todavía a mano
 
 **Paso 1 hecho en el PR #12 (2026-09-18), esperando review.** `release.yml` pasó a tres jobs:
 `build` (chequeo de versiones contra el tag, `npm run ci`, `package:all`, notas del CHANGELOG,
@@ -79,18 +79,26 @@ vez y viajan entre jobs, así a las tiendas van los mismos bytes que cuelgan del
 environment `stores` ya existe en GitHub, con Dionisio como revisor obligatorio y restringido a
 tags `v*`.
 
-**Lo único que falta para que el paso 1 funcione son los dos secrets, que son credenciales
-personales de Dionisio** (documentados en `CONTRIBUTING.md` §Releasing):
+**El Marketplace queda a mano, y es una decisión medida, no una postergación.** El 2026-09-19 se
+intentó sacar el `VSCE_PAT` y apareció el precio real: `vsce publish` necesita un PAT, el PAT se
+emite dentro de una organización de Azure DevOps, y crear una organización hoy exige vincular una
+suscripción de Azure, o sea una tarjeta. Y lo que se compra con eso es un token de los *global*,
+que Microsoft **retira el 1 de diciembre de 2026**. Se sigue subiendo por
+`marketplace.visualstudio.com/manage`, que no pide token, como en todos los releases hasta ahora.
+**Retomar cuando Entra ID tenga un camino para GitHub Actions**, no antes.
 
-- `VSCE_PAT`: PAT de Azure DevOps, scope *Marketplace → Manage*. Vence, anotar la fecha.
-- `OVSX_PAT`: token de open-vsx.org, después de reclamar el namespace `dioniipereyraa`.
+**Lo que sí conviene hacer es Open VSX** (Cursor, VSCodium, Windsurf), que no tiene nada de esto:
+cuenta de Eclipse con el mismo usuario de GitHub, firmar el Publisher Agreement, generar el token y
+`npx ovsx create-namespace dioniipereyraa -p <token>` antes del primer publish. Después
+`gh secret set OVSX_PAT --env stores` y el job publica solo. Mejor todavía: `ovsx` 1.2.0 soporta
+`--trusted-publishing`, que cambia el OIDC de GitHub Actions por un token efímero y **elimina el
+secret**; hay que registrar al publisher como trusted publisher en open-vsx.org.
 
-Se cargan en el environment `stores`, no en el repo:
-`gh secret set VSCE_PAT --env stores`. Sin `VSCE_PAT` el job falla ruidosamente; sin `OVSX_PAT`
-solo se saltea el paso secundario. **Hasta que existan, un tag publica el GitHub Release igual y
-la publicación a las tiendas queda esperando aprobación.**
+El job `publish-extension` **no falla si falta un token**: saltea ese registro y lo dice en el
+summary del run. Un release nunca se cae por una publicación que nunca se configuró.
 
 Falta el paso 2, la otra tienda:
+
 1. **Chrome Web Store.** API oficial: `PUT` del ZIP al item + `POST .../publish`
    (envuelto por `chrome-webstore-upload-cli` o la action `PlasmoHQ/bpp`). Credencial OAuth2:
    proyecto en Google Cloud, habilitar *Chrome Web Store API*, OAuth client, consentimiento a mano

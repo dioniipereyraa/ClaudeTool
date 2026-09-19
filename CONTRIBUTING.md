@@ -151,17 +151,20 @@ package:all`, release notes carved out of `CHANGELOG.md`. Uploads the
    VSIX, the companion ZIP and the notes as a workflow artifact.
 2. **github-release**: downloads that artifact and publishes the GitHub
    Release. The only job with `contents: write`.
-3. **publish-vscode**: waits for a human to approve the `stores`
-   environment, then publishes the VSIX to the VS Code Marketplace and to
-   Open VSX. Publishing cannot be undone in either place, a bad version is
-   superseded rather than withdrawn, hence the approval gate.
+3. **publish-extension**: waits for a human to approve the `stores`
+   environment, then publishes the VSIX to whichever registries have a
+   token. Publishing cannot be undone in either place, a bad version is
+   superseded rather than withdrawn, hence the approval gate. A registry
+   without its token is skipped and named in the run summary, so a release
+   never fails over a publish that was never configured.
 
 The artifacts are built once and reused, so what reaches the stores is
 byte-for-byte what hangs off the GitHub Release.
 
 ### Secrets
 
-Both live on the `stores` **environment**, never on the repository at large:
+Neither is required, and today neither is set. When one exists it lives on
+the `stores` **environment**, never on the repository at large:
 `ci.yml` runs on pull requests, including from forks, and must never be able
 to read them. Repository-level secrets would be visible there; environment
 secrets are not, and `stores` is additionally restricted to `v*` tags.
@@ -175,35 +178,38 @@ Neither token is ever passed on a command line: `vsce` reads `VSCE_PAT` and
 `ovsx` reads `OVSX_PAT` from the environment, so they stay out of the
 process list and out of the logs.
 
-#### `VSCE_PAT`, for the VS Code Marketplace
+#### `VSCE_PAT`, for the VS Code Marketplace: not set, on purpose
 
-The tokens page lives **inside an Azure DevOps organization**, so
-`dev.azure.com/_usersSettings/tokens` answers 404 until you have one.
-Publishing to the Marketplace by hand through its web UI never needs a
-token, which is how a publisher can exist without an organization ever
-having been created.
+**The Marketplace is published by hand**, at
+[marketplace.visualstudio.com/manage](https://marketplace.visualstudio.com/manage),
+which takes an upload of the VSIX and no token at all. That is how every
+release so far has gone out, and the release job skips this registry and
+says so in the run summary.
 
-1. Sign in at [dev.azure.com](https://dev.azure.com) and create an
-   organization if you have none. It is free, and its name does not matter
-   here: it is **not** the Marketplace publisher (that is `dioniipereyraa`),
-   only the vehicle that can mint the token.
-2. Inside it, open the **User settings** gear next to your avatar, then
-   **Personal access tokens**. From then on the direct URL is
-   `https://dev.azure.com/{your-organization}/_usersSettings/tokens`.
-3. **New Token**, with:
-   - **Organization: `All accessible organizations`.** This is the setting
-     people get wrong. A token scoped to one organization authenticates but
-     cannot publish, and the failure does not say so.
-   - **Scopes:** click _Show all scopes_, then **Marketplace → Manage**. The
-     Marketplace scope is not in the short list.
-   - An expiry you can live with, written down somewhere.
+Automating it was attempted on 2026-09-19 and abandoned once the real
+price was visible. `vsce publish` needs a PAT; a PAT is minted inside an
+Azure DevOps organization; and creating an organization now refuses to
+continue without an Azure subscription:
 
-> **This mechanism has a deadline.** Microsoft retires global Azure DevOps
-> PATs on **1 December 2026**, and "global" is exactly what _All accessible
-> organizations_ means. The documented replacement is Microsoft Entra ID
-> (`vsce publish --azure-credential`), but its setup is written for Azure
-> DevOps Pipelines with workload identity federation, not for GitHub
-> Actions. Before that date this job needs revisiting.
+> To create an Azure DevOps organization, you need to link it to an Azure
+> subscription. We couldn't find any subscriptions you have access to.
+
+A subscription means a payment method on file. What it buys is a
+credential **Microsoft retires on 1 December 2026**: the Marketplace
+requires a PAT scoped to _All accessible organizations_, which is exactly
+the "global PAT" being retired. The documented replacement is Microsoft
+Entra ID (`vsce publish --azure-credential`), whose setup is written for
+Azure DevOps Pipelines with workload identity federation, not for GitHub
+Actions.
+
+So the trade was: a payment method and an afternoon, for two months of
+automation on one registry, after which the whole path has to be rebuilt
+anyway. Revisit when Entra ID has a GitHub Actions story, not before.
+
+If that changes and a PAT does get minted, `gh secret set VSCE_PAT --env
+stores` is all the job needs: the step publishes the moment the secret
+exists. The settings that matter are Organization **All accessible
+organizations** and, behind _Show all scopes_, **Marketplace → Manage**.
 
 #### `OVSX_PAT`, for Open VSX
 
@@ -227,10 +233,9 @@ few steps because the Eclipse Foundation requires a signed agreement:
    request to the Open VSX maintainers, and until it goes through the
    listing carries an "unverified publisher" notice.
 
-Open VSX is secondary: the step is `continue-on-error`, so a failure there
-never masks a Marketplace publish that already went through. Without
-`OVSX_PAT` the step reports and is skipped; without `VSCE_PAT` the job fails
-loudly, because that is the publish that matters.
+The step is `continue-on-error`, so a failure here cannot mask a Marketplace
+publish that already went through. Without `OVSX_PAT` it is skipped and the
+run summary says so.
 
 Newer `ovsx` versions can also exchange a GitHub Actions OIDC token for a
 short-lived publishing token (`--trusted-publishing`), which would remove
