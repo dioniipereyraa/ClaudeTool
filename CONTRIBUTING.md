@@ -177,14 +177,26 @@ process list and out of the logs.
 
 #### `VSCE_PAT`, for the VS Code Marketplace
 
-Created on [Azure DevOps](https://dev.azure.com), under _User settings →
-Personal access tokens → New Token_:
+The tokens page lives **inside an Azure DevOps organization**, so
+`dev.azure.com/_usersSettings/tokens` answers 404 until you have one.
+Publishing to the Marketplace by hand through its web UI never needs a
+token, which is how a publisher can exist without an organization ever
+having been created.
 
-- **Organization: `All accessible organizations`.** This is the setting
-  people get wrong. A token scoped to one organization authenticates but
-  cannot publish, and the failure does not say so.
-- **Scopes:** click _Show all scopes_, then **Marketplace → Manage**.
-- Set an expiry you can live with and write the date down.
+1. Sign in at [dev.azure.com](https://dev.azure.com) and create an
+   organization if you have none. It is free, and its name does not matter
+   here: it is **not** the Marketplace publisher (that is `dioniipereyraa`),
+   only the vehicle that can mint the token.
+2. Inside it, open the **User settings** gear next to your avatar, then
+   **Personal access tokens**. From then on the direct URL is
+   `https://dev.azure.com/{your-organization}/_usersSettings/tokens`.
+3. **New Token**, with:
+   - **Organization: `All accessible organizations`.** This is the setting
+     people get wrong. A token scoped to one organization authenticates but
+     cannot publish, and the failure does not say so.
+   - **Scopes:** click _Show all scopes_, then **Marketplace → Manage**. The
+     Marketplace scope is not in the short list.
+   - An expiry you can live with, written down somewhere.
 
 > **This mechanism has a deadline.** Microsoft retires global Azure DevOps
 > PATs on **1 December 2026**, and "global" is exactly what _All accessible
