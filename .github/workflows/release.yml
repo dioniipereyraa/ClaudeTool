@@ -5,11 +5,18 @@ on:
     tags:
       - 'v*'
 
+# Least privilege, per job. The build job only reads the repo, the release
+# job is the only one that writes to it, and the publishing job gets no
+# repository permissions at all: what it needs are store credentials, and
+# those live in the `stores` environment, not in the GITHUB_TOKEN.
+#
+# Store secrets exist only in this workflow, which runs on tags. `ci.yml`
+# runs on pull requests, including from forks, and must never see them.
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  release:
+  build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -20,6 +27,14 @@ jobs:
           cache: 'npm'
 
       - run: npm ci
+
+      # Before anything is built: the four hand-edited version declarations
+      # have to agree with each other and with the tag. `package-lock.json`
+      # once fell five releases behind, and the artifact name alone would
+      # not have caught it, since package-chrome.mjs rewrites the manifest
+      # version while zipping.
+      - name: Every version in the tree matches the tag
+        run: node scripts/check-version-sync.mjs "$GITHUB_REF_NAME"
 
       - run: npm run ci
 
@@ -54,6 +69,28 @@ jobs:
             exit 1
           fi
 
+      # The stores must receive the same bytes the GitHub Release carries,
+      # so the artifacts are built once and handed down, never rebuilt.
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-artifacts
+          path: |
+            exportal-*.vsix
+            exportal-companion-*.zip
+            release-notes.md
+          if-no-files-found: error
+          retention-days: 7
+
+  github-release:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: release-artifacts
+
       - uses: softprops/action-gh-release@v2
         with:
           body_path: release-notes.md
@@ -61,3 +98,67 @@ jobs:
             exportal-*.vsix
             exportal-companion-*.zip
           fail_on_unmatched_files: true
+
+  publish-extension:
+    needs: [build, github-release]
+    runs-on: ubuntu-latest
+    # `stores` carries the credentials and the required reviewer. Publishing
+    # cannot be undone in either registry: a bad version is not withdrawn,
+    # it is superseded. So a human approves before anything leaves.
+    environment: stores
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: release-artifacts
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Resolve the artifact for this tag
+        id: artifact
+        run: echo "vsix=exportal-${GITHUB_REF_NAME#v}.vsix" >> "$GITHUB_OUTPUT"
+
+      # Neither token is required, and a missing one is reported rather than
+      # fatal. The VS Code Marketplace is the reason why: publishing to it
+      # from CI needs a PAT, minting a PAT needs an Azure DevOps
+      # organization, and since 2026 creating one requires linking an Azure
+      # subscription, which requires a payment method. That price buys a
+      # credential Microsoft retires on 1 December 2026. Until that is worth
+      # paying, the VSIX goes up through the Marketplace web UI by hand,
+      # exactly as every release so far.
+      #
+      # Both CLIs read the token from the environment (vsce from VSCE_PAT,
+      # ovsx from OVSX_PAT), so it never appears on a command line, where it
+      # would be visible to every process on the runner.
+      - name: Publish to the VS Code Marketplace
+        id: marketplace
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}
+          VSIX: ${{ steps.artifact.outputs.vsix }}
+        run: |
+          if [[ -z "$VSCE_PAT" ]]; then
+            echo "- **VS Code Marketplace**: skipped, no \`VSCE_PAT\`. Upload \`$VSIX\` by hand at https://marketplace.visualstudio.com/manage" >> "$GITHUB_STEP_SUMMARY"
+            echo "VSCE_PAT is not set; skipping. See CONTRIBUTING.md." >&2
+            exit 0
+          fi
+          npx --yes @vscode/vsce@latest publish --packagePath "$VSIX"
+          echo "- **VS Code Marketplace**: published \`$VSIX\`" >> "$GITHUB_STEP_SUMMARY"
+
+      # Open VSX serves Cursor, VSCodium and Windsurf. `continue-on-error`
+      # so a failure here cannot mask a Marketplace publish that already
+      # went through.
+      - name: Publish to Open VSX
+        id: openvsx
+        continue-on-error: true
+        env:
+          OVSX_PAT: ${{ secrets.OVSX_PAT }}
+          VSIX: ${{ steps.artifact.outputs.vsix }}
+        run: |
+          if [[ -z "$OVSX_PAT" ]]; then
+            echo "- **Open VSX**: skipped, no \`OVSX_PAT\`" >> "$GITHUB_STEP_SUMMARY"
+            echo "OVSX_PAT is not set; skipping. See CONTRIBUTING.md." >&2
+            exit 0
+          fi
+          npx --yes ovsx@latest publish "$VSIX"
+          echo "- **Open VSX**: published \`$VSIX\`" >> "$GITHUB_STEP_SUMMARY"

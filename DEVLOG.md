@@ -6242,3 +6242,150 @@ durante un día, en el archivo que los motores más citan.
 Y la otra, para el trabajo de difusión: **antes de escribir para una lista, medir si la lista está
 viva y qué acepta.** Dos de los tres destinos del plan no servían, y eso se supo con tres llamadas
 a la API, no después de redactar tres textos.
+
+## 2026-09-18 (tarde) · Publicar desde CI, y el chequeo de versiones que faltaba de verdad
+
+### Lo que decía el plan y lo que encontró la medición
+El `HANDOFF.md` §2 pedía, entre otras cosas, "un chequeo de que el tag coincide con `package.json`
+y `chrome/manifest.json`, que hoy nadie hace". Medido antes de escribirlo, resultó estar a medias
+y por un motivo que valía la pena entender:
+
+- El paso *Sanity-check artifact versions match the tag* **ya validaba `package.json`** contra el
+  tag, de forma indirecta: el VSIX lleva la versión en el nombre, así que un `package.json`
+  desfasado hace que el archivo esperado no exista.
+- **No validaba `chrome/manifest.json`, y no podía.** `scripts/package-chrome.mjs:23` pisa
+  `manifest.version` con la de `package.json` mientras arma el ZIP. El artefacto siempre sale con
+  el nombre correcto aunque el manifest en disco esté viejo. **El paquete nunca miente; el
+  repositorio sí.** Y nadie estaba mirando el repositorio.
+- Tampoco validaba `package-lock.json`, que es justamente el que ya se quedó cinco releases atrás
+  (familia E de este archivo).
+
+### Qué se construyó
+- **`scripts/check-version-sync.mjs`**: compara las cuatro declaraciones escritas a mano
+  (`package.json`, los **dos** campos de `package-lock.json`, `chrome/manifest.json`) entre sí y
+  contra el tag. Reporta **todas** las diferencias, no la primera, porque un bump que se olvidó de
+  dos archivos tiene que nombrar los dos. Queda como `npm run check:versions`.
+- **`tests/release/version-sync.test.ts`**: siete tests. La parte que importa es el invariante
+  sobre el árbol real, que convierte la desincronización en **CI en rojo en el commit que la
+  causa**, no en una sorpresa el día del release. Se verificó que falla de verdad: desincronizando
+  a mano `packages[""].version` a 0.11.9, el test señala el archivo y el campo.
+- **`release.yml` en tres jobs**: `build` (versiones contra el tag, `npm run ci`, `package:all`,
+  notas del CHANGELOG, sube los artefactos), `github-release` (el único con `contents: write`) y
+  `publish-vscode` (aprobación humana, Marketplace y Open VSX).
+- **Environment `stores`** en GitHub, con Dionisio como revisor obligatorio y restringido a tags
+  `v*`, así los secrets no son alcanzables desde una rama cualquiera.
+
+### Las decisiones y su porqué
+- **Los artefactos se construyen una sola vez y viajan entre jobs.** Reconstruir en el job de
+  publicación abriría la puerta a que las tiendas reciban bytes distintos de los que cuelgan del
+  GitHub Release. Con `upload-artifact` lo que se publica es exactamente lo que se firmó como
+  release.
+- **Aprobación humana antes de publicar.** En las dos tiendas publicar no se deshace: una versión
+  mala no se baja, se tapa con otra. El proyecto ya es fail-closed en el producto, la misma regla
+  aplica al release.
+- **Open VSX sí, pero secundario.** Alcanza Cursor, VSCodium y Windsurf, que son público natural.
+  Va con `continue-on-error` para que una falla ahí no tape un publish al Marketplace que ya
+  ocurrió, y el paso avisa si falta el token en vez de morir con un error críptico.
+- **Permisos por job.** `contents: read` arriba, `contents: write` solo en el job que crea el
+  release, y nada en el que publica: lo que ese necesita son credenciales de tienda, no del repo.
+  Los secrets viven en el environment, nunca en `ci.yml`, que corre en PRs incluso de forks.
+- **El `.d.mts` al lado del script.** El test importa un `.mjs` que no puede ser TypeScript, porque
+  el workflow lo corre con node pelado antes de compilar nada. Sin declaraciones, cada llamada es
+  un `any` y el linter del proyecto lo rechaza con 20 errores. Declarar los tipos al lado sale más
+  barato que meter `allowJs` en el `tsconfig` y arrastrar efectos en todo el build.
+
+### Lo que queda afuera y por qué
+- **Los dos secrets los crea Dionisio**, son credenciales personales: `VSCE_PAT` (Azure DevOps,
+  scope *Marketplace → Manage*, vence) y `OVSX_PAT` (open-vsx.org, después de reclamar el
+  namespace). Documentados en `CONTRIBUTING.md` §Releasing.
+- **Chrome Web Store no se cableó**, siguiendo el orden del HANDOFF: primero el Marketplace, que
+  se prueba en diez minutos, y recién después la tienda cuyo OAuth tiene dos trampas conocidas.
+
+### Verificación
+- `npm run ci` verde: **367 tests en 29 archivos** (7 nuevos), lint y typecheck limpios.
+- El script probado en sus tres modos: coherencia interna, contra el tag correcto, y contra un tag
+  equivocado, donde sale con exit 1 y nombra las cuatro diferencias.
+- El YAML de los dos workflows parseado y verificada la cadena de `needs`, el `environment` y los
+  `permissions` de cada job.
+
+### Lo que apareció al verificar las CLI contra las reales (mismo día)
+El workflow se escribió sin haberlo ejecutado nunca, así que antes de darlo por bueno se corrieron
+`--help` de las dos herramientas. Cuatro cosas:
+
+- **`vsce` y `ovsx` leen el token del entorno** (`VSCE_PAT` y `OVSX_PAT`; en ovsx está en
+  `lib/util.js:39`, `options.pat ?? (options.pat = process.env.OVSX_PAT)`). Pasarlo con `--pat` lo
+  deja visible en la lista de procesos del runner. Se sacó de la línea de comandos en los dos.
+- **`-p, --pat` en `ovsx` es opción del programa, no del subcomando.** Se verificó que igual se
+  parsea después de `publish`, que es como está escrito: falla por el archivo inexistente, no por
+  opción desconocida.
+- **Los PAT globales de Azure DevOps se retiran el 1 de diciembre de 2026**, y "global" es
+  exactamente *All accessible organizations*, que es lo que el Marketplace exige. El reemplazo que
+  documenta Microsoft es Entra ID (`vsce publish --azure-credential`), pero su setup está escrito
+  para Azure DevOps Pipelines con workload identity federation, no para GitHub Actions. **Queda con
+  fecha de vencimiento conocida y anotado en `CONTRIBUTING.md`.**
+- **En Open VSX hay que crear el namespace antes del primer publish** (`ovsx create-namespace`), y
+  crearlo no verifica la propiedad: el claim es un pedido aparte y hasta que pase el listing sale
+  con el aviso de *unverified publisher*. También hace falta una cuenta Eclipse con el mismo
+  usuario de GitHub y el Publisher Agreement firmado. Nada de eso estaba en el plan del HANDOFF.
+- `ovsx` 1.2.0 ya soporta `--trusted-publishing`, que intercambia el token OIDC de GitHub Actions
+  por uno efímero y **eliminaría el secret**. No se adoptó todavía porque exige configurar al
+  publisher como trusted publisher del lado de open-vsx.org.
+
+### La regla que sale
+**Un artefacto con el nombre correcto no prueba que el repositorio esté bien.** Cuando el
+empaquetado deriva o reescribe un dato, el chequeo tiene que mirar la fuente, no el producto. Y el
+chequeo que solo corre en el release se entera tarde: el mismo invariante como test corre en cada
+commit y avisa el día que se rompe.
+
+## 2026-09-19 · El Marketplace desde CI cuesta una tarjeta, y el token se muere en diciembre
+
+### Qué pasó
+Con el PR #12 ya armado, faltaba que Dionisio creara el `VSCE_PAT`. No se pudo, y el camino hasta
+descubrir por qué dejó tres cosas que vale la pena anotar:
+
+1. **`dev.azure.com/_usersSettings/tokens` da 404** si no tenés una organización de Azure DevOps.
+   La página de tokens vive adentro de una organización. Publicar al Marketplace a mano por su web
+   nunca pidió token, así que se puede tener un publisher publicando hace meses sin haber creado
+   jamás una organización. Es exactamente el caso de Exportal.
+2. **El login rebotaba con `post_request_failed` de MSAL** en Safari con un bloqueador de contenido
+   activo. La doc de MSAL dice que ese error es literalmente "el POST no llegó: 4xx/5xx o red".
+   Se midió con `curl` desde la misma máquina: `dev.azure.com`, `login.microsoftonline.com` y
+   `marketplace.visualstudio.com` daban 200. O sea no era la red, era el navegador. En Chrome
+   entró de una.
+3. **Y ahí apareció el precio real.** El alta de organización corta con:
+   *"To create an Azure DevOps organization, you need to link it to an Azure subscription. We
+   couldn't find any subscriptions you have access to."* El botón *Continue* no responde porque
+   falta la suscripción, no porque esté roto. Suscripción significa tarjeta.
+
+### La decisión
+**No se paga.** Lo que se compraría es un PAT de los *global* (**All accessible organizations**,
+el único que el Marketplace acepta), y Microsoft **retira los global PATs el 1 de diciembre de
+2026**. Es decir: tarjeta y una tarde, a cambio de dos meses de automatización en un solo
+registro, después de los cuales hay que rehacer el camino entero con Entra ID, cuyo setup
+documentado es para Azure DevOps Pipelines y no para GitHub Actions.
+
+El Marketplace se sigue subiendo por `marketplace.visualstudio.com/manage`, que no pide token, como
+en todos los releases hasta ahora.
+
+### Qué se cambió en consecuencia
+- El job pasó a llamarse **`publish-extension`** y **ningún registro es obligatorio**: el que no
+  tenga su secret se saltea, escribe en el `$GITHUB_STEP_SUMMARY` que quedó pendiente y con qué
+  archivo, y el release sigue verde. Un release no se cae por una publicación que nunca se
+  configuró, y un skip no se lee como un publish hecho.
+- Se descartó un paso final que resumía con `if: ${{ !secrets.VSCE_PAT || ... }}`: **el contexto
+  `secrets` no está disponible en el `if` de un step**, así que esa condición no habría hecho lo
+  que decía. Los dos pasos ya dejan su línea en el summary.
+- `CONTRIBUTING.md` explica por qué el secret **no** está puesto, con la cita del cartel, para que
+  el próximo que lo lea no repita la tarde. Si algún día se emite el PAT, alcanza con
+  `gh secret set VSCE_PAT --env stores`: el paso publica solo en cuanto el secret existe.
+
+### Lo que sí conviene hacer
+**Open VSX**, que no tiene nada de esto y alcanza Cursor, VSCodium y Windsurf. Y mejor todavía,
+`ovsx` 1.2.0 soporta `--trusted-publishing`: cambia el OIDC de GitHub Actions por un token efímero
+y elimina el secret.
+
+### La regla que sale
+**Antes de automatizar una publicación, averiguar qué cuesta la credencial y cuánto vive.** Acá el
+obstáculo no era técnico ni se resolvía con otro navegador: era un requisito de facturación y una
+fecha de retiro, y ninguno de los dos aparece hasta el último formulario. La medición que faltaba
+no era de código.

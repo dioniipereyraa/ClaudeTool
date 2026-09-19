@@ -125,6 +125,126 @@ Co-authored commits with Claude Code or other AI assistants are fine,
 mark them with the standard `Co-Authored-By:` trailer so the credit
 trail is honest.
 
+## Releasing (maintainers)
+
+Pushing a `vX.Y.Z` tag runs `.github/workflows/release.yml`, which builds
+once and hands the same bytes down the chain: a GitHub Release first, then
+the stores.
+
+Before tagging, bump the version everywhere and confirm it:
+
+```sh
+npm run check:versions
+```
+
+It reads `package.json`, both fields of `package-lock.json`, and
+`chrome/manifest.json`, and it fails naming the file and field that lags.
+`tests/release/version-sync.test.ts` runs the same check on every commit,
+so drift shows up long before release day. The landing's `softwareVersion`
+is covered separately by `tests/docs/landing-metadata.test.ts`, which is why
+a bump also means running `node scripts/build-landing-jsonld.mjs`.
+
+### The pipeline
+
+1. **build**: version check against the tag, `npm run ci`, `npm run
+package:all`, release notes carved out of `CHANGELOG.md`. Uploads the
+   VSIX, the companion ZIP and the notes as a workflow artifact.
+2. **github-release**: downloads that artifact and publishes the GitHub
+   Release. The only job with `contents: write`.
+3. **publish-extension**: waits for a human to approve the `stores`
+   environment, then publishes the VSIX to whichever registries have a
+   token. Publishing cannot be undone in either place, a bad version is
+   superseded rather than withdrawn, hence the approval gate. A registry
+   without its token is skipped and named in the run summary, so a release
+   never fails over a publish that was never configured.
+
+The artifacts are built once and reused, so what reaches the stores is
+byte-for-byte what hangs off the GitHub Release.
+
+### Secrets
+
+Neither is required, and today neither is set. When one exists it lives on
+the `stores` **environment**, never on the repository at large:
+`ci.yml` runs on pull requests, including from forks, and must never be able
+to read them. Repository-level secrets would be visible there; environment
+secrets are not, and `stores` is additionally restricted to `v*` tags.
+
+```sh
+gh secret set VSCE_PAT --env stores
+gh secret set OVSX_PAT --env stores
+```
+
+Neither token is ever passed on a command line: `vsce` reads `VSCE_PAT` and
+`ovsx` reads `OVSX_PAT` from the environment, so they stay out of the
+process list and out of the logs.
+
+#### `VSCE_PAT`, for the VS Code Marketplace: not set, on purpose
+
+**The Marketplace is published by hand**, at
+[marketplace.visualstudio.com/manage](https://marketplace.visualstudio.com/manage),
+which takes an upload of the VSIX and no token at all. That is how every
+release so far has gone out, and the release job skips this registry and
+says so in the run summary.
+
+Automating it was attempted on 2026-09-19 and abandoned once the real
+price was visible. `vsce publish` needs a PAT; a PAT is minted inside an
+Azure DevOps organization; and creating an organization now refuses to
+continue without an Azure subscription:
+
+> To create an Azure DevOps organization, you need to link it to an Azure
+> subscription. We couldn't find any subscriptions you have access to.
+
+A subscription means a payment method on file. What it buys is a
+credential **Microsoft retires on 1 December 2026**: the Marketplace
+requires a PAT scoped to _All accessible organizations_, which is exactly
+the "global PAT" being retired. The documented replacement is Microsoft
+Entra ID (`vsce publish --azure-credential`), whose setup is written for
+Azure DevOps Pipelines with workload identity federation, not for GitHub
+Actions.
+
+So the trade was: a payment method and an afternoon, for two months of
+automation on one registry, after which the whole path has to be rebuilt
+anyway. Revisit when Entra ID has a GitHub Actions story, not before.
+
+If that changes and a PAT does get minted, `gh secret set VSCE_PAT --env
+stores` is all the job needs: the step publishes the moment the secret
+exists. The settings that matter are Organization **All accessible
+organizations** and, behind _Show all scopes_, **Marketplace → Manage**.
+
+#### `OVSX_PAT`, for Open VSX
+
+Open VSX serves Cursor, VSCodium and Windsurf. Getting an account takes a
+few steps because the Eclipse Foundation requires a signed agreement:
+
+1. Create an [Eclipse account](https://accounts.eclipse.org) whose GitHub
+   username matches yours **exactly**.
+2. Log in to [open-vsx.org](https://open-vsx.org) with GitHub, open the
+   profile page and click _Log in with Eclipse_, then read and sign the
+   Publisher Agreement.
+3. Avatar → _Settings → Access Tokens → Generate New Token_. The value is
+   shown once.
+4. **Claim the namespace before the first publish**, or publishing fails:
+
+   ```sh
+   npx ovsx create-namespace dioniipereyraa -p <token>
+   ```
+
+   Creating it does not verify ownership. Claiming ownership is a separate
+   request to the Open VSX maintainers, and until it goes through the
+   listing carries an "unverified publisher" notice.
+
+The step is `continue-on-error`, so a failure here cannot mask a Marketplace
+publish that already went through. Without `OVSX_PAT` it is skipped and the
+run summary says so.
+
+Newer `ovsx` versions can also exchange a GitHub Actions OIDC token for a
+short-lived publishing token (`--trusted-publishing`), which would remove
+this secret entirely. Not adopted yet: it needs the publisher configured as
+a trusted publisher on open-vsx.org first.
+
+The Chrome Web Store is not wired up yet. Its plan, including the OAuth
+setup and its two gotchas, is in `HANDOFF.md`.
+
 ## What we say no to
 
 The project has explicit out-of-scope items in [`ROADMAP.md`](./ROADMAP.md):

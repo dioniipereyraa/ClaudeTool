@@ -84,12 +84,19 @@ nos costaron caro.** Se lee entero antes de tocar código.
    `softwareVersion` del JSON-LD de la landing acompañe. El Companion se bumpea por simetría
    aunque no cambie. Si te olvidás de la landing falla `tests/docs/landing-metadata.test.ts`,
    que es justamente para que no mienta en silencio.
-2. Entrada en `CHANGELOG.md` con fecha. Si hubo silent patches, se consolidan acá.
-3. `npm run package:vsix` y `npm run package:chrome`. Los artefactos son ignorados por git.
-4. Tag `vX.Y.Z` → `release.yml` corre `npm run ci`, empaqueta y crea el GitHub Release. Hay un
-   chequeo de que el nombre del artefacto coincide con el tag.
-5. Subida a las tiendas: manual mientras no exista el paso de CI (plan en `HANDOFF.md`).
-   Chrome Web Store pasa por review (horas a días); un rebote llega por mail.
+2. `npm run check:versions` confirma que los cuatro lugares dicen lo mismo, y nombra el archivo y
+   el campo que quedó atrás. Lo mismo corre en cada commit vía `tests/release/version-sync.test.ts`
+   y otra vez contra el tag en el job `build`.
+3. Entrada en `CHANGELOG.md` con fecha. Si hubo silent patches, se consolidan acá.
+4. Tag `vX.Y.Z` → `release.yml`. Tres jobs encadenados: **build** (versiones contra el tag,
+   `npm run ci`, `package:all`, notas del CHANGELOG, sube los artefactos), **github-release**
+   (único con `contents: write`) y **publish-vscode** (espera la aprobación del environment
+   `stores`, publica al Marketplace y a Open VSX). Los artefactos se construyen una sola vez y
+   viajan: a las tiendas van los mismos bytes que cuelgan del GitHub Release.
+5. La aprobación del environment `stores` es a propósito: publicar no se deshace en ninguna de las
+   dos tiendas, una versión mala no se baja, se tapa con otra.
+6. Chrome Web Store: todavía a mano, el plan con sus dos gotchas de OAuth está en `HANDOFF.md`.
+   Pasa por review (horas a días); un rebote llega por mail.
 
 ### Bridge y Companion, lo que hay que saber
 
@@ -342,6 +349,14 @@ nos costaron caro.** Se lee entero antes de tocar código.
 - **El repo se llama `ClaudeTool` y no tenía homepage seteada** · siendo la fuente que los motores
   citan, no declaraba `exportal.dev`. **Regla:** la metadata del repo (homepage, topics,
   descripción) es superficie de GEO y se revisa junto con la landing. (2026-09-18)
+- **Publicar al VS Code Marketplace desde CI cuesta una tarjeta de crédito** · `vsce publish`
+  necesita un PAT, el PAT se emite dentro de una organización de Azure DevOps, y desde 2026 crear
+  una organización exige vincular una **suscripción de Azure**: el botón *Continue* del alta no
+  hace nada y el cartel lo dice. Encima el PAT que se obtendría es de los *global* (**All
+  accessible organizations**), que Microsoft **retira el 1 de diciembre de 2026**. **Regla:** el
+  Marketplace se sube a mano por `marketplace.visualstudio.com/manage`, que no pide token; el job
+  de CI se saltea el registro que no tenga secret y lo dice en el summary. Revisar cuando Entra ID
+  tenga un camino para GitHub Actions y no solo para Azure Pipelines. (2026-09-19)
 - **Cloudflare no acepta un Worker con custom domain si el apex ya apunta a GitHub Pages** ·
   **Regla:** las subpáginas viven en `docs/<ruta>/index.html`. (2026-04-29)
 - **`chrome --headless --window-size=390` no da 390 en macOS** (clampa a 500 y recorta) ·
