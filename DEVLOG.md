@@ -6389,3 +6389,19 @@ y elimina el secret.
 obstáculo no era técnico ni se resolvía con otro navegador: era un requisito de facturación y una
 fecha de retiro, y ninguno de los dos aparece hasta el último formulario. La medición que faltaba
 no era de código.
+
+### Cierre de la jornada: los tres puntos de la lista
+- **PR #12 mergeado.** `main` verde, `npm run check:versions` andando sobre el árbol.
+- **PR #532 abierto en `viatsko/awesome-vscode`.** Los dos links que usa dan 200 (el GIF en
+  `raw.githubusercontent.com` y el item del Marketplace). Su CI no reportó checks: GitHub retiene
+  los workflows de contribuidores nuevos hasta que un mantenedor los aprueba, así que no es
+  nuestro. Se abrió sabiendo que ese repo no mergea desde 2023.
+- **El issue form de `awesome-claude-code` quedó precargado**, con los seis campos pasados por
+  query string, así no hay nada que redactar ni copiar. **El envío final es de Dionisio y no se
+  puede automatizar:** el repo exige el web UI, avisa que quien abra un PR arriesga que lo
+  restrinjan, pide que la recomendación la cree una persona, y sus checkboxes son afirmaciones en
+  primera persona ("I have visited this repo before with my own eyes"). Marcar eso por él sería
+  firmar algo que no me consta, y encima poniendo su cuenta en riesgo.
+- El orden para la próxima sesión quedó escrito en `HANDOFF.md` §3, con la instrucción explícita
+  de **medir el costo de la credencial de Chrome Web Store antes de escribir código**, que es la
+  lección que dejó esta jornada.

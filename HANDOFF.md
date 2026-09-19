@@ -5,7 +5,7 @@
 > `CLAUDE.md`; el relato de cada sesión, en pasado, en `DEVLOG.md`; la cola larga de ideas en
 > `ROADMAP.md`; los releases en `CHANGELOG.md`.
 
-## 1. Estado al 2026-09-18
+## 1. Estado al 2026-09-19
 
 - **Versión publicada: 0.11.10**, en el VS Code Marketplace, en la Chrome Web Store (en review,
   puede tardar horas o días) y como GitHub Release `v0.11.10` con VSIX y ZIP adjuntos (el tag
@@ -55,6 +55,13 @@
   **Decisión abierta:** renombrar el repo de `ClaudeTool` a `exportal`. La marca dice una cosa y la
   URL citada dice otra; el costo es revisar los links raw de las imágenes y lo declarado en las
   dos tiendas.
+- **PR #12 mergeado (2026-09-19):** `release.yml` pasó a tres jobs (`build`, `github-release`,
+  `publish-extension`) con los artefactos construidos una sola vez, permisos por job y el
+  environment `stores` con revisor obligatorio. Suma `npm run check:versions` y
+  `tests/release/version-sync.test.ts`, que vigilan las cuatro declaraciones de versión escritas a
+  mano. Ningún registro es obligatorio: el que no tenga secret se saltea y lo dice en el summary.
+- **PR #532 abierto en `viatsko/awesome-vscode` (2026-09-19)**, con la entrada en `# Productivity`
+  y el GIF de la demo. Se abrió sabiendo que ese repo no mergea desde 2023: es lotería barata.
 - **`main` limpio:** PR #4 a #11 mergeados, cero issues y cero PRs abiertos, ramas de trabajo
   borradas. Solo existe `main`.
 - **Tags:** entre `v0.11.2` y `v0.11.10` no hay tags ni GitHub Releases (esas versiones se
@@ -119,8 +126,8 @@ capturas reales, video, blog) y el Hito 35 (pairing en `exportal.dev/pair`).
 ### Hilo GEO: al retomar, empezar por acá
 
 Capas 1 y 2 hechas y en vivo, Rich Results limpio, Search Console con el sitemap enviado, línea
-base tomada. Todo mergeado y verificado en vivo. **Lo primero al retomar es la capa 3**, que es la que mueve
-la aguja y no es código:
+base tomada. La capa 3 se trabajó el 2026-09-18 y 19; lo que sigue está en el §3. Este bloque queda
+como el registro de qué se midió y por qué:
 
 1. ~~PRs a las tres awesome-lists.~~ **Medido el 2026-09-18 y corregido:** `awesome-claude-code`
    (54k estrellas, viva) **prohíbe los PRs**, pide el issue form del web UI y exige que lo mande
@@ -129,8 +136,11 @@ la aguja y no es código:
    desde agosto de 2023 y poda extensiones de baja tracción: el PR está preparado en el fork
    `dioniipereyraa/awesome-vscode`, rama `add-exportal`, y se abre a sabiendas de que es lotería.
    `awesome-chrome-extensions` no existe como lista canónica viva, no hay a dónde mandar nada.
-   **Queda pendiente en la cancha de Dionisio: mandar el issue form y abrir el PR**, que ya no
-   tiene bloqueantes: el GIF que referencia está en `main` y responde 200.
+   **El PR a `awesome-vscode` se abrió el 2026-09-19: es el #532.** Del issue form queda solo
+   apretar enviar: se generó la URL con los seis campos precargados por query string, así que no
+   hay nada que redactar, y el sexto checkbox va sin marcar porque es una trampa deliberada. **No
+   se puede mandar por `gh` ni automatizar: el repo exige el web UI y que lo cree una persona, y
+   avisa que quien abra un PR arriesga que lo restrinjan.**
 2. Show HN y Reddit (`r/ClaudeAI`, `r/vscode`), con los prerrequisitos que ya fija `ROADMAP.md`:
    Chrome Store aprobado, VSIX estable, video bueno, landing andando. Un solo intento de Show HN,
    no quemarlo antes de tiempo.
@@ -144,7 +154,28 @@ la aguja y no es código:
    deberían pasar a "Indexada" en unos días. Si a los diez días siguen sin indexar, eso sí hay que
    mirarlo.
 
-## 3. Cómo relanzar
+## 3. El orden para la próxima sesión (acordado el 2026-09-19)
+
+Lo de arriba arranca antes que lo de abajo. Los tres primeros puntos de la lista original ya se
+hicieron el 2026-09-19 (merge del PR #12, PR #532 a `awesome-vscode`, y el issue form dejado
+precargado), así que la cola empieza acá:
+
+1. **Chrome Web Store desde CI**, que es lo que seguía en el §2. **Primero medir qué cuesta la
+   credencial, antes de escribir una línea**: OAuth de Google Cloud, si pide método de pago, y
+   cuánto vive el refresh token. La tarde del 2026-09-19 se fue en descubrir que el equivalente
+   del Marketplace pedía tarjeta y vencía en dos meses, y eso se sabía en quince minutos mirando
+   el formulario final. Si aparece algo así, se avisa y no se hace.
+2. **Hito 35, pairing en `exportal.dev/pair`** (scope completo en `ROADMAP.md`). Saca a claude.ai
+   de trampoline del token. Es UX visible del producto, no infraestructura.
+3. **El blog post "Why I built Exportal"** en la landing. Es capa 3 de GEO, que según la línea
+   base del 2026-09-17 es lo único que mueve la aguja, y no depende de ningún tercero.
+4. **Open VSX**, solo cuando Dionisio tenga hecha la cuenta de Eclipse con el Publisher Agreement
+   firmado. Después es `gh secret set OVSX_PAT --env stores` y el job publica solo. Mejor aún,
+   evaluar `--trusted-publishing` de `ovsx` 1.2.0, que va por OIDC y elimina el secret.
+5. **Search Console → Páginas, alrededor del 2026-09-27.** El sitemap se envió el 17. Si para
+   entonces las cinco URLs no figuran como indexadas, eso sí hay que mirarlo.
+
+## 4. Cómo relanzar
 
 - Setup, build, tests y cómo correr la extensión con F5: `CONTRIBUTING.md`.
 - Bridge local: escucha en `127.0.0.1:9317-9326`; el token de pairing vive en el `globalState`
