@@ -29,11 +29,10 @@
   el plan. Respuesta a Nick enviada el 2026-11-02 con el link al issue, la explicación de la
   fusión de Cowork y el link a `exportal.dev/#sponsor`. Él dijo que manda más ideas por mail;
   si llegan, van al issue #14.
-- **PR #15 abierta, CI verde, sin mergear:** fix de una línea en `docs/index.html`. La franja
+- **PR #15 mergeada (2026-11-02, de noche):** fix de una línea en `docs/index.html`. La franja
   bajo el hero perdía el gutter lateral en teléfonos (la regla `.sponsor-strip .row` pisaba el
   `padding` de `.wrap`); Dionisio lo vio en el iPhone la misma noche del deploy. Verificado en
-  local: el texto de la franja alinea con el título de "Under the hood". Mergear primero, y
-  después el chequeo del botón "Sponsor".
+  local antes de mergear. Falta solo mirarlo una vez en el teléfono con el deploy nuevo.
 - **Botón "Sponsor" del repo:** Dionisio marcó Sponsorships en Settings el 2026-11-02, pero al
   cierre de la sesión el botón todavía no aparecía en la cabecera del repo (la API GraphQL sí
   devuelve los tres `fundingLinks`, o sea que `FUNDING.yml` está bien). Primer chequeo de
