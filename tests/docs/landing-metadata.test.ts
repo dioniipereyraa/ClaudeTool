@@ -296,6 +296,99 @@ describe('llms.txt', () => {
   });
 });
 
+describe('backing the project', () => {
+  // Three files say where a reader can give: the landing (what a human
+  // sees), .github/FUNDING.yml (what GitHub renders as the Sponsor
+  // button) and the two READMEs (what the stores and the repo show).
+  // They are edited by hand, so they drift unless something holds them
+  // together. These tests are that something.
+
+  /** The sponsor section of the landing, with its outbound links. */
+  function sponsorSection(): { html: string; links: string[] } {
+    const match = /<section id="sponsor"[\s\S]*?<\/section>/.exec(indexHtml);
+    expect(match, 'docs/index.html should have a <section id="sponsor">').not.toBeNull();
+    const html = match?.[0] ?? '';
+    const links = [...html.matchAll(/href="(https?:\/\/[^"]+)"/g)].map((m) => m[1] ?? '');
+    return { html, links };
+  }
+
+  /** Every URL FUNDING.yml resolves to, in the order GitHub lists them. */
+  function fundingLinks(): string[] {
+    const yaml = readRepoFile('.github', 'FUNDING.yml');
+    const active = yaml.split('\n').filter((line) => !line.trimStart().startsWith('#'));
+    const links: string[] = [];
+    for (const line of active) {
+      const koFi = /^ko_fi:\s*(\S+)/.exec(line);
+      if (koFi) links.push(`https://ko-fi.com/${koFi[1] ?? ''}`);
+      const custom = /^custom:\s*\[(.*)\]/.exec(line);
+      if (custom) {
+        for (const entry of (custom[1] ?? '').split(',')) {
+          const url = entry.trim().replace(/^['"]|['"]$/g, '');
+          if (url.length > 0) links.push(url);
+        }
+      }
+    }
+    return links;
+  }
+
+  it('the landing has a sponsor section the footer links to', () => {
+    const { html } = sponsorSection();
+    expect(html).toMatch(/<h2[ >]/);
+    expect(indexHtml).toContain('href="#sponsor"');
+  });
+
+  it('the sponsor section is reachable from the header and from right below the hero', () => {
+    // A section at the bottom of a long page is a section nobody finds.
+    const header = /<nav aria-label="Site">[\s\S]*?<\/nav>/.exec(indexHtml)?.[0] ?? '';
+    expect(header, 'the site nav should link to #sponsor').toContain('href="#sponsor"');
+    const betweenHeroAndNext = /<\/section>([\s\S]*?)<section id="under-the-hood"/.exec(
+      indexHtml,
+    )?.[1];
+    expect(betweenHeroAndNext, 'something should sit between the hero and the next section').toBeDefined();
+    expect(betweenHeroAndNext ?? '', 'the strip below the hero should link to #sponsor').toContain(
+      'href="#sponsor"',
+    );
+  });
+
+  it('every way to give has an icon, like the install buttons in the hero', () => {
+    const { html } = sponsorSection();
+    const cards = [...html.matchAll(/<a [^>]*href="(?:https?:|mailto:)[^"]*"[^>]*>([\s\S]*?)<\/a>/g)];
+    expect(cards.length).toBeGreaterThanOrEqual(3);
+    for (const card of cards) {
+      expect(card[1] ?? '', `${card[0].slice(0, 60)} should carry an inline svg icon`).toContain('<svg');
+    }
+  });
+
+  it('FUNDING.yml names at least one place to give', () => {
+    expect(fundingLinks().length).toBeGreaterThan(0);
+  });
+
+  it('the landing and FUNDING.yml name the same places to give', () => {
+    const { links } = sponsorSection();
+    const funding = fundingLinks().filter((url) => !url.startsWith(SITE));
+    // Every place GitHub advertises is on the landing...
+    for (const url of funding) {
+      expect(links, `docs/index.html should link to ${url}`).toContain(url);
+    }
+    // ...and the landing advertises nothing GitHub does not know about,
+    // except links back into the project itself.
+    const external = links.filter(
+      (url) => !url.startsWith(SITE) && !url.startsWith('https://github.com/dioniipereyraa/'),
+    );
+    for (const url of external) {
+      expect(funding, `.github/FUNDING.yml should list ${url}`).toContain(url);
+    }
+  });
+
+  it('both READMEs point readers at the sponsor section', () => {
+    for (const file of ['README.md', 'README.vsix.md']) {
+      expect(readRepoFile(file), `${file} should link to ${SITE}/#sponsor`).toContain(
+        `${SITE}/#sponsor`,
+      );
+    }
+  });
+});
+
 describe('house style', () => {
   const files = [
     ...PAGES.map((page) => `docs/${page.file}`),

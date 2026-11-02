@@ -112,6 +112,11 @@ Both commands redact secrets by default. See `--help`.
 - Node.js ≥ 20
 - VS Code ≥ 1.85 (for the extension)
 
+## Support the project
+
+Exportal is free and MIT licensed, and stays that way. If it saves you time, you can
+[back the project](https://exportal.dev/#sponsor) with a one-off or monthly contribution.
+
 ## License
 
 MIT.
