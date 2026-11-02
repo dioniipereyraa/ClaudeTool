@@ -6471,10 +6471,11 @@ no era de código.
   lugares (en los dos sentidos, salvo links al propio proyecto); los dos README apuntan a
   `/#sponsor`.
 - `npm run ci` verde en Windows (lint, typecheck, test, build).
-- Los handles de Ko-fi y PayPal entran cuando Dionisio termine de crear las cuentas; hasta
-  entonces son placeholders `KOFI_HANDLE` / `PAYPAL_HANDLE` en la landing y en FUNDING.yml.
+- Handles reales en el mismo día: `ko-fi.com/exportaldev` (página con nombre "Dionisio
+  (Exportal)", texto propio y link a exportal.dev) y `paypal.me/dioniipereyraa`. Los dos abiertos
+  en el navegador para confirmar que resuelven. `npm run ci` de nuevo en verde, 371/371.
 
 ### Próximo paso
-1. Reemplazar los placeholders por los handles reales, re-correr el test, mergear la PR.
+1. Mergear la PR y verificar `exportal.dev/#sponsor` y el botón "Sponsor" del repo en vivo.
 2. Cuando conteste Nick: explicarle la fusión y preguntar si las sesiones viejas le importan.
 3. Sigue el orden del `HANDOFF.md` §3.

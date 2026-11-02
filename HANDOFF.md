@@ -14,9 +14,8 @@
   el payload. Condición de reapertura en `ROADMAP.md` §Backlog, medición completa en el DEVLOG.
 - **PR `feat/sponsor-section` (2026-11-01):** sección "Back the project" (`#sponsor`) en la
   landing, `FUNDING.yml` activo (Ko-fi + PayPal + link a la landing), "Support the project" en
-  los dos README, test que mantiene los tres en sync. **Pendiente antes de mergear:** reemplazar
-  los placeholders `KOFI_HANDLE` y `PAYPAL_HANDLE` por los handles reales en `docs/index.html` y
-  `.github/FUNDING.yml` (el test avisa si quedan desincronizados).
+  los dos README, test que mantiene los tres en sync. Handles reales ya puestos y verificados
+  en el navegador: `ko-fi.com/exportaldev` y `paypal.me/dioniipereyraa`. Lista para mergear.
 - **Clon de Windows:** estaba 43 commits atrás de `origin/main`; sincronizado el 2026-11-01. Si
   se trabaja desde más de una máquina, `git pull --ff-only` antes de abrir el editor.
 
@@ -169,9 +168,8 @@ como el registro de qué se midió y por qué:
 
 ## 3. El orden para la próxima sesión (acordado el 2026-09-19, retocado el 2026-11-01)
 
-0. **Cerrar la PR de aportes:** handles reales de Ko-fi y PayPal en lugar de los placeholders,
-   `npm run ci`, merge, y verificar en vivo que `exportal.dev/#sponsor` muestra la sección y que
-   el repo muestra el botón "Sponsor". Después, avisarle a Nick que ya está.
+0. **Cerrar la PR de aportes:** merge, y verificar en vivo que `exportal.dev/#sponsor` muestra
+   la sección y que el repo muestra el botón "Sponsor". Después, avisarle a Nick que ya está.
 Lo de arriba arranca antes que lo de abajo. Los tres primeros puntos de la lista original ya se
 hicieron el 2026-09-19 (merge del PR #12, PR #532 a `awesome-vscode`, y el issue form dejado
 precargado), así que la cola empieza acá:
