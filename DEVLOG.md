@@ -6488,7 +6488,27 @@ no era de código.
   (Exportal)", texto propio y link a exportal.dev) y `paypal.me/dioniipereyraa`. Los dos abiertos
   en el navegador para confirmar que resuelven. `npm run ci` de nuevo en verde, 371/371.
 
+### Cierre de la jornada (2026-11-02)
+- **PR #13 mergeada** (merge normal, `d07f38a`) y verificada en vivo con `curl` a los 20
+  segundos del deploy de Pages: sección, píldora, franja, los dos links y el `script.js` nuevo.
+- **Nick contestó** antes de que se mandara la segunda versión del mail (el primero sí había
+  salido). Trae un bug real y bien descrito: con varias ventanas de VS Code el export va a la
+  primera que se abrió. Causa confirmada en `chrome/background.js` (`forwardToExportal` /
+  `forwardInlineConversation` entregan al primer puerto que acepta el token) y en
+  `http-server.ts` (cada ventana toma el siguiente puerto libre). **Hito 36** en el ROADMAP e
+  **issue #14** con diagnóstico y plan en dos pasos: foco más reciente publicado en el `/ping`,
+  y después un selector en el popover. Respuesta enviada con el link al issue, la fusión de
+  Cowork explicada y el link a los aportes.
+- **Botón "Sponsor" del repo**: Sponsorships marcado en Settings, pero el botón no apareció
+  antes de cerrar. La API GraphQL devuelve los tres `fundingLinks`, así que el YAML está bien.
+  Queda como primer chequeo de la próxima sesión.
+- **Falsa alarma de los "paquetes"**: Dionisio notó que los puntos que viajan por los hilos no
+  se veían. No es el `script.js` nuevo: esta PC tiene los efectos de animación de Windows
+  apagados y Chrome reporta `prefers-reduced-motion: reduce`, que el script respeta. Probado
+  con una copia local del sitio con el flag forzado a falso: 42 paquetes por sección, en las
+  dos secciones. Anotado en el HANDOFF para no volver a investigarlo.
+
 ### Próximo paso
-1. Mergear la PR y verificar `exportal.dev/#sponsor` y el botón "Sponsor" del repo en vivo.
-2. Cuando conteste Nick: explicarle la fusión y preguntar si las sesiones viejas le importan.
+1. Chequear el botón "Sponsor" del repo.
+2. Hito 36: diseño con la medición hecha, TDD, smoke test con dos ventanas, release doble.
 3. Sigue el orden del `HANDOFF.md` §3.

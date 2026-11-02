@@ -5,7 +5,7 @@
 > `CLAUDE.md`; el relato de cada sesión, en pasado, en `DEVLOG.md`; la cola larga de ideas en
 > `ROADMAP.md`; los releases en `CHANGELOG.md`.
 
-## 1. Estado al 2026-11-01
+## 1. Estado al 2026-11-02
 
 - **Primer pedido real de un usuario (2026-10-26):** Nick Rakis usa Exportal en VS Code a diario,
   pidió soporte para `claude.ai/cowork/...` y preguntó cómo donar. Respondido el 2026-11-01.
@@ -25,9 +25,19 @@
   a la primera que se abrió, no a la activa. Causa medida en el código: cada ventana escucha en
   el siguiente puerto libre (9317, 9318, ...) y `forwardToExportal` en `chrome/background.js`
   manda al primer puerto que acepta. Ni el `/ping` ni el `/import` saben qué ventana tiene el
-  foco. Es el **Hito 36**, scope en `ROADMAP.md`. Nick ofreció mandar ideas; borrador de
-  respuesta listo en la sesión del 2026-11-02 (explica la causa, el plan en dos pasos y la
-  fusión de Cowork). Falta abrir el issue en GitHub y mandarle el link.
+  foco. Es el **Hito 36**, scope en `ROADMAP.md` e **issue #14** abierto con el diagnóstico y
+  el plan. Respuesta a Nick enviada el 2026-11-02 con el link al issue, la explicación de la
+  fusión de Cowork y el link a `exportal.dev/#sponsor`. Él dijo que manda más ideas por mail;
+  si llegan, van al issue #14.
+- **Botón "Sponsor" del repo:** Dionisio marcó Sponsorships en Settings el 2026-11-02, pero al
+  cierre de la sesión el botón todavía no aparecía en la cabecera del repo (la API GraphQL sí
+  devuelve los tres `fundingLinks`, o sea que `FUNDING.yml` está bien). Primer chequeo de
+  mañana: abrir el repo y mirar si ya está; si no, revisar que el toggle quedó guardado.
+- **Nota para no perder tiempo:** en esta PC los "paquetes" que viajan por los hilos de la
+  landing no se ven porque Windows tiene los efectos de animación apagados (`MinAnimate=0`) y
+  Chrome reporta `prefers-reduced-motion: reduce`; el script los apaga a propósito. Verificado
+  el 2026-11-02 con una copia local del sitio con el flag forzado: 42 paquetes por sección,
+  hilos del hero y de `#sponsor` animando. No es un bug del sitio.
 - **Clon de Windows:** estaba 43 commits atrás de `origin/main`; sincronizado el 2026-11-01. Si
   se trabaja desde más de una máquina, `git pull --ff-only` antes de abrir el editor.
 
@@ -180,9 +190,14 @@ como el registro de qué se midió y por qué:
 
 ## 3. El orden para la próxima sesión (acordado el 2026-09-19, retocado el 2026-11-01)
 
-0. **Hito 36, ventana de VS Code correcta con varias abiertas** (bug de Nick, scope en
-   `ROADMAP.md`). Antes: marcar Sponsorships en Settings del repo para que aparezca el botón,
-   abrir el issue del Hito 36 y contestarle a Nick con el link.
+0. **Hito 36, ventana de VS Code correcta con varias abiertas** (bug de Nick, issue #14, scope
+   en `ROADMAP.md`). Empezar por el diseño con la medición hecha: cómo expone la extensión el
+   foco en el `/ping` (`vscode.window.onDidChangeWindowState`, nombre del workspace), cómo
+   elige el Companion entre varios puertos (función pura en `chrome/pure.js`, testeable), y qué
+   pasa con bridges viejos sin el campo. Después TDD en `tests/chrome/pure.test.ts` y
+   `tests/extension/http-server.test.ts`, smoke test con dos ventanas reales, y release de las
+   dos mitades (es cambio de contrato del `/ping`). Antes de eso, el chequeo del botón
+   "Sponsor" de arriba.
 Lo de arriba arranca antes que lo de abajo. Los tres primeros puntos de la lista original ya se
 hicieron el 2026-09-19 (merge del PR #12, PR #532 a `awesome-vscode`, y el issue form dejado
 precargado), así que la cola empieza acá:
