@@ -6450,10 +6450,17 @@ no era de código.
 
 ### Aportes en la landing
 - Sección **"Back the project"** (`#sponsor`) en `docs/index.html`, después de "Built in the
-  open", con el mismo layout de dos columnas y las filas de `.open-docs`: Ko-fi (único o
-  mensual, paga con PayPal o tarjeta), PayPal directo, y transferencia bancaria US/EU a pedido
-  por mail. Link "Sponsor" en el nav del footer. El header no cambia: ya tiene seis ítems y
-  `/support/` es ayuda técnica, no donaciones.
+  open". La primera versión reusaba las filas de `.open-docs` y Dionisio la rechazó en la
+  revisión local: "no se nota que sea para donar". La segunda, la que queda: la sección cierra
+  la página con los mismos hilos del hero de fondo (`script.js` ahora anima todos los
+  `.threads`, no solo el primero), un titular directo y tres tarjetas con ícono de línea en el
+  mismo estilo que los botones de Chrome y VS Code del hero: Ko-fi (taza con corazón), PayPal
+  (doble P) y transferencia bancaria (edificio). Sin logos oficiales: son marcas registradas y
+  el estilo de la landing es de íconos de trazo.
+- Dos entradas más a la sección, pedidas en la misma revisión: una píldora "Sponsor" con corazón
+  en el nav del header (única con borde, se distingue del resto) y una franja justo debajo del
+  hero con el botón "Back the project". Más el link en el nav del footer. `/support/` sigue
+  siendo ayuda técnica, por eso la sección no se llama así.
 - `.github/FUNDING.yml` activo: `ko_fi` + `custom` con PayPal y `exportal.dev/#sponsor`. GitHub
   muestra el botón "Sponsor" en el repo.
 - Sección "Support the project" en los dos README, antes de License.
@@ -6469,7 +6476,13 @@ no era de código.
   link en el footer, FUNDING vacío, README sin link). Cuatro casos: la sección existe y el footer
   la linkea; FUNDING.yml nombra al menos un lugar; la landing y FUNDING.yml nombran los mismos
   lugares (en los dos sentidos, salvo links al propio proyecto); los dos README apuntan a
-  `/#sponsor`.
+  `/#sponsor`. Con la segunda versión se sumaron dos casos, también vistos fallar antes: el nav
+  del header y la franja entre el hero y "Under the hood" linkean a `#sponsor`, y cada tarjeta
+  lleva un `<svg>` inline.
+- Revisión visual en local (`python -m http.server` sobre `docs/`, abierto en Chrome): header,
+  franja y sección en escritorio. El layout móvil se cubre con los breakpoints de 960px y 720px
+  (tarjetas en una columna, franja apilada, píldora solo con el corazón) pero no se verificó en
+  el navegador en esta sesión.
 - `npm run ci` verde en Windows (lint, typecheck, test, build).
 - Handles reales en el mismo día: `ko-fi.com/exportaldev` (página con nombre "Dionisio
   (Exportal)", texto propio y link a exportal.dev) y `paypal.me/dioniipereyraa`. Los dos abiertos

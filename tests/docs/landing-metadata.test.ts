@@ -333,8 +333,30 @@ describe('backing the project', () => {
 
   it('the landing has a sponsor section the footer links to', () => {
     const { html } = sponsorSection();
-    expect(html).toContain('<h2>');
+    expect(html).toMatch(/<h2[ >]/);
     expect(indexHtml).toContain('href="#sponsor"');
+  });
+
+  it('the sponsor section is reachable from the header and from right below the hero', () => {
+    // A section at the bottom of a long page is a section nobody finds.
+    const header = /<nav aria-label="Site">[\s\S]*?<\/nav>/.exec(indexHtml)?.[0] ?? '';
+    expect(header, 'the site nav should link to #sponsor').toContain('href="#sponsor"');
+    const betweenHeroAndNext = /<\/section>([\s\S]*?)<section id="under-the-hood"/.exec(
+      indexHtml,
+    )?.[1];
+    expect(betweenHeroAndNext, 'something should sit between the hero and the next section').toBeDefined();
+    expect(betweenHeroAndNext ?? '', 'the strip below the hero should link to #sponsor').toContain(
+      'href="#sponsor"',
+    );
+  });
+
+  it('every way to give has an icon, like the install buttons in the hero', () => {
+    const { html } = sponsorSection();
+    const cards = [...html.matchAll(/<a [^>]*href="(?:https?:|mailto:)[^"]*"[^>]*>([\s\S]*?)<\/a>/g)];
+    expect(cards.length).toBeGreaterThanOrEqual(3);
+    for (const card of cards) {
+      expect(card[1] ?? '', `${card[0].slice(0, 60)} should carry an inline svg icon`).toContain('<svg');
+    }
   });
 
   it('FUNDING.yml names at least one place to give', () => {

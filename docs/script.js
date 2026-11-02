@@ -16,8 +16,10 @@
   //
   // Reduced motion: no draw-in and no packets.
   // ---------------------------------------------------------------------
-  const threads = document.querySelector('.threads');
-  if (threads && !reduce) {
+  // The sponsor section at the end of the page reuses the same threads,
+  // so every .threads is driven, not just the hero's.
+  document.querySelectorAll('.threads').forEach((threads) => {
+  if (!reduce) {
     const ns = 'http://www.w3.org/2000/svg';
     const xlink = 'http://www.w3.org/1999/xlink';
     const paths = Array.from(threads.querySelectorAll('path'));
@@ -71,6 +73,7 @@
       }
     });
   }
+  });
 
   // ---------------------------------------------------------------------
   // FAQ: wrap each <details>'s non-summary children inside a .faq-body
