@@ -49,6 +49,34 @@ chat normal de claude.ai/ChatGPT no quedó tocado por el cambio.
 
 ### Hitos 35+, siguientes en cola
 
+**Hito 36, mandar el export a la ventana de VS Code correcta**
+
+Pedido real (Nick Rakis, 2026-11-02): con varias ventanas de VS Code
+abiertas, el export cae en la primera que se abrió, no en la que está
+usando. Causa, medida en el código: cada ventana corre su copia de la
+extensión y escucha en el siguiente puerto libre de 9317-9326;
+`forwardToExportal` / `forwardInlineConversation` en
+`chrome/background.js` recorren los puertos (el último que funcionó
+primero, después en orden) y entregan al primero que acepta el token.
+Nadie pregunta qué ventana tiene el foco.
+
+**Scope, en dos pasos**:
+1. La extensión registra cuándo fue la última vez que su ventana tuvo
+   el foco (`vscode.window.onDidChangeWindowState`) y lo publica en el
+   `/ping` junto con el nombre del workspace. El Companion sondea todos
+   los puertos en paralelo (ya lo hace en `probeBridge`) y manda a la
+   ventana enfocada más recientemente, que es la que el usuario dejó
+   para pasar a Chrome. Bridges viejos sin ese campo: orden actual.
+2. Si hay más de una ventana viva, el popover muestra un selector con
+   los nombres de workspace, con la ventana del paso 1 por defecto.
+   Es la segunda idea de Nick; entra después de medir si el paso 1
+   alcanza.
+
+**Costo**: bump de la extensión y del Companion (cambia el contrato de
+`/ping`), sin permisos nuevos en el manifest. Tests puros para el
+criterio de elección (`chrome/pure.js`) y para la respuesta del `/ping`
+(`http-server.ts`).
+
 **Hito 35, Pairing landing en `exportal.dev/pair`**
 
 Hoy el "Copy and open Chrome" del Step 2 abre `https://claude.ai/`

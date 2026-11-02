@@ -12,10 +12,22 @@
   **Cowork no se implementa:** Anthropic lo fusionó con el chat el 2026-09-16, las tareas nuevas
   nacen como `/chat/<uuid>` y ya se exportan; `/cowork/` son sesiones viejas sin forma de medir
   el payload. Condición de reapertura en `ROADMAP.md` §Backlog, medición completa en el DEVLOG.
-- **PR `feat/sponsor-section` (2026-11-01):** sección "Back the project" (`#sponsor`) en la
-  landing, `FUNDING.yml` activo (Ko-fi + PayPal + link a la landing), "Support the project" en
-  los dos README, test que mantiene los tres en sync. Handles reales ya puestos y verificados
-  en el navegador: `ko-fi.com/exportaldev` y `paypal.me/dioniipereyraa`. Lista para mergear.
+- **PR #13 mergeada y en vivo (2026-11-02):** sección "Back the project" (`#sponsor`) cerrando
+  la landing sobre los hilos del hero, píldora "Sponsor" en el nav, franja bajo el hero,
+  `FUNDING.yml` activo (Ko-fi + PayPal + link a la landing), "Support the project" en los dos
+  README, y el test que mantiene los tres en sync. Verificado con `curl` tras el deploy de
+  Pages: la home sirve `#sponsor`, la píldora, la franja, los dos links
+  (`ko-fi.com/exportaldev`, `paypal.me/dioniipereyraa`) y el `script.js` nuevo.
+  **Pendiente, a mano:** el botón "Sponsor" del repo todavía no aparece. `FUNDING.yml` solo no
+  alcanza: hay que marcar **Settings → General → Features → Sponsorships** en GitHub. No hay
+  API para eso, lo hace Dionisio desde la web.
+- **Segundo mail de Nick (2026-11-02):** bug real, con varias ventanas de VS Code el export va
+  a la primera que se abrió, no a la activa. Causa medida en el código: cada ventana escucha en
+  el siguiente puerto libre (9317, 9318, ...) y `forwardToExportal` en `chrome/background.js`
+  manda al primer puerto que acepta. Ni el `/ping` ni el `/import` saben qué ventana tiene el
+  foco. Es el **Hito 36**, scope en `ROADMAP.md`. Nick ofreció mandar ideas; borrador de
+  respuesta listo en la sesión del 2026-11-02 (explica la causa, el plan en dos pasos y la
+  fusión de Cowork). Falta abrir el issue en GitHub y mandarle el link.
 - **Clon de Windows:** estaba 43 commits atrás de `origin/main`; sincronizado el 2026-11-01. Si
   se trabaja desde más de una máquina, `git pull --ff-only` antes de abrir el editor.
 
@@ -168,8 +180,9 @@ como el registro de qué se midió y por qué:
 
 ## 3. El orden para la próxima sesión (acordado el 2026-09-19, retocado el 2026-11-01)
 
-0. **Cerrar la PR de aportes:** merge, y verificar en vivo que `exportal.dev/#sponsor` muestra
-   la sección y que el repo muestra el botón "Sponsor". Después, avisarle a Nick que ya está.
+0. **Hito 36, ventana de VS Code correcta con varias abiertas** (bug de Nick, scope en
+   `ROADMAP.md`). Antes: marcar Sponsorships en Settings del repo para que aparezca el botón,
+   abrir el issue del Hito 36 y contestarle a Nick con el link.
 Lo de arriba arranca antes que lo de abajo. Los tres primeros puntos de la lista original ya se
 hicieron el 2026-09-19 (merge del PR #12, PR #532 a `awesome-vscode`, y el issue form dejado
 precargado), así que la cola empieza acá:
