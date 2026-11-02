@@ -6405,3 +6405,76 @@ no era de código.
 - El orden para la próxima sesión quedó escrito en `HANDOFF.md` §3, con la instrucción explícita
   de **medir el costo de la credencial de Chrome Web Store antes de escribir código**, que es la
   lección que dejó esta jornada.
+
+---
+
+## 2026-11-01 · Primer pedido real de un usuario: Cowork ya no existe, y la landing acepta aportes
+
+### Qué pasó
+- Mail de Nick Rakis (2026-10-26): usa Exportal en VS Code a diario, pide que el Companion
+  reconozca los chats de Cowork (`claude.ai/cowork/...`, hoy solo matchea `/chat/`) y pregunta
+  cómo donar. Primer feedback orgánico desde que el producto está en las dos tiendas.
+- El clon de Windows estaba 43 commits atrás de `origin/main` (todo septiembre se hizo desde la
+  Mac). `git pull --ff-only` antes de tocar nada.
+
+### Medición de Cowork (regla: medir antes de diseñar)
+- Del bundle de claude.ai: la URL de una sesión de Cowork es `/cowork/<sessionId>`
+  (`sessionHref: /cowork/${sessionId}`), y es un tipo de ítem propio, `local_session`, distinto
+  de `conversation` (chats) y de `cc_desktop_session` (Claude Code, que va por
+  `/v1/code/sessions/cse_...`).
+- De la API: `/api/organizations/<org>/cowork/sessions` responde 405 a GET (existe, es el POST
+  de creación); `cowork/sessions/<id>` da 404 con ids inventados. `cowork/devices` y
+  `cowork/remote_devices` listan los equipos registrados (la Mac y esta PC).
+- Desde la web no se puede crear una sesión de Cowork: tres intentos (composer normal, dentro de
+  un proyecto de Cowork, todos los menús) terminan en `/chat/<uuid>`. La app de escritorio dice
+  que Cowork dejó de ser una función separada.
+- Causa: Anthropic fusionó Cowork con el chat el 2026-09-16 ("Cowork is now Claude"). Toda tarea
+  nueva, agéntica o no, nace como `/chat/<uuid>` y la sirve el mismo `chat_conversations` que
+  usa el Companion: **para todo lo que Nick haga de acá en adelante, Exportal ya funciona**. Las
+  URLs `/cowork/` que él ve son sesiones viejas, un stock que no crece.
+- Dato colateral: con `rendering_mode=messages` la API no devuelve los pasos de herramientas de
+  un chat agéntico (un chat con búsqueda web vino como `text` + `thinking` + `text`). El export
+  muestra el texto final y el importer igual tolera `tool_use`/`tool_result` si aparecen.
+- En los 40 chats recientes de la cuenta de prueba solo hay bloques `text`, `thinking` e
+  `image`. El `thinking` lo filtra `ContentArraySchema` antes de validar, como estaba previsto.
+
+### Decisión
+- **No implementar `/cowork/<id>`.** Superficie legacy, sin forma de medir el payload (ni el
+  usuario ni el desarrollador pueden crear una sesión de ese tipo ya), y la regla del proyecto
+  es no diseñar contra una shape inventada. Queda en `ROADMAP.md` §Backlog con la condición de
+  reapertura: una URL real de la request que carga una sesión legacy, pedida al usuario que la
+  necesite.
+- Respuesta a Nick enviada el 2026-11-01 (pide la URL de ejemplo y qué espera ver en el
+  Markdown). Cuando conteste, se le explica la fusión y se le pregunta si las sesiones viejas le
+  importan.
+
+### Aportes en la landing
+- Sección **"Back the project"** (`#sponsor`) en `docs/index.html`, después de "Built in the
+  open", con el mismo layout de dos columnas y las filas de `.open-docs`: Ko-fi (único o
+  mensual, paga con PayPal o tarjeta), PayPal directo, y transferencia bancaria US/EU a pedido
+  por mail. Link "Sponsor" en el nav del footer. El header no cambia: ya tiene seis ítems y
+  `/support/` es ayuda técnica, no donaciones.
+- `.github/FUNDING.yml` activo: `ko_fi` + `custom` con PayPal y `exportal.dev/#sponsor`. GitHub
+  muestra el botón "Sponsor" en el repo.
+- Sección "Support the project" en los dos README, antes de License.
+- `lastmod` de la home en `sitemap.xml` a 2026-11-01.
+- **Por qué no ARQ en la página**: ARQ (ex DolarApp) no tiene link de cobro, da datos bancarios
+  de EE. UU. y Europa. Publicar routing y número de cuenta en una página pública habilita débitos
+  ACH, no solo depósitos. Va por mail a quien lo pida.
+- **Por qué no GitHub Sponsors**: no está disponible para mantenedores en Argentina.
+
+### Verificación
+- Test nuevo en `tests/docs/landing-metadata.test.ts`, `describe('backing the project')`,
+  escrito antes del código y visto fallar por los cuatro motivos correctos (sin sección, sin
+  link en el footer, FUNDING vacío, README sin link). Cuatro casos: la sección existe y el footer
+  la linkea; FUNDING.yml nombra al menos un lugar; la landing y FUNDING.yml nombran los mismos
+  lugares (en los dos sentidos, salvo links al propio proyecto); los dos README apuntan a
+  `/#sponsor`.
+- `npm run ci` verde en Windows (lint, typecheck, test, build).
+- Los handles de Ko-fi y PayPal entran cuando Dionisio termine de crear las cuentas; hasta
+  entonces son placeholders `KOFI_HANDLE` / `PAYPAL_HANDLE` en la landing y en FUNDING.yml.
+
+### Próximo paso
+1. Reemplazar los placeholders por los handles reales, re-correr el test, mergear la PR.
+2. Cuando conteste Nick: explicarle la fusión y preguntar si las sesiones viejas le importan.
+3. Sigue el orden del `HANDOFF.md` §3.

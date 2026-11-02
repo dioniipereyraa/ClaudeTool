@@ -185,6 +185,23 @@ trabajo de mapping cubre dos providers de una.
 
 Tier más abajo, útiles pero no en la cola activa.
 
+### Sesiones legacy de Cowork (`claude.ai/cowork/<id>`)
+
+Pedido real (Nick Rakis, 2026-10-26). Medido el 2026-11-01, ver DEVLOG:
+Anthropic fusionó Cowork con el chat el 2026-09-16, toda tarea nueva
+nace como `/chat/<uuid>` y el Companion ya la exporta. Lo que queda en
+`/cowork/<id>` son sesiones viejas, tipo `local_session`, con endpoint
+propio (`cowork/sessions/<id>`) cuyo payload no se puede medir porque
+ya no se pueden crear sesiones de ese tipo.
+
+**No se implementa a ciegas.** Reabrir solo con una muestra real:
+la URL de la request que carga una sesión legacy (pestaña Network de
+DevTools) y un JSON de ejemplo, pedidos al usuario que la necesite.
+Con eso el trabajo es un `kind: 'cowork'` en `routeFromPath`, un fetch
+nuevo en `content-script.js` y, si la shape trae pasos del agente,
+bloques nuevos en el formatter. Sin permisos nuevos en el manifest
+(`https://claude.ai/*` ya cubre la ruta).
+
 ### Imágenes inline del export de ChatGPT (Tier 3 del Hito 21)
 
 Hoy las imágenes uploadeadas en chats de ChatGPT (`image_asset_pointer`

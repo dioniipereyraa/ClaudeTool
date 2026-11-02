@@ -5,7 +5,20 @@
 > `CLAUDE.md`; el relato de cada sesión, en pasado, en `DEVLOG.md`; la cola larga de ideas en
 > `ROADMAP.md`; los releases en `CHANGELOG.md`.
 
-## 1. Estado al 2026-09-19
+## 1. Estado al 2026-11-01
+
+- **Primer pedido real de un usuario (2026-10-26):** Nick Rakis usa Exportal en VS Code a diario,
+  pidió soporte para `claude.ai/cowork/...` y preguntó cómo donar. Respondido el 2026-11-01.
+  **Cowork no se implementa:** Anthropic lo fusionó con el chat el 2026-09-16, las tareas nuevas
+  nacen como `/chat/<uuid>` y ya se exportan; `/cowork/` son sesiones viejas sin forma de medir
+  el payload. Condición de reapertura en `ROADMAP.md` §Backlog, medición completa en el DEVLOG.
+- **PR `feat/sponsor-section` (2026-11-01):** sección "Back the project" (`#sponsor`) en la
+  landing, `FUNDING.yml` activo (Ko-fi + PayPal + link a la landing), "Support the project" en
+  los dos README, test que mantiene los tres en sync. **Pendiente antes de mergear:** reemplazar
+  los placeholders `KOFI_HANDLE` y `PAYPAL_HANDLE` por los handles reales en `docs/index.html` y
+  `.github/FUNDING.yml` (el test avisa si quedan desincronizados).
+- **Clon de Windows:** estaba 43 commits atrás de `origin/main`; sincronizado el 2026-11-01. Si
+  se trabaja desde más de una máquina, `git pull --ff-only` antes de abrir el editor.
 
 - **Versión publicada: 0.11.10**, en el VS Code Marketplace, en la Chrome Web Store (en review,
   puede tardar horas o días) y como GitHub Release `v0.11.10` con VSIX y ZIP adjuntos (el tag
@@ -154,8 +167,11 @@ como el registro de qué se midió y por qué:
    deberían pasar a "Indexada" en unos días. Si a los diez días siguen sin indexar, eso sí hay que
    mirarlo.
 
-## 3. El orden para la próxima sesión (acordado el 2026-09-19)
+## 3. El orden para la próxima sesión (acordado el 2026-09-19, retocado el 2026-11-01)
 
+0. **Cerrar la PR de aportes:** handles reales de Ko-fi y PayPal en lugar de los placeholders,
+   `npm run ci`, merge, y verificar en vivo que `exportal.dev/#sponsor` muestra la sección y que
+   el repo muestra el botón "Sponsor". Después, avisarle a Nick que ya está.
 Lo de arriba arranca antes que lo de abajo. Los tres primeros puntos de la lista original ya se
 hicieron el 2026-09-19 (merge del PR #12, PR #532 a `awesome-vscode`, y el issue form dejado
 precargado), así que la cola empieza acá:

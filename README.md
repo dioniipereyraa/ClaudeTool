@@ -143,6 +143,11 @@ npm run ci         # all of the above in order
 
 The extension is debugged with F5 (opens an Extension Development Host with the fresh bundle).
 
+## Support the project
+
+Exportal is free and MIT licensed, and stays that way. If it saves you time, you can
+[back the project](https://exportal.dev/#sponsor) with a one-off or monthly contribution.
+
 ## License
 
 MIT, see [`LICENSE`](./LICENSE).

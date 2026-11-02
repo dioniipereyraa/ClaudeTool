@@ -1,10 +1,11 @@
 # GitHub Sponsors / funding configuration.
 #
-# Uncomment the relevant lines once the corresponding account is set up.
-# Until then, leave commented so GitHub does not surface a "Sponsor" button
-# that links to an unconfigured profile.
+# GitHub renders these as the "Sponsor" button on the repo. The same
+# links live in the "Back the project" section of exportal.dev, and
+# tests/docs/landing-metadata.test.ts keeps the two in sync.
 #
-# github: dioniipereyraa
-# ko_fi: dioniipereyraa
-# buy_me_a_coffee: dioniipereyraa
-# custom: ['https://exportal.dev/']
+# GitHub Sponsors itself is not available to maintainers in Argentina,
+# so the project takes contributions through Ko-fi and PayPal instead.
+
+ko_fi: KOFI_HANDLE
+custom: ['https://paypal.me/PAYPAL_HANDLE', 'https://exportal.dev/#sponsor']
