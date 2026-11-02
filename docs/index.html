@@ -733,7 +733,9 @@
     align-items: center;
     justify-content: space-between;
     gap: 24px;
-    padding: 18px 0;
+    /* .wrap sets the side gutter; this element is both, so the padding
+       has to carry the gutter or the strip bleeds to the edge on phones. */
+    padding: 18px var(--gutter);
   }
   .sponsor-strip p {
     margin: 0;
