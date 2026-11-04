@@ -77,6 +77,10 @@ Nadie pregunta qué ventana tiene el foco.
 criterio de elección (`chrome/pure.js`) y para la respuesta del `/ping`
 (`http-server.ts`).
 
+**Estado (2026-11-03)**: paso 1 implementado en 0.12.0 (rama
+`feat/focused-window-routing`, `rankBridges` + `windowInfo` en el
+`/ping`). Paso 2 queda en cola hasta medir con Nick si el 1 alcanza.
+
 **Hito 35, Pairing landing en `exportal.dev/pair`**
 
 Hoy el "Copy and open Chrome" del Step 2 abre `https://claude.ai/`
