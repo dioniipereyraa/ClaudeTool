@@ -6567,3 +6567,26 @@ no era de código.
    Chrome. Exportar un chat de claude.ai.
 3. Esperado: el chat cae en la segunda ventana y la consola del service worker muestra
    `routing to port <puerto> <carpeta>`. Repetir dejando la primera ventana al final.
+
+**Hecho el 2026-11-05, pasó en los dos sentidos.** Ver la entrada de ese día.
+
+## 2026-11-05 · Smoke test del Hito 36 OK, release 0.12.0 mergeado y taggeado
+
+### Qué pasó
+- **Smoke test con dos ventanas reales, pasado.** Dionisio abrió dos ventanas de VS Code con
+  carpetas distintas, con el VSIX 0.12.0 instalado y el Companion unpacked recargado. Clic en
+  la segunda ventana, export desde claude.ai: el chat cayó en la segunda. Clic en la primera,
+  otro export: cayó en la primera. Es lo que no se podía probar en unitario (el listener de
+  `onDidChangeWindowState` en `extension.ts` y el cableado de `probeBridge` → `buildSendOrder`
+  en `background.js`); con esto el paso 1 del Hito 36 queda verificado de punta a punta.
+- Repo sin novedades desde el 2026-11-03: PR #16 con CI verde y sin comentarios, issue #14 sin
+  respuestas nuevas de Nick, `hasSponsorshipsEnabled` sigue en `false`.
+- **Merge del PR #16 a `main` y tag `v0.12.0`**, que dispara `release.yml`. El job
+  `publish-extension` saltea las tiendas porque no hay secrets (decisión del 2026-09-19); el
+  VSIX y el ZIP van a mano al Marketplace y a la Chrome Web Store.
+- Comentario en el issue #14 avisando que el paso 1 salió en 0.12.0 y pidiendo feedback antes
+  del paso 2 (selector de workspace en el popover).
+
+### Qué no se hizo
+- Las dos tiendas a mano quedan para Dionisio (necesitan login en el navegador).
+- El toggle de Sponsorships del repo, también a mano desde Settings.

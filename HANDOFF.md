@@ -5,16 +5,19 @@
 > `CLAUDE.md`; el relato de cada sesión, en pasado, en `DEVLOG.md`; la cola larga de ideas en
 > `ROADMAP.md`; los releases en `CHANGELOG.md`.
 
-## 1. Estado al 2026-11-03
+## 1. Estado al 2026-11-05
 
-- **Hito 36, paso 1, hecho en la rama `feat/focused-window-routing` (2026-11-03):** la
-  extensión publica `lastFocusedAt` y `workspaceName` en el `/ping`, el Companion rankea los
-  bridges pareados con `ExportalPure.rankBridges` y manda el export a la ventana enfocada más
-  recientemente. Bridges viejos conservan el orden de hoy. TDD completo, `npm run ci` verde
-  (381 tests), bump a **0.12.0** con CHANGELOG, VSIX y ZIP empaquetados, VSIX instalado en
-  esta PC. **Falta:** smoke test con dos ventanas reales (pasos en el DEVLOG del día), merge
-  del PR, tag `v0.12.0`, subir las dos tiendas a mano y comentar en el issue #14 avisándole a
-  Nick. El paso 2 (selector de workspace en el popover) espera a medir si el 1 alcanza.
+- **Hito 36, paso 1, publicado como 0.12.0 (2026-11-05):** la extensión publica
+  `lastFocusedAt` y `workspaceName` en el `/ping`, el Companion rankea los bridges pareados con
+  `ExportalPure.rankBridges` y manda el export a la ventana enfocada más recientemente. Bridges
+  viejos conservan el orden de hoy. TDD completo (381 tests), **smoke test con dos ventanas
+  reales pasado en los dos sentidos**, PR #16 mergeado, tag `v0.12.0` creado y `release.yml`
+  corriendo (GitHub Release con VSIX y ZIP). Comentado en el issue #14. **Falta, a mano:**
+  subir `exportal-0.12.0.vsix` a `marketplace.visualstudio.com/manage` y
+  `exportal-companion-0.12.0.zip` a la Chrome Web Store (los mismos bytes cuelgan del Release),
+  y en esta PC sacar el Companion unpacked y reactivar el de la tienda cuando pase la review.
+  El paso 2 (selector de workspace en el popover) espera feedback de Nick: no se toca sin medir
+  si el 1 alcanza.
 - **Botón "Sponsor" del repo: el toggle no quedó guardado.** Verificado el 2026-11-03:
   `hasSponsorshipsEnabled: false` en GraphQL y ningún botón en la cabecera. Hay que volver a
   Settings → General → Features → **Sponsorships**, tildar y confirmar que persiste al recargar.
@@ -205,13 +208,11 @@ como el registro de qué se midió y por qué:
    deberían pasar a "Indexada" en unos días. Si a los diez días siguen sin indexar, eso sí hay que
    mirarlo.
 
-## 3. El orden para la próxima sesión (acordado el 2026-09-19, retocado el 2026-11-01)
+## 3. El orden para la próxima sesión (acordado el 2026-09-19, retocado el 2026-11-05)
 
-0. **Hito 36, paso 1: cerrar el release 0.12.0.** Código, tests y bump ya están en la rama
-   `feat/focused-window-routing` (ver §1). Queda: smoke test con dos ventanas, merge, tag
-   `v0.12.0` (corre `release.yml`), subir VSIX al Marketplace y ZIP a la Chrome Web Store a
-   mano, y comentar en el issue #14. Después, esperar feedback de Nick antes de tocar el paso 2.
-   En paralelo, el toggle de Sponsorships del repo (§1).
+0. **Release 0.12.0: solo quedan las tiendas a mano** (VSIX al Marketplace, ZIP a la Chrome
+   Web Store) y el toggle de Sponsorships del repo (§1). El código ya está en `main`, taggeado
+   y comentado en el issue #14. Después, esperar feedback de Nick antes de tocar el paso 2.
 Lo de arriba arranca antes que lo de abajo. Los tres primeros puntos de la lista original ya se
 hicieron el 2026-09-19 (merge del PR #12, PR #532 a `awesome-vscode`, y el issue form dejado
 precargado), así que la cola empieza acá:
