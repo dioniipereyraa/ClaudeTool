@@ -202,7 +202,23 @@ export interface BridgeHandlers {
    * advertised and the Companion never fetches the email.
    */
   readonly wantsAccountEmail?: () => boolean;
+  /**
+   * Which window this bridge belongs to (issue #14). With several VS
+   * Code windows open each one runs its own bridge on its own port;
+   * the Companion reads this on every /ping and sends the export to
+   * the window focused most recently. `lastFocusedAt` is epoch ms,
+   * undefined until the window has had focus once; `workspaceName`
+   * is undefined when no folder is open. Absent getter → neither field
+   * is advertised and the Companion keeps its port order.
+   */
+  readonly windowInfo?: () => BridgeWindowInfo;
 }
+
+export interface BridgeWindowInfo {
+  readonly lastFocusedAt: number | undefined;
+  readonly workspaceName: string | undefined;
+}
+
 
 export interface ServerHandle {
   readonly port: number;
@@ -335,8 +351,16 @@ async function handleRequest(
       // claude.ai). Log once and move on.
       console.warn('Exportal: onPing handler threw');
     }
+    const body: Record<string, boolean | number | string> = { ok: true };
     const wants = handlers.wantsAccountEmail?.();
-    sendJson(res, 200, wants === undefined ? { ok: true } : { ok: true, wantsAccountEmail: wants });
+    if (wants !== undefined) body.wantsAccountEmail = wants;
+    const window = handlers.windowInfo?.();
+    if (typeof window?.lastFocusedAt === 'number') body.lastFocusedAt = window.lastFocusedAt;
+    if (typeof window?.workspaceName === 'string' && window.workspaceName.length > 0) {
+      body.workspaceName = window.workspaceName;
+    }
+    sendJson(res, 200, body);
+
     return;
   }
 

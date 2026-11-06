@@ -33,6 +33,7 @@ interface Pure {
   ): { kind: 'chat' | 'design' | 'chatgpt'; id: string } | undefined;
   isClaudeAiExport(filename: unknown, url?: unknown, referrer?: unknown): boolean;
   buildPortOrder(lastPort?: number): number[];
+  rankBridges(hits: unknown): number[];
   extractOrgIds(data: unknown): string[];
   parseBridgeErrorCode(body: unknown): string | undefined;
   explainError(msgOrError: unknown): string;
@@ -190,6 +191,58 @@ describe('ExportalPure.isClaudeAiExport', () => {
   it('rejects non-string filenames', () => {
     expect(pure.isClaudeAiExport(undefined, 'https://claude.ai', '')).toBe(false);
     expect(pure.isClaudeAiExport(null, 'https://claude.ai', '')).toBe(false);
+  });
+});
+
+describe('ExportalPure.rankBridges (issue #14, several VS Code windows)', () => {
+  it('puts the most recently focused window first', () => {
+    const ranked = pure.rankBridges([
+      { port: 9317, lastFocusedAt: 1_000 },
+      { port: 9318, lastFocusedAt: 3_000 },
+      { port: 9319, lastFocusedAt: 2_000 },
+    ]);
+    expect(ranked).toEqual([9318, 9319, 9317]);
+  });
+
+  it('keeps bridges that do not report focus after the ones that do, in ascending port order', () => {
+    const ranked = pure.rankBridges([
+      { port: 9320 },
+      { port: 9318, lastFocusedAt: 5 },
+      { port: 9317 },
+    ]);
+    expect(ranked).toEqual([9318, 9317, 9320]);
+  });
+
+  it('falls back to ascending port order when no bridge reports focus (older extensions)', () => {
+    expect(pure.rankBridges([{ port: 9319 }, { port: 9317 }, { port: 9318 }])).toEqual([
+      9317, 9318, 9319,
+    ]);
+  });
+
+  it('breaks a focus tie by ascending port', () => {
+    expect(
+      pure.rankBridges([
+        { port: 9321, lastFocusedAt: 7 },
+        { port: 9317, lastFocusedAt: 7 },
+      ]),
+    ).toEqual([9317, 9321]);
+  });
+
+  it('treats a non-numeric lastFocusedAt as absent', () => {
+    expect(
+      pure.rankBridges([
+        { port: 9317, lastFocusedAt: '9999' },
+        { port: 9318, lastFocusedAt: 1 },
+      ]),
+    ).toEqual([9318, 9317]);
+  });
+
+  it('drops entries without a numeric port and tolerates garbage input', () => {
+    expect(pure.rankBridges([{ port: '9317' }, null, { port: 9318, lastFocusedAt: 1 }])).toEqual([
+      9318,
+    ]);
+    expect(pure.rankBridges(undefined)).toEqual([]);
+    expect(pure.rankBridges('nope')).toEqual([]);
   });
 });
 

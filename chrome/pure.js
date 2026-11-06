@@ -89,6 +89,23 @@ var ExportalPure = (function () {
     return all;
   }
 
+  // Several VS Code windows mean several bridges, one per port, and the
+  // user wants the export in the window they just left to switch to
+  // Chrome (issue #14). Each hit is `{ port, lastFocusedAt? }` as read
+  // from that port's /ping. Windows that report focus come first, most
+  // recent first; bridges too old to report it keep today's ascending
+  // order behind them. Ties and garbage fall back to the port number.
+  function rankBridges(hits) {
+    if (!Array.isArray(hits)) return [];
+    const valid = hits.filter((h) => h !== null && typeof h === 'object' && typeof h.port === 'number');
+    const focusOf = (h) => (typeof h.lastFocusedAt === 'number' ? h.lastFocusedAt : undefined);
+    const focused = valid.filter((h) => focusOf(h) !== undefined);
+    const unfocused = valid.filter((h) => focusOf(h) === undefined);
+    focused.sort((a, b) => focusOf(b) - focusOf(a) || a.port - b.port);
+    unfocused.sort((a, b) => a.port - b.port);
+    return [...focused, ...unfocused].map((h) => h.port);
+  }
+
   function extractOrgIds(data) {
     if (!Array.isArray(data)) return [];
     return data
@@ -196,6 +213,7 @@ var ExportalPure = (function () {
     routeFromPath,
     isClaudeAiExport,
     buildPortOrder,
+    rankBridges,
     extractOrgIds,
     parseBridgeErrorCode,
     explainError,
