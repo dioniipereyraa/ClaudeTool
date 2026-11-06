@@ -6570,7 +6570,7 @@ no era de código.
 
 **Hecho el 2026-11-05, pasó en los dos sentidos.** Ver la entrada de ese día.
 
-## 2026-11-05 · Smoke test del Hito 36 OK, release 0.12.0 mergeado y taggeado
+## 2026-11-05 · Smoke test del Hito 36 OK; el merge queda para mañana
 
 ### Qué pasó
 - **Smoke test con dos ventanas reales, pasado.** Dionisio abrió dos ventanas de VS Code con
@@ -6581,12 +6581,19 @@ no era de código.
   en `background.js`); con esto el paso 1 del Hito 36 queda verificado de punta a punta.
 - Repo sin novedades desde el 2026-11-03: PR #16 con CI verde y sin comentarios, issue #14 sin
   respuestas nuevas de Nick, `hasSponsorshipsEnabled` sigue en `false`.
-- **Merge del PR #16 a `main` y tag `v0.12.0`**, que dispara `release.yml`. El job
-  `publish-extension` saltea las tiendas porque no hay secrets (decisión del 2026-09-19); el
-  VSIX y el ZIP van a mano al Marketplace y a la Chrome Web Store.
-- Comentario en el issue #14 avisando que el paso 1 salió en 0.12.0 y pidiendo feedback antes
-  del paso 2 (selector de workspace en el popover).
+- Se intentó mergear el PR #16 desde la sesión y el modo automático de permisos de Claude Code
+  lo bloqueó ("merge sin review"). Dionisio decidió **mergearlo mañana**, con la sesión corta
+  ya cerrada. Nada cambió en `main`.
+- Repaso de qué le falta al pedido de Nick: Cowork cerrado (no se implementa, explicado por
+  mail), donaciones en vivo (falta solo el toggle de Sponsorships del repo), y el bug de las
+  ventanas arreglado pero todavía no publicado. También se repasó el estado del CI: `ci` en
+  cada PR y `release.yml` por tag, con las tiendas a mano por decisión del 2026-09-19.
 
-### Qué no se hizo
-- Las dos tiendas a mano quedan para Dionisio (necesitan login en el navegador).
-- El toggle de Sponsorships del repo, también a mano desde Settings.
+### Qué sigue, en orden
+1. Mergear el PR #16 (`gh pr merge 16 --merge --delete-branch`), `git pull` en `main`.
+2. Tag `v0.12.0` y push del tag: corre `release.yml`, arma el GitHub Release con VSIX y ZIP.
+3. Subir `exportal-0.12.0.vsix` al Marketplace y `exportal-companion-0.12.0.zip` a la Chrome
+   Web Store, a mano.
+4. Comentar en el issue #14 avisándole a Nick que el paso 1 salió en 0.12.0 y pedir feedback
+   antes del paso 2.
+5. Toggle de Sponsorships en Settings del repo, y confirmar con GraphQL que persiste.
