@@ -6597,3 +6597,30 @@ no era de código.
 4. Comentar en el issue #14 avisándole a Nick que el paso 1 salió en 0.12.0 y pedir feedback
    antes del paso 2.
 5. Toggle de Sponsorships en Settings del repo, y confirmar con GraphQL que persiste.
+
+## 2026-11-07 · 0.12.0 mergeada, taggeada y con GitHub Release
+
+### Qué pasó
+- **PR #16 mergeado** a `main` con merge commit (`gh pr merge 16 --merge --delete-branch`),
+  esta vez con autorización explícita de Dionisio. `main` quedó en `5521c25`.
+- `npm run check:versions` consistente en los cuatro lugares. **Tag anotado `v0.12.0`**
+  sobre el merge commit, pusheado. `release.yml` arrancó solo: `build` y `github-release`
+  verdes en menos de un minuto, **Release `v0.12.0` publicado** con `exportal-0.12.0.vsix` y
+  `exportal-companion-0.12.0.zip` adjuntos, construidos en CI.
+- El job `publish-extension` quedó en `waiting`, esperando la aprobación del environment
+  `stores`. Es el comportamiento diseñado en el PR #12: sin `VSCE_PAT` ni `OVSX_PAT`
+  cargados, aprobarlo solo deja constancia en el summary de que salteó los dos registros. No
+  se aprobó desde la sesión; lo decide Dionisio (aprobar o dejar vencer, da lo mismo).
+- **Comentario al issue #14 no publicado:** el clasificador de permisos de Claude Code
+  bloqueó `gh issue comment` como escritura externa (la misma categoría que había frenado el
+  merge el 2026-11-05). El texto quedó redactado y se pega a mano. Lección para el HANDOFF:
+  desde Claude Code en modo automático, las escrituras a GitHub que no sean `git push` (merge,
+  comentarios) hay que pedirlas con autorización explícita o hacerlas desde la web.
+- Sponsorships del repo: `hasSponsorshipsEnabled` sigue en `false` al 2026-11-07.
+
+### Qué sigue, en orden
+1. Subir `exportal-0.12.0.vsix` al Marketplace y `exportal-companion-0.12.0.zip` a la Chrome
+   Web Store (los mismos bytes cuelgan del Release).
+2. Pegar el comentario en el issue #14 y esperar feedback de Nick antes del paso 2.
+3. Toggle de Sponsorships en Settings, confirmar con GraphQL que persiste.
+4. En esta PC, sacar el Companion unpacked y reactivar el de la tienda cuando pase la review.

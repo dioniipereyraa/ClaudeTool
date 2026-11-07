@@ -5,19 +5,22 @@
 > `CLAUDE.md`; el relato de cada sesión, en pasado, en `DEVLOG.md`; la cola larga de ideas en
 > `ROADMAP.md`; los releases en `CHANGELOG.md`.
 
-## 1. Estado al 2026-11-05
+## 1. Estado al 2026-11-07
 
-- **Hito 36, paso 1, listo para mergear (2026-11-05):** la extensión publica `lastFocusedAt`
-  y `workspaceName` en el `/ping`, el Companion rankea los bridges pareados con
-  `ExportalPure.rankBridges` y manda el export a la ventana enfocada más recientemente. Bridges
-  viejos conservan el orden de hoy. TDD completo (381 tests), bump a **0.12.0** con CHANGELOG,
-  VSIX y ZIP empaquetados, y **smoke test con dos ventanas reales pasado en los dos sentidos**
-  el 2026-11-05. Todo en la rama `feat/focused-window-routing`, PR #16 con CI verde.
-  **Primer paso de mañana: mergear el PR #16** (el intento desde Claude Code lo bloqueó el
-  clasificador de permisos; lo hace Dionisio o se autoriza explícitamente). Después: tag
-  `v0.12.0` (corre `release.yml`), subir VSIX y ZIP a las dos tiendas a mano, comentar en el
-  issue #14, y en esta PC sacar el Companion unpacked y reactivar el de la tienda cuando pase
-  la review. El paso 2 (selector de workspace en el popover) espera feedback de Nick.
+- **0.12.0 mergeada y con GitHub Release (2026-11-07).** PR #16 mergeado a `main` con merge
+  commit, rama borrada, tag anotado `v0.12.0` pusheado. `release.yml` corrió: `build` y
+  `github-release` verdes, el Release `v0.12.0` existe con `exportal-0.12.0.vsix` y
+  `exportal-companion-0.12.0.zip` adjuntos. El job `publish-extension` quedó **esperando la
+  aprobación del environment `stores`**; como no hay `VSCE_PAT` ni `OVSX_PAT` cargados,
+  aprobarlo solo saltea los dos registros y cierra el run. Se puede aprobar o dejar que expire.
+  Contenido: Hito 36 paso 1, la extensión publica `lastFocusedAt` y `workspaceName` en el
+  `/ping` y el Companion manda el export a la ventana enfocada más recientemente
+  (`ExportalPure.rankBridges`); smoke test con dos ventanas pasado el 2026-11-05.
+  **Pendiente a mano, en este orden:** subir el VSIX a `marketplace.visualstudio.com/manage`,
+  el ZIP a la Chrome Web Store, pegar en el issue #14 el comentario redactado (Claude Code no
+  puede comentar: el clasificador de permisos bloquea las escrituras externas), y en esta PC
+  sacar el Companion unpacked y reactivar el de la tienda cuando pase la review. El paso 2
+  (selector de workspace en el popover) espera feedback de Nick.
 - **Botón "Sponsor" del repo: el toggle no quedó guardado.** Verificado el 2026-11-03:
   `hasSponsorshipsEnabled: false` en GraphQL y ningún botón en la cabecera. Hay que volver a
   Settings → General → Features → **Sponsorships**, tildar y confirmar que persiste al recargar.
@@ -208,12 +211,12 @@ como el registro de qué se midió y por qué:
    deberían pasar a "Indexada" en unos días. Si a los diez días siguen sin indexar, eso sí hay que
    mirarlo.
 
-## 3. El orden para la próxima sesión (acordado el 2026-09-19, retocado el 2026-11-05)
+## 3. El orden para la próxima sesión (acordado el 2026-09-19, retocado el 2026-11-07)
 
-0. **Cerrar el release 0.12.0.** El código está verificado (smoke test del 2026-11-05) en el
-   PR #16. Queda: merge, tag `v0.12.0`, VSIX al Marketplace y ZIP a la Chrome Web Store a mano,
-   comentar en el issue #14. En paralelo, el toggle de Sponsorships del repo (§1). Después,
-   esperar feedback de Nick antes de tocar el paso 2.
+0. **Rematar el 0.12.0, todo a mano (§1):** VSIX al Marketplace, ZIP a la Chrome Web Store,
+   comentario en el issue #14, Companion de la tienda de vuelta en esta PC cuando pase la
+   review. En paralelo, el toggle de Sponsorships del repo. Después, esperar feedback de Nick
+   antes de tocar el paso 2.
 Lo de arriba arranca antes que lo de abajo. Los tres primeros puntos de la lista original ya se
 hicieron el 2026-09-19 (merge del PR #12, PR #532 a `awesome-vscode`, y el issue form dejado
 precargado), así que la cola empieza acá:
