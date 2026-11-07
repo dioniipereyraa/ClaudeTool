@@ -16,15 +16,15 @@
   Contenido: Hito 36 paso 1, la extensión publica `lastFocusedAt` y `workspaceName` en el
   `/ping` y el Companion manda el export a la ventana enfocada más recientemente
   (`ExportalPure.rankBridges`); smoke test con dos ventanas pasado el 2026-11-05.
-  **Pendiente a mano, en este orden:** subir el VSIX a `marketplace.visualstudio.com/manage`,
-  el ZIP a la Chrome Web Store, pegar en el issue #14 el comentario redactado (Claude Code no
-  puede comentar: el clasificador de permisos bloquea las escrituras externas), y en esta PC
-  sacar el Companion unpacked y reactivar el de la tienda cuando pase la review. El paso 2
-  (selector de workspace en el popover) espera feedback de Nick.
-- **Botón "Sponsor" del repo: el toggle no quedó guardado.** Verificado el 2026-11-03:
-  `hasSponsorshipsEnabled: false` en GraphQL y ningún botón en la cabecera. Hay que volver a
-  Settings → General → Features → **Sponsorships**, tildar y confirmar que persiste al recargar.
-  Verificación: `gh api graphql -f query='{ repository(owner:"dioniipereyraa", name:"ClaudeTool"){ hasSponsorshipsEnabled } }'`.
+  **Tiendas: VSIX y ZIP subidos a mano por Dionisio el 2026-11-07** (Marketplace y Chrome Web
+  Store; la Web Store pasa por review, horas a días). **Comentario en el issue #14 publicado**
+  el mismo día con autorización explícita (el clasificador de permisos lo había bloqueado en
+  el primer intento). Queda: en esta PC sacar el Companion unpacked y reactivar el de la tienda
+  cuando pase la review. El paso 2 (selector de workspace en el popover) espera feedback de Nick.
+- **Botón "Sponsor" del repo: resuelto el 2026-11-07.** `hasSponsorshipsEnabled: true` en
+  GraphQL y los tres `fundingLinks` (Ko-fi, PayPal, landing) presentes. Con esto el pedido de
+  Nick del 2026-10-26 queda cerrado en sus tres partes: Cowork explicado, donaciones en vivo,
+  bug de ventanas arreglado y publicado.
 
 - **Primer pedido real de un usuario (2026-10-26):** Nick Rakis usa Exportal en VS Code a diario,
   pidió soporte para `claude.ai/cowork/...` y preguntó cómo donar. Respondido el 2026-11-01.
@@ -213,10 +213,9 @@ como el registro de qué se midió y por qué:
 
 ## 3. El orden para la próxima sesión (acordado el 2026-09-19, retocado el 2026-11-07)
 
-0. **Rematar el 0.12.0, todo a mano (§1):** VSIX al Marketplace, ZIP a la Chrome Web Store,
-   comentario en el issue #14, Companion de la tienda de vuelta en esta PC cuando pase la
-   review. En paralelo, el toggle de Sponsorships del repo. Después, esperar feedback de Nick
-   antes de tocar el paso 2.
+0. **0.12.0 cerrado el 2026-11-07** (merge, tag, Release, tiendas, issue #14, Sponsorships).
+   Queda solo el Companion de la tienda de vuelta en esta PC cuando pase la review, y esperar
+   feedback de Nick antes de tocar el paso 2 del Hito 36.
 Lo de arriba arranca antes que lo de abajo. Los tres primeros puntos de la lista original ya se
 hicieron el 2026-09-19 (merge del PR #12, PR #532 a `awesome-vscode`, y el issue form dejado
 precargado), así que la cola empieza acá:

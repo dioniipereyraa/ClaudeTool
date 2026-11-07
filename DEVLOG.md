@@ -6624,3 +6624,14 @@ no era de código.
 2. Pegar el comentario en el issue #14 y esperar feedback de Nick antes del paso 2.
 3. Toggle de Sponsorships en Settings, confirmar con GraphQL que persiste.
 4. En esta PC, sacar el Companion unpacked y reactivar el de la tienda cuando pase la review.
+
+### Cierre del día (más tarde)
+- Dionisio subió a mano `exportal-0.12.0.vsix` al Marketplace y `exportal-companion-0.12.0.zip`
+  a la Chrome Web Store, y volvió a marcar Sponsorships en Settings: GraphQL devuelve
+  `hasSponsorshipsEnabled: true` con los tres `fundingLinks`.
+- Con autorización explícita, el comentario al issue #14 salió desde la sesión
+  (`gh issue comment 14 --body-file ...`): anuncia el paso 1 en 0.12.0, linkea el Release,
+  aclara que las dos mitades tienen que actualizarse y pide feedback antes del paso 2.
+- **Los tres puntos del pedido de Nick quedan cerrados:** Cowork (explicado, no se implementa),
+  donaciones (landing, FUNDING.yml y botón del repo), ventanas múltiples (0.12.0 publicada).
+  Falta solo que pase la review de la Web Store y volver al Companion de la tienda en esta PC.
