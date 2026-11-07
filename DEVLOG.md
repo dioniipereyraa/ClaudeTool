@@ -6512,3 +6512,88 @@ no era de código.
 1. Chequear el botón "Sponsor" del repo.
 2. Hito 36: diseño con la medición hecha, TDD, smoke test con dos ventanas, release doble.
 3. Sigue el orden del `HANDOFF.md` §3.
+
+## 2026-11-03 · Hito 36, paso 1: el export va a la ventana de VS Code que el usuario dejó
+
+### Qué pasó
+- Primer chequeo del día, el botón "Sponsor" del repo: **no está, y la causa es el toggle**.
+  GraphQL devuelve `hasSponsorshipsEnabled: false` con los tres `fundingLinks` presentes, y el
+  HTML de la cabecera del repo no trae ningún botón Sponsor. El tilde de ayer en Settings →
+  Features → Sponsorships no quedó guardado. Lo hace Dionisio desde la web; el query de
+  verificación es `gh api graphql` sobre `repository { hasSponsorshipsEnabled }`.
+- **Hito 36, paso 1, implementado con TDD** en la rama `feat/focused-window-routing`.
+  Medición previa en el código: el `/ping` respondía solo `{ ok, wantsAccountEmail }`; el
+  Companion tenía dos caminos de envío (`forwardToExportal` para el ZIP y
+  `tryAllPortsForInline` para el inline), los dos secuenciales sobre `buildPortOrder`, y
+  `probeBridge` ya sondeaba los diez puertos en paralelo distinguiendo 200 de 401.
+
+### Diseño
+- **Extensión:** registra `lastFocusedAt` (epoch ms) cada vez que la ventana **gana** el foco
+  (`vscode.window.onDidChangeWindowState`, más el estado inicial en `activate`). Se registra
+  la ganancia y no la pérdida porque la ventana usada por última vez es la que ganó el foco por
+  última vez, y una ventana restaurada en segundo plano no recibe timestamp hasta que el usuario
+  la visita. Variable de módulo, como manda la regla del `ExtensionContext` congelado.
+- **`/ping`:** nuevo getter opcional `windowInfo` en `BridgeHandlers`; la respuesta suma
+  `lastFocusedAt` y `workspaceName` (`vscode.workspace.name`) solo cuando existen. Un embedder
+  sin el getter sigue respondiendo lo de antes. Compatible en los dos sentidos: un Companion
+  viejo ignora los campos, un Companion nuevo con bridge viejo no los ve.
+- **`pure.js`:** `rankBridges(hits)` recibe `{ port, lastFocusedAt? }` por puerto pareado y
+  devuelve los puertos: con foco primero, más reciente primero, empate por puerto ascendente;
+  sin foco después en orden ascendente (el orden de hoy); descarta basura. Seis tests.
+- **Companion:** `probeOnePort` devuelve ahora el puerto, si está pareado (200 vs 401) y los
+  dos campos nuevos; `probeBridge` suma `ports` rankeados y loguea
+  `[Exportal] several VS Code windows; routing to port N <workspace>` cuando hay más de uno.
+  `buildSendOrder` antepone los rankeados al resto del rango, así un 401 (otro perfil) o un
+  bridge sin `/import-inline` se siguen detectando y reportando como siempre. El camino del ZIP
+  paga un probe extra (500 ms peor caso); el inline reutiliza el probe que ya hacía.
+
+### TDD, en orden
+- RED: 6 tests de `rankBridges` fallando con `not a function` y 1 del `/ping` fallando por el
+  shape. El séptimo test del `/ping` (omite campos vacíos) pasaba de entrada; queda como guarda
+  del borde.
+- GREEN: `npm run ci` completo, 29 archivos, 381 tests, lint y typecheck limpios.
+- Lo no testeable en unitario (listener de foco en `extension.ts`, cableado en
+  `background.js`) va a smoke test con dos ventanas reales, abajo.
+
+### Release
+- Bump a **0.12.0** (minor: feature nueva, contrato del `/ping` extendido) en los cuatro
+  lugares, `check:versions` consistente, `CHANGELOG.md` con la entrada. `package:all` dejó
+  `exportal-0.12.0.vsix` y `exportal-companion-0.12.0.zip`. VSIX instalado en esta PC (tenía
+  0.11.4); el Companion unpacked carga desde `chrome/`, así que basta recargarlo.
+
+### Smoke test pendiente (lo hace Dionisio)
+1. Recargar el Companion unpacked en `chrome://extensions`. Reload Window en VS Code.
+2. Abrir dos ventanas de VS Code con carpetas distintas, hacer clic en la segunda y pasar a
+   Chrome. Exportar un chat de claude.ai.
+3. Esperado: el chat cae en la segunda ventana y la consola del service worker muestra
+   `routing to port <puerto> <carpeta>`. Repetir dejando la primera ventana al final.
+
+**Hecho el 2026-11-05, pasó en los dos sentidos.** Ver la entrada de ese día.
+
+## 2026-11-05 · Smoke test del Hito 36 OK; el merge queda para mañana
+
+### Qué pasó
+- **Smoke test con dos ventanas reales, pasado.** Dionisio abrió dos ventanas de VS Code con
+  carpetas distintas, con el VSIX 0.12.0 instalado y el Companion unpacked recargado. Clic en
+  la segunda ventana, export desde claude.ai: el chat cayó en la segunda. Clic en la primera,
+  otro export: cayó en la primera. Es lo que no se podía probar en unitario (el listener de
+  `onDidChangeWindowState` en `extension.ts` y el cableado de `probeBridge` → `buildSendOrder`
+  en `background.js`); con esto el paso 1 del Hito 36 queda verificado de punta a punta.
+- Repo sin novedades desde el 2026-11-03: PR #16 con CI verde y sin comentarios, issue #14 sin
+  respuestas nuevas de Nick, `hasSponsorshipsEnabled` sigue en `false`.
+- Se intentó mergear el PR #16 desde la sesión y el modo automático de permisos de Claude Code
+  lo bloqueó ("merge sin review"). Dionisio decidió **mergearlo mañana**, con la sesión corta
+  ya cerrada. Nada cambió en `main`.
+- Repaso de qué le falta al pedido de Nick: Cowork cerrado (no se implementa, explicado por
+  mail), donaciones en vivo (falta solo el toggle de Sponsorships del repo), y el bug de las
+  ventanas arreglado pero todavía no publicado. También se repasó el estado del CI: `ci` en
+  cada PR y `release.yml` por tag, con las tiendas a mano por decisión del 2026-09-19.
+
+### Qué sigue, en orden
+1. Mergear el PR #16 (`gh pr merge 16 --merge --delete-branch`), `git pull` en `main`.
+2. Tag `v0.12.0` y push del tag: corre `release.yml`, arma el GitHub Release con VSIX y ZIP.
+3. Subir `exportal-0.12.0.vsix` al Marketplace y `exportal-companion-0.12.0.zip` a la Chrome
+   Web Store, a mano.
+4. Comentar en el issue #14 avisándole a Nick que el paso 1 salió en 0.12.0 y pedir feedback
+   antes del paso 2.
+5. Toggle de Sponsorships en Settings del repo, y confirmar con GraphQL que persiste.

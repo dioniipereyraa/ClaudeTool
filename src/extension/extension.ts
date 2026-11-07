@@ -219,6 +219,20 @@ export function activate(context: vscode.ExtensionContext): void {
     else activeHandle = handle;
   });
 
+  // Issue #14: with several VS Code windows open, each one runs its
+  // own bridge. The Companion asks every bridge when its window last
+  // had focus and sends the export to the most recent one, which is
+  // the window the user left to switch to Chrome. We only record the
+  // moment focus is GAINED: the window used last is the one that
+  // gained focus last, and a window restored in the background never
+  // gets a timestamp until the user actually visits it.
+  if (vscode.window.state.focused) lastFocusedAt = Date.now();
+  context.subscriptions.push(
+    vscode.window.onDidChangeWindowState((state) => {
+      if (state.focused) lastFocusedAt = Date.now();
+    }),
+  );
+
   // First-run onboarding (Hito 30): open the two-step wizard webview.
   // Step 1 sends the user to the Chrome Web Store to install the
   // Companion; step 2 shows the pairing token + the one-click "Copy
@@ -249,6 +263,11 @@ function accountEmailOption(email: string | undefined): { accountEmail?: string 
   return trimmed.length > 0 ? { accountEmail: trimmed } : {};
 }
 
+// Epoch ms of the last time this window gained focus; undefined until
+// it happens once. Module-level on purpose (ExtensionContext is frozen,
+// see CLAUDE.md §C) and read lazily by the /ping handler.
+let lastFocusedAt: number | undefined;
+
 async function startBridgeServer(
   context: vscode.ExtensionContext,
 ): Promise<ServerHandle | undefined> {
@@ -259,6 +278,9 @@ async function startBridgeServer(
       onImportInline: (payload) => handleBridgeImportInline(payload),
       onPing: () => handlePairConfirmed(context, token),
       wantsAccountEmail: includeAccountEmail,
+      // `workspace.name` is the folder name, or the .code-workspace
+      // name for multi-root, or undefined with no folder open.
+      windowInfo: () => ({ lastFocusedAt, workspaceName: vscode.workspace.name }),
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);

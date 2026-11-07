@@ -269,7 +269,7 @@ async function forwardToExportal(zipPath) {
   }
 
   const conversationId = await getPendingConversationId();
-  const ports = await buildPortOrder();
+  const ports = await buildSendOrder(await probeBridge());
   let sawAuthError = false;
 
   for (const port of ports) {
@@ -335,7 +335,8 @@ async function forwardInlineConversation(conversation, assets, provider, account
   // bridge is offline after each transmission completes. With it,
   // the offline-detection latency drops from "depends on payload
   // size + N ports" to "10 instant ECONNREFUSED responses" (~50ms).
-  if (!(await isBridgeReachable())) {
+  const probe = await probeBridge();
+  if (!probe.reachable) {
     await setBadgeState('off');
     return { ok: false, error: 'bridge_offline' };
   }
@@ -352,12 +353,11 @@ async function forwardInlineConversation(conversation, assets, provider, account
   // long polling loop — moving the wait loop into the page context
   // sidesteps that. Background just answers a one-shot ping check
   // (`exportal:pingBridge`) when the content script asks.
-  const result = await tryAllPortsForInline(body, token);
+  const result = await tryAllPortsForInline(body, token, await buildSendOrder(probe));
   return finalizeForwardResult(result);
 }
 
-async function tryAllPortsForInline(body, token) {
-  const ports = await buildPortOrder();
+async function tryAllPortsForInline(body, token, ports) {
   let sawAuthError = false;
   // Captures the first response that unambiguously identifies our own
   // bridge rejecting the payload (422 shape mismatch, 413 too large).
@@ -505,17 +505,39 @@ async function isBridgeReachable() {
 // email?" (issue #2). Only a port that accepted OUR token (200) can
 // speak for the user's toggle; a 401 port belongs to another VS Code
 // profile. Several 200 ports share one profile, hence one setting.
+// `ports` is the list of paired bridges ranked by window focus
+// (issue #14): the window the user left most recently comes first, so
+// the export lands where they were working, not in the first window
+// they opened. Bridges from before 0.12.0 report no focus and keep
+// their ascending order behind the ones that do.
 async function probeBridge() {
   const token = await getToken();
-  if (token === undefined) return { reachable: false, wantsAccountEmail: false };
+  if (token === undefined) return { reachable: false, wantsAccountEmail: false, ports: [] };
   const ports = await buildPortOrder();
   const probes = ports.map((port) => probeOnePort(port, token));
   const results = await Promise.allSettled(probes);
   const hits = results.filter((r) => r.status === 'fulfilled' && r.value !== false).map((r) => r.value);
+  const paired = hits.filter((h) => h.paired);
+  const ranked = ExportalPure.rankBridges(paired);
+  if (ranked.length > 1) {
+    const first = paired.find((h) => h.port === ranked[0]);
+    console.info('[Exportal] several VS Code windows; routing to port', ranked[0], first?.workspaceName ?? '(no folder)');
+  }
   return {
     reachable: hits.length > 0,
-    wantsAccountEmail: hits.some((h) => h.wantsAccountEmail === true),
+    wantsAccountEmail: paired.some((h) => h.wantsAccountEmail === true),
+    ports: ranked,
   };
+}
+
+// Order in which an export is offered to the ports: the paired bridges
+// ranked by focus first, then the rest of the range in today's order so
+// a 401 (other profile) or an older bridge is still found and reported
+// the way it always was.
+async function buildSendOrder(probe) {
+  const ranked = Array.isArray(probe?.ports) ? probe.ports : [];
+  const rest = (await buildPortOrder()).filter((p) => !ranked.includes(p));
+  return [...ranked, ...rest];
 }
 
 async function probeOnePort(port, token) {
@@ -532,16 +554,23 @@ async function probeOnePort(port, token) {
     // counts as "the bridge is reachable". On 200 we also read the
     // body: the bridge advertises its account-email toggle there.
     if (res.status === 200) {
-      let wantsAccountEmail = false;
+      let body;
       try {
-        const body = await res.json();
-        wantsAccountEmail = body?.wantsAccountEmail === true;
+        body = await res.json();
       } catch {
-        // Older bridge (or a non-JSON body): no flag, no email.
+        // Older bridge (or a non-JSON body): no flags at all.
+        body = undefined;
       }
-      return { wantsAccountEmail };
+      return {
+        port,
+        paired: true,
+        wantsAccountEmail: body?.wantsAccountEmail === true,
+        // Absent on bridges before 0.12.0; rankBridges treats non-numbers as absent.
+        lastFocusedAt: body?.lastFocusedAt,
+        workspaceName: typeof body?.workspaceName === 'string' ? body.workspaceName : undefined,
+      };
     }
-    if (res.status === 401) return { wantsAccountEmail: false };
+    if (res.status === 401) return { port, paired: false, wantsAccountEmail: false };
     return false;
   } catch {
     // ECONNREFUSED, timeout, or any other transport error — treat

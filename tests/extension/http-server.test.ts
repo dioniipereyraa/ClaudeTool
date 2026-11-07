@@ -683,6 +683,43 @@ describe('startServer — account email (issue #2)', () => {
     expect((await rawPost(handle.port, '/ping', auth)).json).toEqual({ ok: true, wantsAccountEmail: true });
   });
 
+  it('/ping reports when the window was last focused and the workspace name (issue #14)', async () => {
+    const token = generateToken();
+    const info: { lastFocusedAt: number | undefined; workspaceName: string | undefined } = {
+      lastFocusedAt: 1_700_000_000_000,
+      workspaceName: 'exportal',
+    };
+    const handle = await startServer(token, {
+      onImport: noopHandler,
+      onImportInline: noopInlineHandler,
+      windowInfo: () => info,
+    });
+    h = { handle, onImport: vi.fn<ImportHandler>(noopHandler), onImportInline: vi.fn<ImportInlineHandler>(noopInlineHandler), baseUrl: '' };
+    const auth = { authorization: `Bearer ${token}` };
+    expect((await rawPost(handle.port, '/ping', auth)).json).toEqual({
+      ok: true,
+      lastFocusedAt: 1_700_000_000_000,
+      workspaceName: 'exportal',
+    });
+    // The window gains focus again: the next ping sees the new value, no re-pair.
+    info.lastFocusedAt = 1_700_000_005_000;
+    expect((await rawPost(handle.port, '/ping', auth)).json).toMatchObject({
+      lastFocusedAt: 1_700_000_005_000,
+    });
+  });
+
+  it('/ping leaves out window fields the host cannot fill (never focused, no folder open)', async () => {
+    const token = generateToken();
+    const handle = await startServer(token, {
+      onImport: noopHandler,
+      onImportInline: noopInlineHandler,
+      windowInfo: () => ({ lastFocusedAt: undefined, workspaceName: undefined }),
+    });
+    h = { handle, onImport: vi.fn<ImportHandler>(noopHandler), onImportInline: vi.fn<ImportInlineHandler>(noopInlineHandler), baseUrl: '' };
+    const r = await rawPost(handle.port, '/ping', { authorization: `Bearer ${token}` });
+    expect(r.json).toEqual({ ok: true });
+  });
+
   it('/ping omits the flag when the host does not expose the setting (older embedders)', async () => {
     h = await setup();
     const r = await rawPost(h.handle.port, '/ping', { authorization: `Bearer ${h.handle.token}` });

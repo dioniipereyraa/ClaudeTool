@@ -6,6 +6,20 @@ Companion (Chrome extension) are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 and versions follow [Semantic Versioning](https://semver.org/).
 
+## [0.12.0], 2026-11-03
+
+### Fixed
+
+- **The export goes to the VS Code window you were using, not the
+  first one you opened** (issue #14, reported by a user who works
+  with several windows). Each window runs its own bridge; the
+  extension now tells the Companion on `/ping` when its window last
+  had focus (and the workspace name), and the Companion sends the
+  chat to the most recently focused window, which is the one you
+  left to switch to Chrome. Windows running an older extension keep
+  the previous order. Both halves need updating for the fix to take
+  effect; no new permissions.
+
 ## [0.11.10], 2026-09-08
 
 ### Added
